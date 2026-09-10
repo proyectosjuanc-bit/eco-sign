@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 
 import { agregarPieza } from "../actions";
 import { ESTADO_FORM_INICIAL } from "@/lib/form-state";
@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CampoFoto } from "@/components/dashboard/campo-foto";
 import { areaM2, formatearNumero } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ModoPieza } from "@/types/database";
@@ -69,13 +70,7 @@ function CamposPieza({
   const [ancho, setAncho] = useState("");
   const [alto, setAlto] = useState("");
   const [cantidad, setCantidad] = useState("1");
-  const [preview, setPreview] = useState<string | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (preview) URL.revokeObjectURL(preview);
-    };
-  }, [preview]);
+  const [comprimiendo, setComprimiendo] = useState(false);
 
   const unidades = modo === "lamina" ? 1 : Math.max(Number(cantidad) || 0, 0);
   const area =
@@ -220,28 +215,7 @@ function CamposPieza({
             </p>
           </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="foto">Foto (opcional)</Label>
-            <Input
-              id="foto"
-              name="foto"
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={(evento) => {
-                const archivo = evento.target.files?.[0];
-                setPreview(archivo ? URL.createObjectURL(archivo) : null);
-              }}
-            />
-            {preview ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={preview}
-                alt="Vista previa de la pieza"
-                className="mt-1 h-32 w-full rounded-md object-cover"
-              />
-            ) : null}
-          </div>
+          <CampoFoto etiqueta="Foto de la pieza" onEstadoChange={setComprimiendo} />
 
           {error ? (
             <p
@@ -252,8 +226,12 @@ function CamposPieza({
             </p>
           ) : null}
 
-          <Button type="submit" disabled={enviando}>
-            {enviando ? "Añadiendo…" : "Añadir al trabajo"}
+          <Button type="submit" disabled={enviando || comprimiendo}>
+            {comprimiendo
+              ? "Preparando foto…"
+              : enviando
+                ? "Añadiendo…"
+                : "Añadir al trabajo"}
           </Button>
         </form>
       </CardContent>

@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CampoFoto } from "@/components/dashboard/campo-foto";
 import { areaM2, formatearNumero } from "@/lib/format";
 
 /** Registro de desperdicio, también con foto desde la cámara del móvil. */
@@ -51,6 +52,7 @@ function CamposDesperdicio({
   enviando: boolean;
   error: string | null;
 }) {
+  const [comprimiendo, setComprimiendo] = useState(false);
   const [ancho, setAncho] = useState("");
   const [alto, setAlto] = useState("");
 
@@ -154,16 +156,7 @@ function CamposDesperdicio({
             />
           </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="foto">Foto (opcional)</Label>
-            <Input
-              id="foto"
-              name="foto"
-              type="file"
-              accept="image/*"
-              capture="environment"
-            />
-          </div>
+          <CampoFoto etiqueta="Foto" onEstadoChange={setComprimiendo} />
 
           {error ? (
             <p
@@ -174,8 +167,12 @@ function CamposDesperdicio({
             </p>
           ) : null}
 
-          <Button type="submit" disabled={enviando}>
-            {enviando ? "Guardando…" : "Registrar"}
+          <Button type="submit" disabled={enviando || comprimiendo}>
+            {comprimiendo
+              ? "Preparando foto…"
+              : enviando
+                ? "Guardando…"
+                : "Registrar"}
           </Button>
         </form>
       </CardContent>

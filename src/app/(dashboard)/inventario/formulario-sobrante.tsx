@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 
 import { crearSobrante } from "./actions";
 import { ESTADO_FORM_INICIAL } from "@/lib/form-state";
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CampoFoto } from "@/components/dashboard/campo-foto";
 import { areaM2, formatearNumero } from "@/lib/format";
 
 export interface OpcionMaterial {
@@ -59,16 +60,9 @@ function CamposSobrante({
   enviando: boolean;
   error: string | null;
 }) {
-  const [preview, setPreview] = useState<string | null>(null);
+  const [comprimiendo, setComprimiendo] = useState(false);
   const [ancho, setAncho] = useState("");
   const [alto, setAlto] = useState("");
-
-  // Liberar el object URL al cambiarlo o desmontar, para no filtrar memoria.
-  useEffect(() => {
-    return () => {
-      if (preview) URL.revokeObjectURL(preview);
-    };
-  }, [preview]);
 
   const area = areaM2(
     Number(ancho.replace(",", ".")) || 0,
@@ -85,28 +79,7 @@ function CamposSobrante({
       </CardHeader>
       <CardContent>
         <form action={accion} className="flex flex-col gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="foto">Foto</Label>
-            <Input
-              id="foto"
-              name="foto"
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={(evento) => {
-                const archivo = evento.target.files?.[0];
-                setPreview(archivo ? URL.createObjectURL(archivo) : null);
-              }}
-            />
-            {preview ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={preview}
-                alt="Vista previa del sobrante"
-                className="mt-1 h-40 w-full rounded-md object-cover"
-              />
-            ) : null}
-          </div>
+          <CampoFoto etiqueta="Foto del sobrante" onEstadoChange={setComprimiendo} />
 
           <div className="grid gap-2">
             <Label htmlFor="material_id">Material</Label>
@@ -192,8 +165,12 @@ function CamposSobrante({
             </p>
           ) : null}
 
-          <Button type="submit" disabled={enviando}>
-            {enviando ? "Guardando…" : "Guardar sobrante"}
+          <Button type="submit" disabled={enviando || comprimiendo}>
+            {comprimiendo
+              ? "Preparando foto…"
+              : enviando
+                ? "Guardando…"
+                : "Guardar sobrante"}
           </Button>
         </form>
       </CardContent>
