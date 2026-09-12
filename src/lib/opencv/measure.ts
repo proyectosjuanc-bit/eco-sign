@@ -146,12 +146,16 @@ interface Candidato {
   /** Qué tan cerca está la proporción del candidato de la de un A4. */
   distanciaAlA4: number;
   colorMedio: [number, number, number];
+  /**
+   * Área real del contorno entre el área de su caja envolvente: 1.0 es un
+   * rectángulo perfecto, más bajo cuanto más curva o irregular es la forma.
+   * Una hoja A4 real siempre da un valor muy cercano a 1.
+   */
+  llenado: number;
 }
 
-/** true si el color es cercano a blanco: así se distingue el A4 de un sobrante claro. */
-function esBlancuzco([r, g, b]: [number, number, number]): boolean {
-  return r > 170 && g > 170 && b > 170 && Math.max(r, g, b) - Math.min(r, g, b) < 30;
-}
+/** Qué tan cerca debe estar el llenado de la referencia de 1 (rectángulo perfecto). */
+const LLENADO_MINIMO_REFERENCIA = 0.85;
 
 /**
  * Mide un sobrante a partir de una foto con una hoja A4 como referencia.
@@ -198,25 +202,31 @@ export async function medirSobrante(
       );
     }
 
-    // El candidato con la proporción más parecida al A4 y de color blancuzco
-    // es la referencia; si dos calzan por proporción, el blanco desempata.
-    const ordenados = [...candidatos].sort((a, b) => {
-      const puntajeA = a.distanciaAlA4 - (esBlancuzco(a.colorMedio) ? 0.05 : 0);
-      const puntajeB = b.distanciaAlA4 - (esBlancuzco(b.colorMedio) ? 0.05 : 0);
-      return puntajeA - puntajeB;
-    });
+    // La referencia es el candidato cuya caja envolvente tiene la proporción
+    // más parecida a un A4 Y que además "llena" bien esa caja: una hoja real
+    // es un rectángulo casi perfecto, mientras que un sobrante curvo puede
+    // coincidir por casualidad en proporción sin llenar su caja igual de
+    // bien. No se usa el color para desempatar: un sobrante del mismo
+    // material blanco o gris claro que el papel es el caso normal en un
+    // taller, así que el color no distingue de forma confiable cuál es cuál.
+    const candidatosAHoja = candidatos.filter((c) => c.llenado >= LLENADO_MINIMO_REFERENCIA);
+    const ordenadosPorHoja = [...candidatosAHoja].sort(
+      (a, b) => a.distanciaAlA4 - b.distanciaAlA4,
+    );
 
-    const refCandidato = ordenados[0];
-    if (refCandidato.distanciaAlA4 > TOLERANCIA_PROPORCION) {
+    const refCandidato = ordenadosPorHoja[0];
+    if (!refCandidato || refCandidato.distanciaAlA4 > TOLERANCIA_PROPORCION) {
       return resultadoVacio(
         canvas,
-        "No se encontró un rectángulo con la proporción de una hoja A4. Verifica que la hoja esté completa y plana en la foto.",
+        "No se encontró la hoja de referencia. Verifica que la hoja A4 esté completa, plana y bien extendida en la foto.",
       );
     }
 
     // El sobrante es el candidato más grande entre el resto, sea cual sea su
-    // proporción: puede ser cualquier forma rectangular.
-    const restantes = ordenados.slice(1).sort((a, b) => b.areaPx - a.areaPx);
+    // forma: puede ser cualquier contorno, rectangular o no.
+    const restantes = candidatos
+      .filter((c) => c !== refCandidato)
+      .sort((a, b) => b.areaPx - a.areaPx);
     const sobranteCandidato = restantes[0];
     if (!sobranteCandidato) {
       return resultadoVacio(
@@ -278,16 +288,19 @@ function extraerCandidatos(
 
   for (let i = 0; i < contornos.size(); i++) {
     const contorno = contornos.get(i);
-    const aproximado = new cv.Mat();
-    const perimetro = cv.arcLength(contorno, true);
-    cv.approxPolyDP(contorno, aproximado, 0.02 * perimetro, true);
-
     const area = cv.contourArea(contorno);
 
-    if (aproximado.rows === 4 && area > AREA_MINIMA_PX) {
+    // No se exige que el contorno sea un rectángulo de 4 vértices: un
+    // sobrante puede tener bordes curvos o irregulares. Se usa su caja
+    // envolvente (bounding box) como medida, igual que ya se hace a mano con
+    // las piezas irregulares en Trabajos. El filtro de "llenado" más abajo es
+    // lo que sigue distinguiendo una hoja A4 real (rectángulo casi perfecto)
+    // de una forma curva sin depender de contar vértices.
+    if (area > AREA_MINIMA_PX) {
       const rect = cv.boundingRect(contorno);
       const lados = [rect.width, rect.height].sort((a, b) => b - a);
       const proporcion = lados[0] / lados[1];
+      const areaCaja = rect.width * rect.height;
 
       const roi = origen.roi(rect);
       const colorMedio = promedioColorRoi(cv, roi);
@@ -299,11 +312,11 @@ function extraerCandidatos(
         proporcion,
         distanciaAlA4: Math.abs(proporcion - A4_PROPORCION) / A4_PROPORCION,
         colorMedio,
+        llenado: areaCaja > 0 ? area / areaCaja : 0,
       });
     }
 
     contorno.delete();
-    aproximado.delete();
   }
 
   return candidatos;

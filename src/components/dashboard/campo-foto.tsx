@@ -90,12 +90,15 @@ export function CampoFoto({
       />
 
       {preview ? (
-        <div className="relative overflow-hidden rounded-md border">
+        <div className="relative overflow-hidden rounded-md border bg-muted">
+          {/* object-contain, no object-cover: hay que ver la foto completa
+              para comprobar que la hoja de referencia y el sobrante entraron
+              enteros en el encuadre, algo que un recorte visual ocultaría. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={preview}
             alt="Vista previa de la foto"
-            className="h-44 w-full object-cover"
+            className="max-h-80 w-full object-contain"
           />
           <div className="flex items-center justify-between gap-2 border-t bg-card px-3 py-2">
             <span className="text-xs text-muted-foreground">
