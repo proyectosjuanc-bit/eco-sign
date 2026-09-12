@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CampoFoto } from "@/components/dashboard/campo-foto";
+import { PanelMedicion } from "@/components/inventario/panel-medicion";
 import { areaM2, formatearNumero } from "@/lib/format";
 
 export interface OpcionMaterial {
@@ -26,8 +27,9 @@ export interface OpcionMaterial {
  * Alta de sobrante desde el taller.
  *
  * El input de foto usa capture="environment" para que en el móvil abra la
- * cámara trasera directamente. Las medidas se escriben a mano en el MVP1;
- * el reconocimiento con OpenCV.js llegará después.
+ * cámara trasera directamente. Con una hoja A4 en la foto, OpenCV.js sugiere
+ * el ancho, el alto y el color; el usuario siempre puede corregirlos a mano,
+ * y sin foto los escribe todos él mismo como antes.
  */
 export function FormularioSobrante({ materiales }: { materiales: OpcionMaterial[] }) {
   const [estado, accion, enviando] = useActionState(
@@ -61,8 +63,10 @@ function CamposSobrante({
   error: string | null;
 }) {
   const [comprimiendo, setComprimiendo] = useState(false);
+  const [archivoFoto, setArchivoFoto] = useState<File | null>(null);
   const [ancho, setAncho] = useState("");
   const [alto, setAlto] = useState("");
+  const [color, setColor] = useState("");
 
   const area = areaM2(
     Number(ancho.replace(",", ".")) || 0,
@@ -74,12 +78,26 @@ function CamposSobrante({
       <CardHeader>
         <CardTitle>Registrar sobrante</CardTitle>
         <CardDescription>
-          Toma la foto del retal y anota sus medidas.
+          Toma la foto del retal. Con una hoja A4 junto a él, el sistema
+          sugiere las medidas y el color.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form action={accion} className="flex flex-col gap-4">
-          <CampoFoto etiqueta="Foto del sobrante" onEstadoChange={setComprimiendo} />
+          <CampoFoto
+            etiqueta="Foto del sobrante"
+            onEstadoChange={setComprimiendo}
+            onArchivo={setArchivoFoto}
+          />
+
+          <PanelMedicion
+            archivo={archivoFoto}
+            onMedido={(medida) => {
+              setAncho(String(medida.anchoCm));
+              setAlto(String(medida.altoCm));
+              if (medida.colorHex) setColor(medida.colorHex);
+            }}
+          />
 
           <div className="grid gap-2">
             <Label htmlFor="material_id">Material</Label>
@@ -141,7 +159,13 @@ function CamposSobrante({
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
               <Label htmlFor="color">Color</Label>
-              <Input id="color" name="color" placeholder="Blanco" />
+              <Input
+                id="color"
+                name="color"
+                placeholder="Blanco"
+                value={color}
+                onChange={(evento) => setColor(evento.target.value)}
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="grosor_mm">Grosor (mm)</Label>

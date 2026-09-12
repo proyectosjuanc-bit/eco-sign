@@ -18,12 +18,15 @@ export function CampoFoto({
   etiqueta = "Foto",
   obligatoria = false,
   onEstadoChange,
+  onArchivo,
 }: {
   name?: string;
   etiqueta?: string;
   obligatoria?: boolean;
   /** Avisa mientras se comprime, para bloquear el envío. */
   onEstadoChange?: (comprimiendo: boolean) => void;
+  /** Recibe el archivo ya comprimido, listo para procesos adicionales como la medición automática. */
+  onArchivo?: (archivo: File) => void;
 }) {
   const id = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -53,6 +56,7 @@ export function CampoFoto({
     if (!archivo) return;
     setPreview(URL.createObjectURL(archivo));
     setPeso(`${(archivo.size / 1024 / 1024).toFixed(1)} MB`);
+    onArchivo?.(archivo);
   };
 
   const quitar = () => {

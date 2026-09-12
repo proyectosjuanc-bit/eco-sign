@@ -42,3 +42,7 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# Copiado desde node_modules en cada install/build (ver scripts/copiar-opencv.mjs).
+# No se versiona: son 13 MB derivados de una dependencia, no código propio.
+/public/opencv.js

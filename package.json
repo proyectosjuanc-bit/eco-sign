@@ -3,17 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "npm run copiar-opencv && next dev",
+    "build": "npm run copiar-opencv && next build",
     "start": "next start",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "dev:movil": "next dev -H 0.0.0.0"
+    "dev:movil": "npm run copiar-opencv && next dev -H 0.0.0.0",
+    "copiar-opencv": "node scripts/copiar-opencv.mjs",
+    "postinstall": "node scripts/copiar-opencv.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
+    "@techstark/opencv-js": "^5.0.0-release.1",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.2.6",
     "lucide-react": "^1.44.0",

@@ -10,6 +10,15 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "8mb",
     },
   },
+  turbopack: {
+    resolveAlias: {
+      // @techstark/opencv-js trae una rama `require("fs")` para cuando corre
+      // en Node, que nunca se ejecuta en el navegador (queda detrás de un
+      // `if (ENVIRONMENT_IS_NODE)`). Turbopack igual la resuelve al analizar
+      // el bundle del cliente y el build falla sin este alias.
+      fs: { browser: "./src/lib/opencv/fs-stub.js" },
+    },
+  },
 };
 
 export default nextConfig;
