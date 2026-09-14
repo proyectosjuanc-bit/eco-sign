@@ -87,6 +87,15 @@ export default function GuiaPage() {
           <p className="text-muted-foreground">
             Al guardar, las láminas se descuentan solas de tus existencias.
           </p>
+          <p>
+            <strong>¿Cortaste una forma irregular, como un triángulo?</strong>{" "}
+            Anota el ancho y alto del rectángulo que la contiene, porque es el
+            material que de verdad ocupaste para sacarla. Si de esa forma
+            sobra una punta que todavía se puede usar, marca la casilla{" "}
+            <strong>&laquo;Esta pieza es un recorte aprovechable&raquo;</strong>{" "}
+            al añadirla: queda guardada en Inventario y no se cuenta como
+            desperdicio.
+          </p>
         </Paso>
 
         <Paso

@@ -64,6 +64,10 @@ export async function agregarPieza(
   const modo: ModoPieza = texto(formData, "modo") === "lamina" ? "lamina" : "pieza";
   // Una lámina se registra entera: su cantidad es siempre 1.
   const cantidad = modo === "lamina" ? 1 : (numero(formData, "cantidad") ?? 1);
+  // Un recorte aprovechable no es la pieza que necesitabas, es lo que sobró
+  // alrededor de ella: no tiene sentido guardarlo con cantidad > 1.
+  const guardarComoSobrante =
+    texto(formData, "guardar_sobrante") === "on" && modo === "pieza" && cantidad === 1;
 
   if (!jobId) return { error: "Falta el trabajo.", ok: false };
   // A diferencia del resto de tablas, job_items.material_id es NOT NULL: sin
@@ -98,6 +102,36 @@ export async function agregarPieza(
   if (error) return { error: error.message, ok: false };
 
   await descontarStock(supabase, materialId, areaM2(ancho, alto) * cantidad);
+
+  // Esta pieza ya cuenta como "aprovechada" en el cálculo de recortes de
+  // cerrarConRecortes (va en modo pieza), así que su área no se contará como
+  // desperdicio. Aquí además se guarda en Inventario para poder reutilizarla,
+  // en vez de que sólo quede anotada como consumo dentro del trabajo.
+  if (guardarComoSobrante) {
+    const { data: material } = await supabase
+      .from("materials")
+      .select("costo_unitario, unidad, color")
+      .eq("id", materialId)
+      .maybeSingle();
+
+    const costoEstimado = material
+      ? material.unidad === "m2"
+        ? areaM2(ancho, alto) * material.costo_unitario
+        : material.costo_unitario
+      : null;
+
+    await supabase.from("inventory_items").insert({
+      tenant_id: tenantId,
+      material_id: materialId,
+      ancho_cm: ancho,
+      alto_cm: alto,
+      color: material?.color ?? null,
+      foto_url: foto.ruta,
+      costo_estimado: costoEstimado,
+    });
+
+    revalidatePath("/inventario");
+  }
 
   revalidatePath(`/trabajos/${jobId}`);
   revalidatePath("/materiales");

@@ -209,11 +209,32 @@ function CamposPieza({
               placeholder="Letra corpórea, forma irregular…"
             />
             <p className="text-xs text-muted-foreground">
-              ¿Forma irregular? Anota el ancho y alto del rectángulo que la
-              contiene: es el material que de verdad se consume. El recorte
-              sobrante regístralo en Inventario o Desperdicio.
+              ¿Forma irregular, como un triángulo? Anota el ancho y alto del
+              rectángulo que la contiene: es el material que de verdad se
+              consume para sacarla.
             </p>
           </div>
+
+          {modo === "pieza" && Number(cantidad) === 1 ? (
+            <label className="flex items-start gap-2 rounded-md border p-3 text-sm">
+              <input
+                type="checkbox"
+                name="guardar_sobrante"
+                className="mt-0.5 size-4"
+              />
+              <span>
+                <span className="block font-medium">
+                  Esta pieza es un recorte aprovechable
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Por ejemplo la punta que sobra al cortar un triángulo. Sigue
+                  contando como material consumido en este trabajo, pero
+                  además queda guardada en Inventario, así que no se cuenta
+                  como desperdicio si pulsas &laquo;Registrar recortes&raquo;.
+                </span>
+              </span>
+            </label>
+          ) : null}
 
           <CampoFoto etiqueta="Foto de la pieza" onEstadoChange={setComprimiendo} />
 
