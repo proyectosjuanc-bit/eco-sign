@@ -151,6 +151,19 @@ export type Saving = {
   fecha: string;
 };
 
+/**
+ * Venta de un sobrante tal cual, sin cortarlo. Es dinero que ENTRA, distinto
+ * de `savings` (dinero que se dejó de gastar) — no se suma al ROI Circular.
+ */
+export type Sale = {
+  id: string;
+  tenant_id: string;
+  inventory_item_id: string;
+  monto: number;
+  descripcion: string | null;
+  fecha: string;
+};
+
 /** Columnas que la base rellena sola: nunca se envían en un insert. */
 type Generado = "id" | "created_at";
 
@@ -236,6 +249,12 @@ export interface Database {
         Row: Saving;
         Insert: Insertable<Saving, "fecha">;
         Update: Partial<Saving>;
+        Relationships: [];
+      };
+      sales: {
+        Row: Sale;
+        Insert: Insertable<Sale, "fecha">;
+        Update: Partial<Sale>;
         Relationships: [];
       };
     };

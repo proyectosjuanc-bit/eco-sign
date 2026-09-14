@@ -150,6 +150,60 @@ export async function marcarUsado(formData: FormData): Promise<void> {
   revalidatePath("/dashboard");
 }
 
+/**
+ * Vende un sobrante tal cual, sin cortarlo.
+ *
+ * Es un ingreso, no un ahorro: va a `sales`, no a `savings`, para no inflar
+ * el ROI Circular del dashboard con dinero que entró en vez de dinero que se
+ * dejó de gastar.
+ */
+export async function venderSobrante(
+  _previo: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const id = texto(formData, "id");
+  const monto = numero(formData, "monto");
+  const descripcion = texto(formData, "descripcion");
+
+  if (!id) return { error: "Falta el sobrante.", ok: false };
+  if (monto === null || monto <= 0) {
+    return { error: "Escribe cuánto cobraste por el sobrante.", ok: false };
+  }
+
+  const tenantId = await obtenerTenantId();
+  if (!tenantId) return { error: "Tu sesión expiró. Vuelve a entrar.", ok: false };
+
+  const supabase = await createClient();
+
+  // La condición usado=false va en el propio update, no en un select previo:
+  // así el chequeo es atómico y no hay ventana en la que dos personas puedan
+  // vender el mismo sobrante a la vez. Si la fila no cambia, data vuelve
+  // vacío (no es un error de Postgres, es un array de cero filas).
+  const { data: filasActualizadas, error: errorUsado } = await supabase
+    .from("inventory_items")
+    .update({ usado: true })
+    .eq("id", id)
+    .eq("usado", false)
+    .select("id");
+
+  if (errorUsado) return { error: errorUsado.message, ok: false };
+  if (!filasActualizadas?.length) {
+    return { error: "Este sobrante ya fue usado o vendido.", ok: false };
+  }
+
+  const { error } = await supabase.from("sales").insert({
+    tenant_id: tenantId,
+    inventory_item_id: id,
+    monto,
+    descripcion: descripcion || null,
+  });
+
+  if (error) return { error: error.message, ok: false };
+
+  revalidatePath("/inventario");
+  return { error: null, ok: true, marca: Date.now() };
+}
+
 export async function eliminarSobrante(formData: FormData): Promise<void> {
   const id = texto(formData, "id");
   if (!id) return;

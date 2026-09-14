@@ -154,6 +154,24 @@ compilador avise si algún insert nuevo lo olvida. `unique (tenant_id, codigo)`
 protege además a nivel de base — verificado que un código repetido para el
 mismo tenant es rechazado.
 
+## Venta de sobrantes (`sales`)
+
+La migración `20260915_sales_sobrantes.sql` crea `sales`: `inventory_item_id`
+(FK a `inventory_items`), `monto`, `descripcion`, `fecha` (default
+`current_date`, mismo patrón que `jobs.fecha`).
+
+Tabla separada de `savings` a propósito. `venderSobrante` inserta ahí, nunca
+en `savings`, y el ROI Circular del dashboard (`src/lib/roi.ts`) no la toca
+para nada — vender es dinero que entra, ahorrar es dinero que no se gastó, y
+son dos cosas distintas aunque las dos sean "buenas noticias" para el taller.
+
+Al vender, `inventory_items.usado` pasa a `true` con `.update(...).eq("id",
+id).eq("usado", false)`: la condición va en el propio `update`, no en un
+`select` separado, así que dos intentos de vender el mismo sobrante a la vez
+no pueden los dos tener éxito — verificado contra la base real: un `update`
+que no afecta ninguna fila devuelve un array vacío (código 200), no un error,
+así que hay que comprobar la longitud del resultado, no sólo si hubo `error`.
+
 ## Storage
 
 El bucket `sobrantes` es privado y sus políticas exigen que la primera carpeta

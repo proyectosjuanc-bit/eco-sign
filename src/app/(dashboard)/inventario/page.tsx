@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 
+import Link from "next/link";
+
 import { eliminarSobrante, marcarUsado } from "./actions";
+import { DialogoVender } from "./dialogo-vender";
 import { FormularioSobrante, type OpcionMaterial } from "./formulario-sobrante";
 import { EncabezadoPagina } from "@/components/dashboard/encabezado-pagina";
 import { Badge } from "@/components/ui/badge";
@@ -119,15 +122,47 @@ export default async function InventarioPage() {
                       </strong>
                     </p>
 
-                    <div className="flex gap-2">
-                      {!item.usado ? (
-                        <form action={marcarUsado} className="flex-1">
-                          <input type="hidden" name="id" value={item.id} />
-                          <Button type="submit" size="sm" className="w-full">
-                            Reutilizar
-                          </Button>
-                        </form>
-                      ) : null}
+                    {!item.usado ? (
+                      <div className="flex flex-col gap-2">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="w-full"
+                          render={
+                            <Link href={`/trabajos?origen_sobrante=${item.id}`} />
+                          }
+                        >
+                          Usar en un trabajo
+                        </Button>
+                        <div className="flex items-center justify-between">
+                          <div className="flex gap-1">
+                            <DialogoVender id={item.id} codigo={item.codigo} />
+                            <form action={marcarUsado}>
+                              <input type="hidden" name="id" value={item.id} />
+                              <Button
+                                type="submit"
+                                size="sm"
+                                variant="ghost"
+                                className="text-muted-foreground"
+                              >
+                                Reutilizar
+                              </Button>
+                            </form>
+                          </div>
+                          <form action={eliminarSobrante}>
+                            <input type="hidden" name="id" value={item.id} />
+                            <Button
+                              type="submit"
+                              size="sm"
+                              variant="ghost"
+                              className="text-muted-foreground hover:text-destructive"
+                            >
+                              Eliminar
+                            </Button>
+                          </form>
+                        </div>
+                      </div>
+                    ) : (
                       <form action={eliminarSobrante}>
                         <input type="hidden" name="id" value={item.id} />
                         <Button
@@ -139,7 +174,7 @@ export default async function InventarioPage() {
                           Eliminar
                         </Button>
                       </form>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               );
