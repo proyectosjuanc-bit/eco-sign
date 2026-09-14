@@ -6,22 +6,10 @@ import type { EstadoForm } from "@/lib/form-state";
 import { costoPorM2 } from "@/lib/lamina";
 import { createClient } from "@/lib/supabase/server";
 import { ERROR_SIN_TENANT, obtenerTenantId } from "@/lib/supabase/tenant";
+import { texto, numero } from "@/lib/form-data";
 import type { Unidad } from "@/types/database";
 
 const UNIDADES: readonly Unidad[] = ["m2", "unidad", "metro_lineal"];
-
-function texto(formData: FormData, campo: string): string {
-  const valor = formData.get(campo);
-  return typeof valor === "string" ? valor.trim() : "";
-}
-
-/** Convierte un campo numérico del formulario, aceptando coma decimal. */
-function numero(formData: FormData, campo: string): number | null {
-  const crudo = texto(formData, campo).replace(",", ".");
-  if (!crudo) return null;
-  const valor = Number(crudo);
-  return Number.isFinite(valor) ? valor : null;
-}
 
 export async function crearMaterial(
   _previo: EstadoForm,

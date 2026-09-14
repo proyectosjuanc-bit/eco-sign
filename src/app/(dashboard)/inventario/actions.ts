@@ -7,18 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { obtenerTenantId } from "@/lib/supabase/tenant";
 import { areaM2 } from "@/lib/format";
 import { subirFoto } from "@/lib/supabase/subir-foto";
-
-function texto(formData: FormData, campo: string): string {
-  const valor = formData.get(campo);
-  return typeof valor === "string" ? valor.trim() : "";
-}
-
-function numero(formData: FormData, campo: string): number | null {
-  const crudo = texto(formData, campo).replace(",", ".");
-  if (!crudo) return null;
-  const valor = Number(crudo);
-  return Number.isFinite(valor) ? valor : null;
-}
+import { texto, numero } from "@/lib/form-data";
+import { formatearCodigo } from "@/lib/codigos";
 
 
 export async function crearSobrante(
@@ -34,6 +24,13 @@ export async function crearSobrante(
 
   if (ancho === null || ancho <= 0 || alto === null || alto <= 0) {
     return { error: "Escribe un ancho y un alto mayores que cero.", ok: false };
+  }
+  // inventory_items.material_id es NOT NULL en la base, aunque el tipo lo
+  // admita nulo — descubierto probando un insert real. Sin esto, el
+  // formulario dejaba elegir "Sin material" y el insert fallaba con un error
+  // de Postgres poco claro para quien lo usa.
+  if (!materialId) {
+    return { error: "Elige el material del sobrante.", ok: false };
   }
 
   const supabase = await createClient();
@@ -54,6 +51,20 @@ export async function crearSobrante(
     return { error: "Tu usuario no tiene tenant asignado.", ok: false };
   }
 
+  // El código se pide antes de subir la foto: si el contador fallara, no
+  // queremos haber dejado ya una imagen huérfana en el bucket.
+  const { data: numeroCodigo, error: errorCodigo } = await supabase.rpc(
+    "siguiente_contador",
+    { p_tenant_id: perfil.tenant_id, p_tipo: "sobrante" },
+  );
+  if (errorCodigo || numeroCodigo === null) {
+    return {
+      error: "No se pudo generar el código del sobrante. Intenta de nuevo.",
+      ok: false,
+    };
+  }
+  const codigo = formatearCodigo("SOB", numeroCodigo);
+
   const foto = await subirFoto(
     supabase,
     formData.get("foto"),
@@ -64,25 +75,21 @@ export async function crearSobrante(
 
   // El costo del sobrante es su área por el precio del material, que es
   // exactamente el dinero que se recupera al reutilizarlo en vez de tirarlo.
-  let costoEstimado: number | null = null;
-  if (materialId) {
-    const { data: material } = await supabase
-      .from("materials")
-      .select("costo_unitario, unidad")
-      .eq("id", materialId)
-      .maybeSingle();
+  const { data: material } = await supabase
+    .from("materials")
+    .select("costo_unitario, unidad")
+    .eq("id", materialId)
+    .maybeSingle();
 
-    if (material) {
-      costoEstimado =
-        material.unidad === "m2"
-          ? areaM2(ancho, alto) * material.costo_unitario
-          : material.costo_unitario;
-    }
-  }
+  const costoEstimado = material
+    ? material.unidad === "m2"
+      ? areaM2(ancho, alto) * material.costo_unitario
+      : material.costo_unitario
+    : null;
 
   const { error } = await supabase.from("inventory_items").insert({
     tenant_id: perfil.tenant_id,
-    material_id: materialId || null,
+    material_id: materialId,
     ancho_cm: ancho,
     alto_cm: alto,
     grosor_mm: grosor,
@@ -90,6 +97,7 @@ export async function crearSobrante(
     foto_url: fotoUrl,
     costo_estimado: costoEstimado,
     job_id: jobId || null,
+    codigo,
   });
 
   if (error) return { error: error.message, ok: false };

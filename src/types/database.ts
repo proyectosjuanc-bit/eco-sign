@@ -63,7 +63,8 @@ export type Material = {
 export type InventoryItem = {
   id: string;
   tenant_id: string;
-  material_id: string | null;
+  /** Obligatorio: la columna es NOT NULL, igual que en job_items y waste_logs. */
+  material_id: string;
   ancho_cm: number;
   alto_cm: number;
   grosor_mm: number | null;
@@ -73,6 +74,13 @@ export type InventoryItem = {
   usado: boolean;
   /** Trabajo del que salió el sobrante, si se conoce. */
   job_id: string | null;
+  /**
+   * Código corto tipo "SOB-014", consecutivo por tenant. Nulo sólo en filas
+   * que ya existían antes de esta columna; toda fila nueva debe traerlo, así
+   * que se fuerza como obligatorio en el Insert (ver `Requerido` más abajo)
+   * aunque el tipo admita null.
+   */
+  codigo: string | null;
 };
 
 export type Job = {
@@ -170,6 +178,15 @@ type Insertable<T, Opcional extends keyof T = never> = Omit<
     Pick<T, Extract<Generado | DeTenant | Opcional | ClavesNulables<T>, keyof T>>
   >;
 
+/**
+ * Vuelve a exigir ciertas claves de un `Insert` que `ClavesNulables` habría
+ * marcado opcionales por admitir `null` en el `Row`. Se usa cuando una
+ * columna es técnicamente nullable en la base (por filas históricas) pero la
+ * aplicación siempre debe rellenarla en un insert nuevo — así el compilador
+ * avisa si se olvida, en vez de dejarlo pasar como si fuera opcional.
+ */
+type Requerido<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
+
 export interface Database {
   public: {
     Tables: {
@@ -193,7 +210,7 @@ export interface Database {
       };
       inventory_items: {
         Row: InventoryItem;
-        Insert: Insertable<InventoryItem, "usado">;
+        Insert: Requerido<Insertable<InventoryItem, "usado">, "codigo">;
         Update: Partial<InventoryItem>;
         Relationships: [];
       };
@@ -228,6 +245,10 @@ export interface Database {
       current_tenant_id: {
         Args: Record<string, never>;
         Returns: string;
+      };
+      siguiente_contador: {
+        Args: { p_tenant_id: string; p_tipo: string };
+        Returns: number;
       };
     };
   };

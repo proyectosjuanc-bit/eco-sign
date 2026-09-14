@@ -93,6 +93,11 @@ export default async function InventarioPage() {
                   <CardContent className="flex flex-col gap-3">
                     <div className="flex items-start justify-between gap-2">
                       <div>
+                        {item.codigo ? (
+                          <p className="font-mono text-xs font-semibold text-emerald-700">
+                            {item.codigo}
+                          </p>
+                        ) : null}
                         <p className="font-semibold">
                           {formatearNumero(item.ancho_cm)} ×{" "}
                           {formatearNumero(item.alto_cm)} cm

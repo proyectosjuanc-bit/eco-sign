@@ -119,18 +119,24 @@ function CamposSobrante({
               id="material_id"
               name="material_id"
               defaultValue=""
+              required
               className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
-              <option value="">Sin material</option>
+              <option value="" disabled>
+                Elige un material
+              </option>
               {materiales.map((material) => (
                 <option key={material.id} value={material.id}>
                   {material.etiqueta}
                 </option>
               ))}
             </select>
-            <p className="text-xs text-muted-foreground">
-              Elegir material permite valorar el sobrante en pesos.
-            </p>
+            {!materiales.length ? (
+              <p className="text-xs text-destructive">
+                No tienes materiales. Crea uno en Materiales antes de
+                registrar un sobrante.
+              </p>
+            ) : null}
           </div>
 
           {trabajos.length ? (

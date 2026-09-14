@@ -7,18 +7,7 @@ import { areaM2 } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { subirFoto } from "@/lib/supabase/subir-foto";
 import { ERROR_SIN_TENANT, obtenerTenantId } from "@/lib/supabase/tenant";
-
-function texto(formData: FormData, campo: string): string {
-  const valor = formData.get(campo);
-  return typeof valor === "string" ? valor.trim() : "";
-}
-
-function numero(formData: FormData, campo: string): number | null {
-  const crudo = texto(formData, campo).replace(",", ".");
-  if (!crudo) return null;
-  const valor = Number(crudo);
-  return Number.isFinite(valor) ? valor : null;
-}
+import { texto, numero } from "@/lib/form-data";
 
 /**
  * Registra material desperdiciado.

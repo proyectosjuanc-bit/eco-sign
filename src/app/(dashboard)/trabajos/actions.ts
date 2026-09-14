@@ -8,21 +8,11 @@ import { ERROR_SIN_TENANT, obtenerTenantId } from "@/lib/supabase/tenant";
 import { areaM2 } from "@/lib/format";
 import { laminasEquivalentes } from "@/lib/lamina";
 import { subirFoto } from "@/lib/supabase/subir-foto";
+import { texto, numero } from "@/lib/form-data";
+import { formatearCodigo } from "@/lib/codigos";
 import type { EstadoTrabajo, ModoPieza } from "@/types/database";
 
 const ESTADOS: readonly EstadoTrabajo[] = ["pendiente", "en_proceso", "terminado"];
-
-function texto(formData: FormData, campo: string): string {
-  const valor = formData.get(campo);
-  return typeof valor === "string" ? valor.trim() : "";
-}
-
-function numero(formData: FormData, campo: string): number | null {
-  const crudo = texto(formData, campo).replace(",", ".");
-  if (!crudo) return null;
-  const valor = Number(crudo);
-  return Number.isFinite(valor) ? valor : null;
-}
 
 export async function crearTrabajo(
   _previo: EstadoForm,
@@ -126,6 +116,14 @@ export async function agregarPieza(
         : material.costo_unitario
       : null;
 
+    const { data: numeroCodigo } = await supabase.rpc("siguiente_contador", {
+      p_tenant_id: tenantId,
+      p_tipo: "sobrante",
+    });
+    // Si el contador falla, se guarda igual: perder el código es preferible a
+    // perder el registro del sobrante en sí.
+    const codigo = numeroCodigo !== null ? formatearCodigo("SOB", numeroCodigo) : null;
+
     await supabase.from("inventory_items").insert({
       tenant_id: tenantId,
       material_id: materialId,
@@ -134,6 +132,7 @@ export async function agregarPieza(
       color: material?.color ?? null,
       foto_url: foto.ruta,
       costo_estimado: costoEstimado,
+      codigo,
     });
 
     revalidatePath("/inventario");

@@ -114,9 +114,45 @@ quedó guardado como aprovechable, sin recontar lo que ya está en `job_items`:
   franja libre que queda de una lámina tras acomodar varias piezas — y que
   por tanto no tiene ninguna fila en `job_items` que ya lo cuente.
 
-Si el sobrante no tiene `material_id`, o el material no tiene una fila de
-`consumido` en ese trabajo (no se registró ninguna lámina de ese material),
-`cerrarConRecortes` lo ignora: no hay de qué restarlo.
+Si el material no tiene una fila de `consumido` en ese trabajo (no se
+registró ninguna lámina de ese material), `cerrarConRecortes` lo ignora: no
+hay de qué restarlo.
+
+## `inventory_items.material_id` es NOT NULL
+
+Descubierto probando un insert real el 14 de septiembre: aunque el resto de
+columnas nulables de `inventory_items` sí admiten null, `material_id` no. Un
+insert sin material falla igual que en `job_items` y `waste_logs`:
+`null value in column "material_id" ... violates not-null constraint`.
+
+El formulario de alta de sobrante ofrecía una opción "Sin material" que hasta
+ahora nadie había probado — el `crearSobrante` mandaba `material_id: null` y
+el insert habría fallado con un error de Postgres poco claro. Se corrigió: el
+formulario exige elegir material, `crearSobrante` valida antes de tocar la
+base, y el tipo `InventoryItem.material_id` pasó de `string | null` a
+`string`.
+
+## Código corto de inventario (`inventory_items.codigo`)
+
+Las migraciones `20260915_tenant_contadores_inventario.sql` y
+`20260915_inventory_items_codigo.sql` añaden un código legible tipo
+`SOB-014`, consecutivo por tenant, a cada sobrante nuevo.
+
+`tenant_contadores` (`tenant_id`, `tipo`, `valor`) guarda un contador por
+empresa y tipo de código; la función `siguiente_contador(p_tenant_id, p_tipo)`
+lo incrementa de forma atómica con `insert ... on conflict ... do update ...
+returning`, así que dos sobrantes guardados al mismo tiempo nunca reciben el
+mismo número — verificado con diez llamadas simultáneas contra la base real,
+que devolvieron 1 a 10 sin repetirse. Si una fila se borra después, el
+contador **no baja**: la siguiente numeración puede saltar (por ejemplo de
+`SOB-002` a `SOB-005`), igual que un consecutivo de factura. No es un error.
+
+`inventory_items.codigo` es nullable en la base (las filas de antes de esta
+migración se quedan sin código), pero el tipo `Insert` en `database.ts` lo
+declara obligatorio a propósito, vía el helper `Requerido<T, K>`, para que el
+compilador avise si algún insert nuevo lo olvida. `unique (tenant_id, codigo)`
+protege además a nivel de base — verificado que un código repetido para el
+mismo tenant es rechazado.
 
 ## Storage
 
