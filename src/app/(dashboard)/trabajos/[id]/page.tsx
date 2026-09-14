@@ -39,17 +39,30 @@ export default async function TrabajoPage({
   // RLS ya limita al tenant, así que una fila ausente es un 404 legítimo.
   if (!trabajo) notFound();
 
-  const [{ data: piezas }, { data: materiales }, { data: ahorros }, { data: recortes }] =
-    await Promise.all([
-      supabase.from("job_items").select("*").eq("job_id", id),
-      supabase.from("materials").select("id, tipo, color, costo_unitario, unidad"),
-      supabase.from("savings").select("monto, tipo, descripcion").eq("job_id", id),
-      supabase
-        .from("waste_logs")
-        .select("id, costo")
-        .eq("job_id", id)
-        .eq("origen", "recortes"),
-    ]);
+  const [
+    { data: piezas },
+    { data: materiales },
+    { data: ahorros },
+    { data: recortes },
+    { data: sobrantesLigados },
+  ] = await Promise.all([
+    supabase.from("job_items").select("*").eq("job_id", id),
+    supabase.from("materials").select("id, tipo, color, costo_unitario, unidad"),
+    supabase.from("savings").select("monto, tipo, descripcion").eq("job_id", id),
+    supabase
+      .from("waste_logs")
+      .select("id, costo")
+      .eq("job_id", id)
+      .eq("origen", "recortes"),
+    // Sobrantes registrados directamente en Inventario y ligados a este
+    // trabajo (no vienen de la casilla al añadir una pieza, que ya cuenta
+    // en job_items): se muestran también como "aprovechado", para que este
+    // panel coincida con lo que de verdad calcula cerrarConRecortes.
+    supabase
+      .from("inventory_items")
+      .select("ancho_cm, alto_cm, material_id")
+      .eq("job_id", id),
+  ]);
 
   const porMaterial = new Map((materiales ?? []).map((m) => [m.id, m]));
   const firmas = await firmarFotos(supabase, (piezas ?? []).map((p) => p.foto_url));
@@ -62,18 +75,34 @@ export default async function TrabajoPage({
 
   // Separado por modo: lo que salió de bodega frente a lo que acabó en piezas.
   // La diferencia son los recortes que no se pueden aprovechar.
+  const materialesConLamina = new Set(
+    (piezas ?? [])
+      .filter((pieza) => pieza.modo === "lamina")
+      .map((pieza) => pieza.material_id),
+  );
+
   const consumidoM2 = (piezas ?? [])
     .filter((pieza) => pieza.modo === "lamina")
     .reduce(
       (total, p) => total + areaM2(p.ancho_cm, p.alto_cm) * p.cantidad,
       0,
     );
-  const aprovechadoM2 = (piezas ?? [])
+
+  const aprovechadoEnPiezasM2 = (piezas ?? [])
     .filter((pieza) => pieza.modo !== "lamina")
     .reduce(
       (total, p) => total + areaM2(p.ancho_cm, p.alto_cm) * p.cantidad,
       0,
     );
+
+  // Mismo criterio que cerrarConRecortes: sólo cuenta si el sobrante es del
+  // mismo material que alguna lámina registrada en este trabajo, porque sin
+  // eso no hay de qué restarlo.
+  const aprovechadoEnInventarioM2 = (sobrantesLigados ?? [])
+    .filter((s) => s.material_id && materialesConLamina.has(s.material_id))
+    .reduce((total, s) => total + areaM2(s.ancho_cm, s.alto_cm), 0);
+
+  const aprovechadoM2 = aprovechadoEnPiezasM2 + aprovechadoEnInventarioM2;
 
   const costoTeorico = (piezas ?? []).reduce((total, pieza) => {
     const material = porMaterial.get(pieza.material_id);

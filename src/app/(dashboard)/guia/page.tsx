@@ -123,6 +123,13 @@ export default function GuiaPage() {
             &laquo;Reutilizar&raquo;. Ese es el momento en que nace el ahorro:
             su valor pasa al panel principal.
           </p>
+          <p>
+            Si un sobrante grande viene de un trabajo puntual —por ejemplo la
+            franja que sobra al acomodar varias piezas en una lámina— elige ese
+            trabajo en &laquo;¿De qué trabajo salió?&raquo; al registrarlo. Deja
+            de contarse como desperdicio en ese trabajo, sin tener que anotarlo
+            como una pieza más.
+          </p>
         </Paso>
 
         <Paso

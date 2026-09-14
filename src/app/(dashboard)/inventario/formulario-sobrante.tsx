@@ -23,6 +23,11 @@ export interface OpcionMaterial {
   etiqueta: string;
 }
 
+export interface OpcionTrabajo {
+  id: string;
+  nombre: string;
+}
+
 /**
  * Alta de sobrante desde el taller.
  *
@@ -31,7 +36,13 @@ export interface OpcionMaterial {
  * el ancho, el alto y el color; el usuario siempre puede corregirlos a mano,
  * y sin foto los escribe todos él mismo como antes.
  */
-export function FormularioSobrante({ materiales }: { materiales: OpcionMaterial[] }) {
+export function FormularioSobrante({
+  materiales,
+  trabajos,
+}: {
+  materiales: OpcionMaterial[];
+  trabajos: OpcionTrabajo[];
+}) {
   const [estado, accion, enviando] = useActionState(
     crearSobrante,
     ESTADO_FORM_INICIAL,
@@ -44,6 +55,7 @@ export function FormularioSobrante({ materiales }: { materiales: OpcionMaterial[
     <CamposSobrante
       key={estado.ok ? `guardado-${estado.marca}` : "editando"}
       materiales={materiales}
+      trabajos={trabajos}
       accion={accion}
       enviando={enviando}
       error={estado.error}
@@ -53,11 +65,13 @@ export function FormularioSobrante({ materiales }: { materiales: OpcionMaterial[
 
 function CamposSobrante({
   materiales,
+  trabajos,
   accion,
   enviando,
   error,
 }: {
   materiales: OpcionMaterial[];
+  trabajos: OpcionTrabajo[];
   accion: (formData: FormData) => void;
   enviando: boolean;
   error: string | null;
@@ -118,6 +132,29 @@ function CamposSobrante({
               Elegir material permite valorar el sobrante en pesos.
             </p>
           </div>
+
+          {trabajos.length ? (
+            <div className="grid gap-2">
+              <Label htmlFor="job_id">¿De qué trabajo salió? (opcional)</Label>
+              <select
+                id="job_id"
+                name="job_id"
+                defaultValue=""
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              >
+                <option value="">No viene de un trabajo concreto</option>
+                {trabajos.map((trabajo) => (
+                  <option key={trabajo.id} value={trabajo.id}>
+                    {trabajo.nombre}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Si lo eliges, este sobrante deja de contarse como desperdicio
+                al pulsar «Registrar recortes» en ese trabajo.
+              </p>
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">

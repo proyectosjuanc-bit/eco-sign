@@ -30,6 +30,7 @@ export async function crearSobrante(
   const materialId = texto(formData, "material_id");
   const color = texto(formData, "color");
   const grosor = numero(formData, "grosor_mm");
+  const jobId = texto(formData, "job_id");
 
   if (ancho === null || ancho <= 0 || alto === null || alto <= 0) {
     return { error: "Escribe un ancho y un alto mayores que cero.", ok: false };
@@ -88,11 +89,13 @@ export async function crearSobrante(
     color: color || null,
     foto_url: fotoUrl,
     costo_estimado: costoEstimado,
+    job_id: jobId || null,
   });
 
   if (error) return { error: error.message, ok: false };
 
   revalidatePath("/inventario");
+  if (jobId) revalidatePath(`/trabajos/${jobId}`);
   return { error: null, ok: true, marca: Date.now() };
 }
 

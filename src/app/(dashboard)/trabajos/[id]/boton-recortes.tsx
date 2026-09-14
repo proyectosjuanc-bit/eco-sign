@@ -68,7 +68,9 @@ export function BotonRecortes({
                 <strong>{formatearNumero(consumidoM2)} m²</strong>
               </div>
               <div className="mt-1 flex justify-between">
-                <span className="text-muted-foreground">Aprovechado en piezas</span>
+                <span className="text-muted-foreground">
+                  Aprovechado en piezas e Inventario
+                </span>
                 <strong>− {formatearNumero(aprovechadoM2)} m²</strong>
               </div>
               <div className="mt-2 flex justify-between border-t pt-2">

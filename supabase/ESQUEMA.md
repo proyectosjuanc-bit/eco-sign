@@ -96,6 +96,28 @@ material consumido (piezas en modo `lamina`) lo que acabó en piezas
 aprovechadas. Recalcular borra sólo los de ese origen y respeta lo que se
 registró a mano.
 
+## Sobrantes ligados a un trabajo (`inventory_items.job_id`)
+
+La migración `20260914_inventory_items_job.sql` añade `job_id` (opcional) a
+`inventory_items`: el trabajo del que salió el sobrante, si se conoce.
+
+`cerrarConRecortes` la usa para restar del cálculo de recortes lo que ya
+quedó guardado como aprovechable, sin recontar lo que ya está en `job_items`:
+
+- Un sobrante creado desde la casilla **«Esta pieza es un recorte
+  aprovechable»** al añadir una pieza (en `agregarPieza`) se guarda **sin**
+  `job_id` a propósito: ese material ya está contado en `job_items` en modo
+  `pieza`, y ponerle `job_id` lo sumaría dos veces como aprovechado.
+- Un sobrante registrado directamente en **Inventario**, con el selector
+  opcional «¿De qué trabajo salió?», sí lleva `job_id`. Es el caso de un
+  sobrante grande que no pasó por ningún corte individual — por ejemplo la
+  franja libre que queda de una lámina tras acomodar varias piezas — y que
+  por tanto no tiene ninguna fila en `job_items` que ya lo cuente.
+
+Si el sobrante no tiene `material_id`, o el material no tiene una fila de
+`consumido` en ese trabajo (no se registró ninguna lámina de ese material),
+`cerrarConRecortes` lo ignora: no hay de qué restarlo.
+
 ## Storage
 
 El bucket `sobrantes` es privado y sus políticas exigen que la primera carpeta

@@ -71,6 +71,8 @@ export type InventoryItem = {
   foto_url: string | null;
   costo_estimado: number | null;
   usado: boolean;
+  /** Trabajo del que salió el sobrante, si se conoce. */
+  job_id: string | null;
 };
 
 export type Job = {

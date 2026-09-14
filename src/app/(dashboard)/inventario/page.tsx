@@ -15,14 +15,22 @@ export const metadata: Metadata = { title: "Inventario · ECO-SIGN" };
 export default async function InventarioPage() {
   const supabase = await createClient();
 
-  const [{ data: sobrantes }, { data: materiales }] = await Promise.all([
-    supabase
-      .from("inventory_items")
-      .select("*")
-      .order("usado")
-      .order("costo_estimado", { ascending: false }),
-    supabase.from("materials").select("id, tipo, color").order("tipo"),
-  ]);
+  const [{ data: sobrantes }, { data: materiales }, { data: trabajos }] =
+    await Promise.all([
+      supabase
+        .from("inventory_items")
+        .select("*")
+        .order("usado")
+        .order("costo_estimado", { ascending: false }),
+      supabase.from("materials").select("id, tipo, color").order("tipo"),
+      // Los más recientes: si un taller acumula cientos de trabajos, no hace
+      // falta que todos quepan en el selector.
+      supabase
+        .from("jobs")
+        .select("id, nombre")
+        .order("fecha", { ascending: false })
+        .limit(30),
+    ]);
 
   const firmas = await firmarFotos(
     supabase,
@@ -134,7 +142,7 @@ export default async function InventarioPage() {
           )}
         </div>
 
-        <FormularioSobrante materiales={opciones} />
+        <FormularioSobrante materiales={opciones} trabajos={trabajos ?? []} />
       </div>
     </>
   );

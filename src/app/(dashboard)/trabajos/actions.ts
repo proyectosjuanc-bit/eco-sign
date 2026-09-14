@@ -107,6 +107,12 @@ export async function agregarPieza(
   // cerrarConRecortes (va en modo pieza), así que su área no se contará como
   // desperdicio. Aquí además se guarda en Inventario para poder reutilizarla,
   // en vez de que sólo quede anotada como consumo dentro del trabajo.
+  //
+  // A propósito NO se guarda con job_id: cerrarConRecortes suma aparte los
+  // sobrantes de Inventario ligados a este trabajo (los que no pasaron por
+  // job_items, como una franja libre registrada directamente en Inventario),
+  // y este material ya está contado aquí en job_items. Ponerle job_id lo
+  // contaría dos veces como aprovechado.
   if (guardarComoSobrante) {
     const { data: material } = await supabase
       .from("materials")
@@ -254,10 +260,21 @@ export async function cerrarConRecortes(
 
   const supabase = await createClient();
 
-  const { data: piezas } = await supabase
-    .from("job_items")
-    .select("material_id, ancho_cm, alto_cm, cantidad, modo")
-    .eq("job_id", jobId);
+  const [{ data: piezas }, { data: sobrantesGuardados }] = await Promise.all([
+    supabase
+      .from("job_items")
+      .select("material_id, ancho_cm, alto_cm, cantidad, modo")
+      .eq("job_id", jobId),
+    // Sobrantes que se registraron directamente en Inventario y se ligaron a
+    // este trabajo (por ejemplo una franja libre, sin pasar por job_items).
+    // Los que vienen de la casilla "recorte aprovechable" al añadir una
+    // pieza NO tienen job_id (ver agregarPieza) porque ese material ya está
+    // contado más abajo en job_items; sumarlos aquí también los duplicaría.
+    supabase
+      .from("inventory_items")
+      .select("material_id, ancho_cm, alto_cm")
+      .eq("job_id", jobId),
+  ]);
 
   if (!piezas?.length) {
     return { error: "Este trabajo no tiene piezas registradas.", ok: false };
@@ -279,6 +296,16 @@ export async function cerrarConRecortes(
       acumulado.aprovechado += area;
     }
     porMaterial.set(pieza.material_id, acumulado);
+  }
+
+  for (const sobrante of sobrantesGuardados ?? []) {
+    if (!sobrante.material_id) continue;
+    const area = areaM2(sobrante.ancho_cm, sobrante.alto_cm);
+    const acumulado = porMaterial.get(sobrante.material_id);
+    // Sin una fila de "consumido" para este material no hay de qué restar:
+    // este sobrante no viene de una lámina registrada en este trabajo.
+    if (!acumulado) continue;
+    acumulado.aprovechado += area;
   }
 
   const registros: {
