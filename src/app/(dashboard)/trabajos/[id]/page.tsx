@@ -4,7 +4,11 @@ import { notFound } from "next/navigation";
 import { cambiarEstado, eliminarPieza } from "../actions";
 import { FormularioConsumo } from "./formulario-consumo";
 import { BotonRecortes } from "./boton-recortes";
-import { FormularioPieza } from "./formulario-pieza";
+import {
+  FormularioPieza,
+  type OpcionLamina,
+  type OpcionSobrante,
+} from "./formulario-pieza";
 import type { OpcionMaterial } from "../../inventario/formulario-sobrante";
 import { EncabezadoPagina } from "@/components/dashboard/encabezado-pagina";
 import { Button } from "@/components/ui/button";
@@ -21,13 +25,16 @@ import { areaM2, formatearFecha, formatearMoneda, formatearNumero } from "@/lib/
 import { createClient } from "@/lib/supabase/server";
 import { firmarFotos } from "@/lib/supabase/subir-foto";
 
-/** En Next 16 los params de una ruta dinámica llegan como promesa. */
+/** En Next 16 los params y searchParams de una ruta llegan como promesa. */
 export default async function TrabajoPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ origen_sobrante?: string }>;
 }) {
   const { id } = await params;
+  const { origen_sobrante: origenSobranteId } = await searchParams;
   const supabase = await createClient();
 
   const { data: trabajo } = await supabase
@@ -45,9 +52,16 @@ export default async function TrabajoPage({
     { data: ahorros },
     { data: recortes },
     { data: sobrantesLigados },
+    { data: sobrantesDisponibles },
   ] = await Promise.all([
     supabase.from("job_items").select("*").eq("job_id", id),
-    supabase.from("materials").select("id, tipo, color, costo_unitario, unidad"),
+    // ancho_cm/alto_cm/costo_lamina/stock_laminas hacen falta para el
+    // selector de "lámina nueva de stock" al añadir una pieza.
+    supabase
+      .from("materials")
+      .select(
+        "id, tipo, color, costo_unitario, unidad, ancho_cm, alto_cm, costo_lamina, stock_laminas",
+      ),
     supabase.from("savings").select("monto, tipo, descripcion").eq("job_id", id),
     supabase
       .from("waste_logs")
@@ -62,6 +76,12 @@ export default async function TrabajoPage({
       .from("inventory_items")
       .select("ancho_cm, alto_cm, material_id")
       .eq("job_id", id),
+    // Sobrantes que se pueden elegir como origen de un corte nuevo.
+    supabase
+      .from("inventory_items")
+      .select("id, codigo, ancho_cm, alto_cm, material_id, color")
+      .eq("usado", false)
+      .order("codigo"),
   ]);
 
   const porMaterial = new Map((materiales ?? []).map((m) => [m.id, m]));
@@ -126,6 +146,43 @@ export default async function TrabajoPage({
       ? `${material.tipo} · ${material.color}`
       : material.tipo,
   }));
+
+  // Láminas nuevas de stock: sólo materiales que de verdad vienen en láminas
+  // con existencias, para no ofrecer un origen que luego falla al descontar.
+  const laminasDisponibles: OpcionLamina[] = (materiales ?? [])
+    .filter(
+      (material) =>
+        (material.stock_laminas ?? 0) > 0 &&
+        material.ancho_cm != null &&
+        material.alto_cm != null,
+    )
+    .map((material) => ({
+      id: material.id,
+      etiqueta: material.color
+        ? `${material.tipo} · ${material.color}`
+        : material.tipo,
+      ancho_cm: material.ancho_cm as number,
+      alto_cm: material.alto_cm as number,
+      stock_laminas: material.stock_laminas ?? 0,
+    }));
+
+  const sobrantesOpciones: OpcionSobrante[] = (sobrantesDisponibles ?? []).map(
+    (sobrante) => {
+      const material = porMaterial.get(sobrante.material_id);
+      return {
+        id: sobrante.id,
+        codigo: sobrante.codigo,
+        material_id: sobrante.material_id,
+        ancho_cm: sobrante.ancho_cm,
+        alto_cm: sobrante.alto_cm,
+        etiqueta: material
+          ? material.color
+            ? `${material.tipo} · ${material.color}`
+            : material.tipo
+          : (sobrante.color ?? "Material"),
+      };
+    },
+  );
 
   return (
     <>
@@ -256,7 +313,13 @@ export default async function TrabajoPage({
         </Card>
 
         <div className="flex flex-col gap-6">
-          <FormularioPieza jobId={trabajo.id} materiales={opciones} />
+          <FormularioPieza
+            jobId={trabajo.id}
+            materiales={opciones}
+            laminas={laminasDisponibles}
+            sobrantes={sobrantesOpciones}
+            origenSobranteId={origenSobranteId ?? null}
+          />
           <BotonRecortes
             jobId={trabajo.id}
             consumidoM2={Number(consumidoM2.toFixed(2))}

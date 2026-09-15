@@ -172,6 +172,40 @@ no pueden los dos tener éxito — verificado contra la base real: un `update`
 que no afecta ninguna fila devuelve un array vacío (código 200), no un error,
 así que hay que comprobar la longitud del resultado, no sólo si hubo `error`.
 
+## Elegir origen antes de cortar, en Trabajos
+
+`agregarPieza` (en `trabajos/actions.ts`) admite un origen opcional del
+material: a mano (como siempre), una lámina nueva de `materials` con
+`stock_laminas`, o un sobrante concreto de `inventory_items`.
+
+Cuando el origen es un sobrante (`origen_inventory_item_id` no vacío):
+
+- Se cierra ese sobrante con el mismo patrón de update atómico condicional
+  que `venderSobrante` (`.update({ usado: true }).eq("id", id).eq("usado",
+  false).select("id")`), **antes** de insertar la pieza. Si la fila afectada
+  es cero, la Server Action devuelve error: alguien más ya lo usó o vendió.
+- `descontarStock` **no se llama**: un sobrante nunca estuvo en
+  `stock_laminas`, así que no hay nada que restarle ahí. Descontarlo también
+  en ese caso sería un doble descuento del mismo material.
+- El código del sobrante origen no se borra, sólo pasa a `usado=true`: sigue
+  visible en el historial de Inventario.
+
+`registrarSobranteDeCorte` registra lo que sobró de ese corte: pide un código
+nuevo (`siguiente_contador`) e inserta en `inventory_items` **con `job_id`** —
+a diferencia de la casilla "recorte aprovechable" que ya existe en
+`agregarPieza`, que a propósito **no** lleva `job_id` porque ese material ya
+está contado en `job_items`. Son dos caminos deliberadamente distintos que
+`cerrarConRecortes` ya sabe combinar sin duplicar (ver sección de arriba
+"Sobrantes ligados a un trabajo").
+
+Verificado contra la base real (fixtures creados y borrados con el cliente
+admin, sin pasar por la UI): cerrar el sobrante origen dos veces seguidas
+sólo tiene éxito la primera (la segunda devuelve 0 filas afectadas, sin
+error), `stock_laminas` no se mueve cuando el origen es un sobrante, el
+código del sobrante origen queda intacto tras usarse, y el sobrante
+resultante del corte recibe un código propio distinto con el `job_id`
+correcto.
+
 ## Storage
 
 El bucket `sobrantes` es privado y sus políticas exigen que la primera carpeta

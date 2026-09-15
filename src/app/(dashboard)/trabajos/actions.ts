@@ -58,6 +58,9 @@ export async function agregarPieza(
   // alrededor de ella: no tiene sentido guardarlo con cantidad > 1.
   const guardarComoSobrante =
     texto(formData, "guardar_sobrante") === "on" && modo === "pieza" && cantidad === 1;
+  // Si el material salió de un sobrante concreto de Inventario (en vez de
+  // stock nuevo de Materiales), ese sobrante se cierra al guardar la pieza.
+  const origenInventoryItemId = texto(formData, "origen_inventory_item_id");
 
   if (!jobId) return { error: "Falta el trabajo.", ok: false };
   // A diferencia del resto de tablas, job_items.material_id es NOT NULL: sin
@@ -75,6 +78,25 @@ export async function agregarPieza(
 
   const supabase = await createClient();
 
+  // Se cierra el sobrante origen ANTES de insertar la pieza: si dos personas
+  // usan el mismo sobrante a la vez, sólo una debe poder continuar. La
+  // condición usado=false va en el propio update (no en un select previo)
+  // para que el chequeo sea atómico — comprobado contra la base real: un
+  // update que no afecta filas devuelve un array vacío, no un error.
+  if (origenInventoryItemId) {
+    const { data: filasActualizadas, error: errorOrigen } = await supabase
+      .from("inventory_items")
+      .update({ usado: true })
+      .eq("id", origenInventoryItemId)
+      .eq("usado", false)
+      .select("id");
+
+    if (errorOrigen) return { error: errorOrigen.message, ok: false };
+    if (!filasActualizadas?.length) {
+      return { error: "Este sobrante ya fue usado o vendido.", ok: false };
+    }
+  }
+
   const foto = await subirFoto(supabase, formData.get("foto"), tenantId, "pieza-");
   if (foto.error) return { error: foto.error, ok: false };
 
@@ -91,7 +113,15 @@ export async function agregarPieza(
 
   if (error) return { error: error.message, ok: false };
 
-  await descontarStock(supabase, materialId, areaM2(ancho, alto) * cantidad);
+  // El stock de materials sólo se descuenta cuando el origen es una lámina
+  // NUEVA de stock: un sobrante de inventory_items nunca estuvo ahí, así que
+  // no hay nada que restarle. Descontarlo también en ese caso sería un doble
+  // descuento del mismo material.
+  if (!origenInventoryItemId) {
+    await descontarStock(supabase, materialId, areaM2(ancho, alto) * cantidad);
+  }
+
+  if (origenInventoryItemId) revalidatePath("/inventario");
 
   // Esta pieza ya cuenta como "aprovechada" en el cálculo de recortes de
   // cerrarConRecortes (va en modo pieza), así que su área no se contará como
@@ -140,6 +170,86 @@ export async function agregarPieza(
 
   revalidatePath(`/trabajos/${jobId}`);
   revalidatePath("/materiales");
+  return { error: null, ok: true, marca: Date.now() };
+}
+
+/**
+ * Registra un sobrante que quedó tras cortar del origen elegido en este
+ * trabajo (una lámina de stock o un sobrante existente).
+ *
+ * A diferencia de la casilla "recorte aprovechable" de `agregarPieza` —que
+ * NO lleva `job_id` porque ese material ya está contado en `job_items`—,
+ * este sobrante SÍ lleva `job_id`: nunca pasa por `job_items`, así que la
+ * única forma de que `cerrarConRecortes` sepa que ya no se perdió es
+ * encontrarlo ligado al trabajo en `inventory_items`. Son dos caminos
+ * deliberadamente distintos; no deben fusionarse sin revisar
+ * `cerrarConRecortes`, que suma "aprovechado" de ambas fuentes sin duplicar.
+ */
+export async function registrarSobranteDeCorte(
+  _previo: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const jobId = texto(formData, "job_id");
+  const materialId = texto(formData, "material_id");
+  const ancho = numero(formData, "ancho_cm");
+  const alto = numero(formData, "alto_cm");
+
+  if (!jobId) return { error: "Falta el trabajo.", ok: false };
+  if (!materialId) {
+    return { error: "Elige el material del sobrante.", ok: false };
+  }
+  if (ancho === null || ancho <= 0 || alto === null || alto <= 0) {
+    return { error: "Escribe un ancho y un alto mayores que cero.", ok: false };
+  }
+
+  const tenantId = await obtenerTenantId();
+  if (!tenantId) return { error: ERROR_SIN_TENANT, ok: false };
+
+  const supabase = await createClient();
+
+  const foto = await subirFoto(supabase, formData.get("foto"), tenantId, "corte-");
+  if (foto.error) return { error: foto.error, ok: false };
+
+  const { data: material } = await supabase
+    .from("materials")
+    .select("costo_unitario, unidad, color")
+    .eq("id", materialId)
+    .maybeSingle();
+
+  const costoEstimado = material
+    ? material.unidad === "m2"
+      ? areaM2(ancho, alto) * material.costo_unitario
+      : material.costo_unitario
+    : null;
+
+  const { data: numeroCodigo, error: errorCodigo } = await supabase.rpc(
+    "siguiente_contador",
+    { p_tenant_id: tenantId, p_tipo: "sobrante" },
+  );
+  if (errorCodigo || numeroCodigo === null) {
+    return {
+      error: "No se pudo generar el código del sobrante. Intenta de nuevo.",
+      ok: false,
+    };
+  }
+  const codigo = formatearCodigo("SOB", numeroCodigo);
+
+  const { error } = await supabase.from("inventory_items").insert({
+    tenant_id: tenantId,
+    material_id: materialId,
+    ancho_cm: ancho,
+    alto_cm: alto,
+    color: material?.color ?? null,
+    foto_url: foto.ruta,
+    costo_estimado: costoEstimado,
+    job_id: jobId,
+    codigo,
+  });
+
+  if (error) return { error: error.message, ok: false };
+
+  revalidatePath(`/trabajos/${jobId}`);
+  revalidatePath("/inventario");
   return { error: null, ok: true, marca: Date.now() };
 }
 

@@ -33,7 +33,12 @@ const VARIANTE_ESTADO: Record<EstadoTrabajo, "default" | "secondary" | "outline"
   terminado: "secondary",
 };
 
-export default async function TrabajosPage() {
+export default async function TrabajosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ origen_sobrante?: string }>;
+}) {
+  const { origen_sobrante: origenSobranteId } = await searchParams;
   const supabase = await createClient();
   const { data: trabajos, error } = await supabase
     .from("jobs")
@@ -50,12 +55,38 @@ export default async function TrabajosPage() {
     piezasPorTrabajo.set(pieza.job_id, (piezasPorTrabajo.get(pieza.job_id) ?? 0) + 1);
   }
 
+  // Se llegó desde Inventario con "Usar en un trabajo": se muestra el código
+  // elegido y se propaga hacia el trabajo que se abra o cree, para que
+  // [id]/page.tsx pueda precargarlo como origen del corte.
+  const sobranteOrigen = origenSobranteId
+    ? (
+        await supabase
+          .from("inventory_items")
+          .select("codigo")
+          .eq("id", origenSobranteId)
+          .maybeSingle()
+      ).data
+    : null;
+
+  const sufijoOrigen = origenSobranteId
+    ? `?origen_sobrante=${origenSobranteId}`
+    : "";
+
   return (
     <>
       <EncabezadoPagina
         titulo="Trabajos"
         descripcion="Registra cada trabajo y compara lo que debía consumir con lo que consumió."
       />
+
+      {sobranteOrigen ? (
+        <div className="mb-6 rounded-md border border-emerald-600/30 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          Vas a usar el sobrante{" "}
+          <strong className="font-mono">{sobranteOrigen.codigo ?? "sin código"}</strong>
+          . Abre o crea el trabajo donde lo vas a cortar: quedará elegido como
+          origen del material.
+        </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <Card>
@@ -88,7 +119,7 @@ export default async function TrabajosPage() {
                         {/* Subrayado permanente: en móvil no hay hover que
                             revele que la fila lleva a algún sitio. */}
                         <Link
-                          href={`/trabajos/${trabajo.id}`}
+                          href={`/trabajos/${trabajo.id}${sufijoOrigen}`}
                           className="underline decoration-muted-foreground/40 underline-offset-4 hover:decoration-foreground"
                         >
                           {trabajo.nombre}
@@ -111,7 +142,9 @@ export default async function TrabajosPage() {
                         <Button
                           variant={piezasPorTrabajo.get(trabajo.id) ? "ghost" : "outline"}
                           size="sm"
-                          render={<Link href={`/trabajos/${trabajo.id}`} />}
+                          render={
+                            <Link href={`/trabajos/${trabajo.id}${sufijoOrigen}`} />
+                          }
                         >
                           {piezasPorTrabajo.get(trabajo.id)
                             ? `Ver ${piezasPorTrabajo.get(trabajo.id)} piezas`
