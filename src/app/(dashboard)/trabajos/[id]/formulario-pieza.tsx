@@ -139,12 +139,22 @@ function CamposPieza({
         ? laminaId
         : (materialEfectivo as OpcionSobrante | undefined)?.material_id ?? "";
 
+  // Sólo el origen manual puede apuntar a un material "por unidad": una
+  // lámina de stock o un sobrante de inventario siempre tienen medidas
+  // físicas reales, por construcción. Un material así no se corta, así que
+  // no tiene ancho/alto: se envía 1×1 como valor neutro (job_items.ancho_cm
+  // y alto_cm son NOT NULL) y el costo se calcula por cantidad, no por área.
+  const porUnidad =
+    origen === "manual" &&
+    materiales.find((m) => m.id === materialId)?.unidad === "unidad";
+
   const unidades = modo === "lamina" ? 1 : Math.max(Number(cantidad) || 0, 0);
-  const area =
-    areaM2(
-      Number(ancho.replace(",", ".")) || 0,
-      Number(alto.replace(",", ".")) || 0,
-    ) * unidades;
+  const area = porUnidad
+    ? 0
+    : areaM2(
+        Number(ancho.replace(",", ".")) || 0,
+        Number(alto.replace(",", ".")) || 0,
+      ) * unidades;
 
   function elegirLamina(id: string) {
     setLaminaId(id);
@@ -177,7 +187,7 @@ function CamposPieza({
       <CardContent>
         <form action={accion} className="flex flex-col gap-4">
           <input type="hidden" name="job_id" value={jobId} />
-          <input type="hidden" name="modo" value={modo} />
+          <input type="hidden" name="modo" value={porUnidad ? "pieza" : modo} />
           <input type="hidden" name="material_id" value={materialIdEfectivo} />
           <input
             type="hidden"
@@ -295,64 +305,14 @@ function CamposPieza({
             </div>
           ) : null}
 
-          <div className="grid gap-2">
-            <Label>Modo de registro</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <BotonModo
-                activo={modo === "pieza"}
-                onClick={() => setModo("pieza")}
-                titulo="Pieza"
-                detalle="Un corte, con cantidad"
-              />
-              <BotonModo
-                activo={modo === "lamina"}
-                onClick={() => setModo("lamina")}
-                titulo="Lámina"
-                detalle="El material gastado"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {modo === "pieza"
-                ? "Si aprovechaste una plancha entera para varios cortes, usa Lámina: así el ahorro no sale inflado."
-                : "Anota el alto y ancho del material que consumiste de este tipo."}
-            </p>
-          </div>
-
-          <div
-            className={cn(
-              "grid gap-3",
-              modo === "pieza" ? "grid-cols-3" : "grid-cols-2",
-            )}
-          >
-            <div className="grid gap-2">
-              <Label htmlFor="ancho_cm">Ancho (cm)</Label>
-              <Input
-                id="ancho_cm"
-                name="ancho_cm"
-                type="number"
-                step="0.1"
-                min="0"
-                inputMode="decimal"
-                value={ancho}
-                onChange={(evento) => setAncho(evento.target.value)}
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="alto_cm">Alto (cm)</Label>
-              <Input
-                id="alto_cm"
-                name="alto_cm"
-                type="number"
-                step="0.1"
-                min="0"
-                inputMode="decimal"
-                value={alto}
-                onChange={(evento) => setAlto(evento.target.value)}
-                required
-              />
-            </div>
-            {modo === "pieza" ? (
+          {porUnidad ? (
+            <>
+              {/* Un material por unidad no se corta de una lámina: no tiene
+                  ancho/alto reales. Se envían 1×1 como valor neutro porque
+                  job_items.ancho_cm/alto_cm son NOT NULL en la base; el costo
+                  se calcula por cantidad, no por área. */}
+              <input type="hidden" name="ancho_cm" value="1" />
+              <input type="hidden" name="alto_cm" value="1" />
               <div className="grid gap-2">
                 <Label htmlFor="cantidad">Cantidad</Label>
                 <Input
@@ -366,8 +326,84 @@ function CamposPieza({
                   onChange={(evento) => setCantidad(evento.target.value)}
                 />
               </div>
-            ) : null}
-          </div>
+            </>
+          ) : (
+            <>
+              <div className="grid gap-2">
+                <Label>Modo de registro</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <BotonModo
+                    activo={modo === "pieza"}
+                    onClick={() => setModo("pieza")}
+                    titulo="Pieza"
+                    detalle="Un corte, con cantidad"
+                  />
+                  <BotonModo
+                    activo={modo === "lamina"}
+                    onClick={() => setModo("lamina")}
+                    titulo="Lámina"
+                    detalle="El material gastado"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {modo === "pieza"
+                    ? "Si aprovechaste una plancha entera para varios cortes, usa Lámina: así el ahorro no sale inflado."
+                    : "Anota el alto y ancho del material que consumiste de este tipo."}
+                </p>
+              </div>
+
+              <div
+                className={cn(
+                  "grid gap-3",
+                  modo === "pieza" ? "grid-cols-3" : "grid-cols-2",
+                )}
+              >
+                <div className="grid gap-2">
+                  <Label htmlFor="ancho_cm">Ancho (cm)</Label>
+                  <Input
+                    id="ancho_cm"
+                    name="ancho_cm"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    inputMode="decimal"
+                    value={ancho}
+                    onChange={(evento) => setAncho(evento.target.value)}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="alto_cm">Alto (cm)</Label>
+                  <Input
+                    id="alto_cm"
+                    name="alto_cm"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    inputMode="decimal"
+                    value={alto}
+                    onChange={(evento) => setAlto(evento.target.value)}
+                    required
+                  />
+                </div>
+                {modo === "pieza" ? (
+                  <div className="grid gap-2">
+                    <Label htmlFor="cantidad">Cantidad</Label>
+                    <Input
+                      id="cantidad"
+                      name="cantidad"
+                      type="number"
+                      step="1"
+                      min="1"
+                      inputMode="numeric"
+                      value={cantidad}
+                      onChange={(evento) => setCantidad(evento.target.value)}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </>
+          )}
 
           {area > 0 ? (
             <p className="text-sm text-muted-foreground">
@@ -390,7 +426,7 @@ function CamposPieza({
             </p>
           </div>
 
-          {modo === "pieza" && Number(cantidad) === 1 ? (
+          {!porUnidad && modo === "pieza" && Number(cantidad) === 1 ? (
             <label className="flex items-start gap-2 rounded-md border p-3 text-sm">
               <input
                 type="checkbox"
@@ -431,11 +467,15 @@ function CamposPieza({
           </Button>
         </form>
 
-        <FormularioSobranteDeCorte
-          jobId={jobId}
-          materialSugeridoId={materialIdEfectivo || undefined}
-          materiales={materiales}
-        />
+        {/* Un material por unidad no deja recortes: no tiene sentido
+            ofrecer registrar un sobrante de un tornillo o una estructura. */}
+        {!porUnidad ? (
+          <FormularioSobranteDeCorte
+            jobId={jobId}
+            materialSugeridoId={materialIdEfectivo || undefined}
+            materiales={materiales}
+          />
+        ) : null}
       </CardContent>
     </Card>
   );

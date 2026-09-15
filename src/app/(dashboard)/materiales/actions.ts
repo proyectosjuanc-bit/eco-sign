@@ -43,7 +43,7 @@ export async function crearMaterial(
   if (costo === null || costo < 0) {
     return {
       error:
-        "Escribe el tamaño y el precio de la lámina, o el costo por m² si el material no viene en láminas.",
+        "Escribe el tamaño y el precio de la lámina, o el precio por unidad si el material no viene en láminas.",
       ok: false,
     };
   }

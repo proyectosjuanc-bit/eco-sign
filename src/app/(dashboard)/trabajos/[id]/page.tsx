@@ -87,11 +87,19 @@ export default async function TrabajoPage({
   const porMaterial = new Map((materiales ?? []).map((m) => [m.id, m]));
   const firmas = await firmarFotos(supabase, (piezas ?? []).map((p) => p.foto_url));
 
+  // Los materiales "por unidad" (tornillos, luces LED, estructuras…) no se
+  // cortan de una lámina: su consumo no se mide en m², así que quedan fuera
+  // de las cifras de área. Su costo sí se suma en costoTeorico más abajo.
+  const esPorArea = (materialId: string) =>
+    porMaterial.get(materialId)?.unidad !== "unidad";
+
   // Consumo teórico: la suma del área de cada pieza por su cantidad.
-  const consumoTeorico = (piezas ?? []).reduce(
-    (total, pieza) => total + areaM2(pieza.ancho_cm, pieza.alto_cm) * pieza.cantidad,
-    0,
-  );
+  const consumoTeorico = (piezas ?? [])
+    .filter((pieza) => esPorArea(pieza.material_id))
+    .reduce(
+      (total, pieza) => total + areaM2(pieza.ancho_cm, pieza.alto_cm) * pieza.cantidad,
+      0,
+    );
 
   // Separado por modo: lo que salió de bodega frente a lo que acabó en piezas.
   // La diferencia son los recortes que no se pueden aprovechar.
@@ -102,14 +110,14 @@ export default async function TrabajoPage({
   );
 
   const consumidoM2 = (piezas ?? [])
-    .filter((pieza) => pieza.modo === "lamina")
+    .filter((pieza) => pieza.modo === "lamina" && esPorArea(pieza.material_id))
     .reduce(
       (total, p) => total + areaM2(p.ancho_cm, p.alto_cm) * p.cantidad,
       0,
     );
 
   const aprovechadoEnPiezasM2 = (piezas ?? [])
-    .filter((pieza) => pieza.modo !== "lamina")
+    .filter((pieza) => pieza.modo !== "lamina" && esPorArea(pieza.material_id))
     .reduce(
       (total, p) => total + areaM2(p.ancho_cm, p.alto_cm) * p.cantidad,
       0,
@@ -145,6 +153,7 @@ export default async function TrabajoPage({
     etiqueta: material.color
       ? `${material.tipo} · ${material.color}`
       : material.tipo,
+    unidad: material.unidad,
   }));
 
   // Láminas nuevas de stock: sólo materiales que de verdad vienen en láminas

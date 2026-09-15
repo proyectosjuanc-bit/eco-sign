@@ -206,6 +206,33 @@ código del sobrante origen queda intacto tras usarse, y el sobrante
 resultante del corte recibe un código propio distinto con el `job_id`
 correcto.
 
+## Materiales "por unidad" (tornillos, luces LED, estructuras)
+
+`materials.unidad = "unidad"` ya existía en el esquema, pero hasta ahora el
+formulario de alta obligaba a llenar ancho/alto/precio de lámina, que no
+tienen sentido para algo que no se corta. El formulario de Materiales ahora
+se adapta: si se elige "Unidad" se ocultan esos campos y sólo se pide el
+precio por unidad y las existencias (reutilizando `stock_laminas` como
+contador genérico de cuántas unidades quedan, no sólo láminas).
+
+En Trabajos, al añadir una pieza con un material así (sólo posible con
+origen "A mano": una lámina de stock o un sobrante de inventario siempre
+tienen medidas físicas reales, por construcción), el formulario oculta
+ancho/alto/modo y sólo pide la cantidad. Se envía `ancho_cm=1, alto_cm=1`
+como valor neutro porque `job_items.ancho_cm/alto_cm` son NOT NULL, pero ese
+"1×1" nunca se usa para calcular nada: `costoTeorico` en
+`trabajos/[id]/page.tsx` ya calculaba `costo_unitario × cantidad` para
+`unidad !== "m2"` desde antes de este cambio, y `consumoTeorico`/
+`consumidoM2`/`aprovechadoEnPiezasM2` ahora excluyen explícitamente
+(`esPorArea`) las piezas de un material por unidad, para que el "1×1" no
+ensucie las cifras de m² del panel del trabajo con un residuo casi invisible
+pero conceptualmente incorrecto (mezclar m² con unidades).
+
+Verificado contra la base real (fixtures creados y borrados con el cliente
+admin): un material por unidad guarda `ancho_cm`/`alto_cm`/`costo_lamina`
+nulos y sólo `costo_unitario` + `stock_laminas`; una pieza de 20 unidades a
+$3.500 calcula $70.000 de costo teórico y aporta 0 al área consumida.
+
 ## Storage
 
 El bucket `sobrantes` es privado y sus políticas exigen que la primera carpeta

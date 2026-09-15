@@ -17,10 +17,14 @@ import { Label } from "@/components/ui/label";
 import { CampoFoto } from "@/components/dashboard/campo-foto";
 import { PanelMedicion } from "@/components/inventario/panel-medicion";
 import { areaM2, formatearNumero } from "@/lib/format";
+import type { Unidad } from "@/types/database";
 
 export interface OpcionMaterial {
   id: string;
   etiqueta: string;
+  // Opcional: sólo Trabajos lo necesita, para saber si el material se corta
+  // (m²) o se consume por unidad (tornillos, luces, estructuras…).
+  unidad?: Unidad;
 }
 
 export interface OpcionTrabajo {
