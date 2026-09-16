@@ -1,3 +1,5 @@
+import "server-only";
+
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
@@ -5,6 +7,13 @@ import type { Database } from "@/types/database";
 
 /**
  * Cliente de Supabase para Server Components, Server Actions y Route Handlers.
+ *
+ * ⚠️ SOLO SERVIDOR, impuesto por el import de `server-only`. Aquí la clave no
+ * es el secreto —la anon key es pública por diseño—: lo que no puede cruzar al
+ * navegador es `cookies()` de `next/headers`, y sobre todo el hecho de que
+ * este cliente actúa con la sesión del usuario. Para el navegador existe
+ * `client.ts`, que monta el suyo propio. Mezclarlos daría un cliente que en el
+ * navegador cree tener la sesión del servidor.
  *
  * En Next 16 `cookies()` es asíncrono, por eso la función es async y hay que
  * await-earla en cada uso. Todas las consultas viajan con el JWT del usuario,

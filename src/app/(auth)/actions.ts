@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import type { EstadoAuth } from "@/lib/form-state";
+import { sendWelcomeEmail } from "@/lib/email/send";
 import { createClient } from "@/lib/supabase/server";
 
 /** Estado que `useActionState` devuelve a los formularios de auth. */
@@ -96,6 +97,17 @@ export async function registrarse(
   if (error) {
     return { error: traducirError(error.message) };
   }
+
+  // El correo de bienvenida no se espera: la cuenta ya está creada y el usuario
+  // no debería aguardar a un proveedor externo para ver la confirmación. Si
+  // falla, `sendWelcomeEmail` lo registra y devuelve ok:false sin lanzar, así
+  // que el `catch` es sólo una red de seguridad para un fallo inesperado.
+  //
+  // Va aquí, antes del redirect: `redirect()` lanza internamente en Next para
+  // cortar la ejecución, así que cualquier cosa escrita después no correría.
+  void sendWelcomeEmail(email, nombre, empresa).catch((fallo) => {
+    console.error("[registro] Falló el correo de bienvenida:", fallo);
+  });
 
   // Sin sesión activa, el proyecto tiene la confirmación por correo activada.
   if (!data.session) {
