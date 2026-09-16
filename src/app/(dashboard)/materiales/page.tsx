@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { ajustarStock, eliminarMaterial } from "./actions";
 import { FormularioMaterial } from "./formulario-material";
+import { FormularioImportar } from "./formulario-importar";
 import { EncabezadoPagina } from "@/components/dashboard/encabezado-pagina";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -156,7 +157,10 @@ export default async function MaterialesPage() {
           </CardContent>
         </Card>
 
-        <FormularioMaterial />
+        <div className="flex flex-col gap-6">
+          <FormularioMaterial />
+          <FormularioImportar />
+        </div>
       </div>
     </>
   );

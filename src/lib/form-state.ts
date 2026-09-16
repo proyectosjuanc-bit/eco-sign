@@ -23,3 +23,24 @@ export interface EstadoAuth {
 }
 
 export const ESTADO_AUTH_INICIAL: EstadoAuth = { error: null, mensaje: null };
+
+/** Un fallo puntual dentro de una importación por archivo, con su motivo. */
+export interface FilaFallida {
+  fila: number;
+  motivo: string;
+}
+
+/** Resultado de una importación masiva por archivo (ej. materiales por CSV). */
+export interface EstadoImportacion {
+  error: string | null;
+  creadas: number;
+  fallidas: FilaFallida[];
+  /** Cambia en cada envío para remontar el formulario limpio. */
+  marca?: number;
+}
+
+export const ESTADO_IMPORTACION_INICIAL: EstadoImportacion = {
+  error: null,
+  creadas: 0,
+  fallidas: [],
+};

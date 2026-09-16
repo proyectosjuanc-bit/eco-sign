@@ -233,6 +233,54 @@ admin): un material por unidad guarda `ancho_cm`/`alto_cm`/`costo_lamina`
 nulos y sólo `costo_unitario` + `stock_laminas`; una pieza de 20 unidades a
 $3.500 calcula $70.000 de costo teórico y aporta 0 al área consumida.
 
+## Carga masiva de materiales por CSV
+
+`importarMateriales` (`materiales/actions.ts`) se **suma** al alta manual,
+no la reemplaza: el formulario de uno en uno sigue igual, y esto es para
+cargar muchos de golpe (al arrancar con el sistema, o tras una compra
+grande a un proveedor nuevo).
+
+Las columnas son exactamente las mismas que pide el alta manual, para que
+las dos vías no diverjan: `tipo` (obligatorio), `color`, `unidad`
+(`m2` | `unidad` | `metro_lineal`; cualquier otro valor cae a `m2`, igual
+que en el alta manual), `ancho_cm`, `alto_cm`, `costo_lamina`,
+`costo_unitario`, `stock_laminas`, `grosor_mm`.
+
+La regla de precio es la misma y vive en un solo sitio (`prepararMaterial`,
+compartida por las dos vías): con medidas y precio de lámina se **deriva**
+el costo por m² (`costoPorM2` de `src/lib/lamina.ts`) y se ignora la
+columna `costo_unitario`; sin ellos se usa `costo_unitario` directo, que es
+el caso de un material por unidad (tornillos, luces LED). Tener esa regla
+duplicada sería la forma más fácil de que las dos vías empezaran a dar
+precios distintos para el mismo material.
+
+El parser (`src/lib/csv.ts`) no usa librerías: la decisión fue no añadir
+dependencias, y la plantilla que ofrece la aplicación siempre usa coma como
+separador. Cubre comillas dobles (campos con comas dentro, como un color
+"Azul, brillante"), comillas escapadas (`""`), saltos `\r\n` y `\n`, y el
+BOM que Excel escribe al exportar UTF-8. No cubre separadores alternativos
+por configuración regional (`;`), porque la plantilla no los produce.
+
+Las filas se insertan **una por una, no en lote**: así una fila con datos
+raros no descarta a las demás, y el resumen puede decir exactamente qué
+fila falló y por qué (`EstadoImportacion` en `src/lib/form-state.ts`, con
+`creadas` y `fallidas[]`). El número de fila que se reporta es el de Excel
+(encabezado = fila 1), para poder ir directo a corregirla.
+
+No hay deduplicación: importar dos veces el mismo archivo crea los
+materiales dos veces. `materials` no tiene restricción de unicidad por
+`tipo`, y dos láminas del mismo tipo con distinto color o grosor son
+materiales legítimamente distintos, así que la aplicación no adivina — el
+resumen avisa cuántas se crearon para que se note si se subió de más.
+
+Verificado contra la base real con un CSV de 6 filas (creadas y borradas
+después): 4 filas válidas creadas y 2 rechazadas con su motivo (una sin
+`tipo`, otra sin precio); un color con coma dentro de comillas se guardó
+entero; una coma decimal (`1500,50`) se leyó como 1500.5; y el costo por m²
+derivado de una lámina de 120×180 a $250.000 dio $115.740,74 — el redondeo
+a 2 decimales es de la columna `numeric(14,2)`, el mismo que ya aplicaba al
+alta manual.
+
 ## Cantidad en sobrantes de inventario, para sobrantes por unidad
 
 La migración `20260916_inventory_items_cantidad.sql` añade
