@@ -25,7 +25,7 @@ export default async function InventarioPage() {
         .select("*")
         .order("usado")
         .order("costo_estimado", { ascending: false }),
-      supabase.from("materials").select("id, tipo, color").order("tipo"),
+      supabase.from("materials").select("id, tipo, color, unidad").order("tipo"),
       // Los más recientes: si un taller acumula cientos de trabajos, no hace
       // falta que todos quepan en el selector.
       supabase
@@ -40,11 +40,14 @@ export default async function InventarioPage() {
     (sobrantes ?? []).map((item) => item.foto_url),
   );
 
+  const porMaterial = new Map((materiales ?? []).map((m) => [m.id, m]));
+
   const opciones: OpcionMaterial[] = (materiales ?? []).map((material) => ({
     id: material.id,
     etiqueta: material.color
       ? `${material.tipo} · ${material.color}`
       : material.tipo,
+    unidad: material.unidad,
   }));
 
   const disponibles = (sobrantes ?? []).filter((item) => !item.usado);
@@ -78,13 +81,18 @@ export default async function InventarioPage() {
           ) : (
             sobrantes.map((item) => {
               const firma = item.foto_url ? firmas.get(item.foto_url) : null;
+              const porUnidad = porMaterial.get(item.material_id)?.unidad === "unidad";
               return (
                 <Card key={item.id} className="overflow-hidden pt-0">
                   {firma ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={firma}
-                      alt={`Sobrante de ${item.ancho_cm}×${item.alto_cm} cm`}
+                      alt={
+                        porUnidad
+                          ? `Sobrante de ${item.cantidad} unidades`
+                          : `Sobrante de ${item.ancho_cm}×${item.alto_cm} cm`
+                      }
                       className="h-36 w-full object-cover"
                     />
                   ) : (
@@ -101,14 +109,22 @@ export default async function InventarioPage() {
                             {item.codigo}
                           </p>
                         ) : null}
-                        <p className="font-semibold">
-                          {formatearNumero(item.ancho_cm)} ×{" "}
-                          {formatearNumero(item.alto_cm)} cm
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatearNumero(areaM2(item.ancho_cm, item.alto_cm))} m²
-                          {item.color ? ` · ${item.color}` : ""}
-                        </p>
+                        {porUnidad ? (
+                          <p className="font-semibold">
+                            {formatearNumero(item.cantidad)} unidades
+                          </p>
+                        ) : (
+                          <>
+                            <p className="font-semibold">
+                              {formatearNumero(item.ancho_cm)} ×{" "}
+                              {formatearNumero(item.alto_cm)} cm
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatearNumero(areaM2(item.ancho_cm, item.alto_cm))} m²
+                              {item.color ? ` · ${item.color}` : ""}
+                            </p>
+                          </>
+                        )}
                       </div>
                       <Badge variant={item.usado ? "secondary" : "default"}>
                         {item.usado ? "Usado" : "Disponible"}

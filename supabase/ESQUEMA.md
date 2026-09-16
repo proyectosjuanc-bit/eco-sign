@@ -215,23 +215,78 @@ se adapta: si se elige "Unidad" se ocultan esos campos y sólo se pide el
 precio por unidad y las existencias (reutilizando `stock_laminas` como
 contador genérico de cuántas unidades quedan, no sólo láminas).
 
-En Trabajos, al añadir una pieza con un material así (sólo posible con
-origen "A mano": una lámina de stock o un sobrante de inventario siempre
-tienen medidas físicas reales, por construcción), el formulario oculta
-ancho/alto/modo y sólo pide la cantidad. Se envía `ancho_cm=1, alto_cm=1`
-como valor neutro porque `job_items.ancho_cm/alto_cm` son NOT NULL, pero ese
-"1×1" nunca se usa para calcular nada: `costoTeorico` en
-`trabajos/[id]/page.tsx` ya calculaba `costo_unitario × cantidad` para
-`unidad !== "m2"` desde antes de este cambio, y `consumoTeorico`/
-`consumidoM2`/`aprovechadoEnPiezasM2` ahora excluyen explícitamente
-(`esPorArea`) las piezas de un material por unidad, para que el "1×1" no
-ensucie las cifras de m² del panel del trabajo con un residuo casi invisible
-pero conceptualmente incorrecto (mezclar m² con unidades).
+En Trabajos, al añadir una pieza con un material así (origen "A mano", o
+"Sobrante" cuando el sobrante elegido también es por unidad — ver la
+sección siguiente), el formulario oculta ancho/alto/modo y sólo pide la
+cantidad. Se envía `ancho_cm=1, alto_cm=1` como valor neutro porque
+`job_items.ancho_cm/alto_cm` son NOT NULL, pero ese "1×1" nunca se usa para
+calcular nada: `costoTeorico` en `trabajos/[id]/page.tsx` ya calculaba
+`costo_unitario × cantidad` para `unidad !== "m2"` desde antes de este
+cambio, y `consumoTeorico`/`consumidoM2`/`aprovechadoEnPiezasM2` ahora
+excluyen explícitamente (`esPorArea`) las piezas de un material por unidad,
+para que el "1×1" no ensucie las cifras de m² del panel del trabajo con un
+residuo casi invisible pero conceptualmente incorrecto (mezclar m² con
+unidades).
 
 Verificado contra la base real (fixtures creados y borrados con el cliente
 admin): un material por unidad guarda `ancho_cm`/`alto_cm`/`costo_lamina`
 nulos y sólo `costo_unitario` + `stock_laminas`; una pieza de 20 unidades a
 $3.500 calcula $70.000 de costo teórico y aporta 0 al área consumida.
+
+## Cantidad en sobrantes de inventario, para sobrantes por unidad
+
+La migración `20260916_inventory_items_cantidad.sql` añade
+`inventory_items.cantidad` (integer, NOT NULL, default 1, CHECK `>= 0`). Un
+sobrante de lámina siempre tiene `cantidad=1` (el retal completo, medido por
+`ancho_cm × alto_cm`); un sobrante de un material "por unidad" (tornillos,
+luces LED…) guarda ahí cuántas piezas sueltas sobraron, con `ancho_cm=1,
+alto_cm=1` como valor neutro — mismo patrón que ya se usa en `job_items`.
+
+El CHECK es `>= 0`, no `> 0`: `consumir_sobrante_unidad` (siguiente
+migración) resta cantidad hasta agotarla, así que la fila pasa por
+`cantidad=0` en el instante en que se marca `usado=true`. Un CHECK `> 0`
+bloquearía ese último update — error real encontrado probando contra la
+base, corregido antes de que llegara a producción con datos reales.
+
+`crearSobrante` (`inventario/actions.ts`) decide el formulario según la
+unidad del material elegido: con "unidad" pide cuántas sobraron (sin
+foto de medición ni ancho/alto/color/grosor con sentido), con cualquier
+otra unidad sigue pidiendo medidas como siempre.
+
+### Consumo parcial de un sobrante por unidad (`consumir_sobrante_unidad`)
+
+La migración `20260916_consumir_sobrante_unidad.sql` añade la función
+`consumir_sobrante_unidad(p_tenant_id, p_inventory_item_id, p_cantidad)`:
+resta `p_cantidad` de la fila en una sola sentencia atómica (`UPDATE ...
+WHERE cantidad >= p_cantidad RETURNING cantidad`, mismo principio que
+`siguiente_contador`), y marca `usado=true` automáticamente cuando llega a
+cero. Devuelve `NULL` si no había suficiente disponible (agotado, o se pidió
+más de lo que queda) — ahí `agregarPieza` (`trabajos/actions.ts`) responde
+"No quedan suficientes unidades disponibles de ese sobrante."
+
+`p_tenant_id` se recibe explícito, igual que en `siguiente_contador`, en vez
+de resolverse con `current_tenant_id()` dentro de la función: esa función no
+está en las migraciones versionadas del repo (se creó fuera de control de
+versiones) y no vale la pena depender de cómo se comporta bajo `security
+definer` sin poder revisarla.
+
+En Trabajos, el selector "Sobrante" ahora incluye tanto sobrantes de lámina
+como por unidad (`OpcionSobrante.porUnidad` distingue el caso); al elegir
+uno por unidad, el formulario pide "¿Cuántas usas?" con tope al máximo
+disponible (`OpcionSobrante.cantidad`), y ese número viaja como
+`origen_sobrante_cantidad` — si está presente, `agregarPieza` usa
+`consumir_sobrante_unidad` en vez del cierre completo (`usado=true` directo)
+que sigue aplicando a sobrantes de lámina.
+
+Verificado contra la base real con el cliente admin: consumir 5 de 8 dejó 3
+disponibles sin cerrar el sobrante; pedir 5 más (sólo había 3) fue
+rechazado sin cambiar nada; consumir las 3 restantes cerró el sobrante
+(`cantidad=0, usado=true`) con el código intacto; un intento posterior
+sobre el sobrante ya agotado fue rechazado. También se verificó el flujo
+completo de `agregarPieza`: usar 4 de 10 tornillos como origen de una pieza
+deja el sobrante con 6 disponibles bajo el mismo código, la pieza queda con
+`cantidad=4`, y `materials.stock_laminas` no se toca (el origen fue un
+sobrante, no una lámina nueva).
 
 ## Storage
 

@@ -15,16 +15,11 @@ export async function crearSobrante(
   _previo: EstadoForm,
   formData: FormData,
 ): Promise<EstadoForm> {
-  const ancho = numero(formData, "ancho_cm");
-  const alto = numero(formData, "alto_cm");
   const materialId = texto(formData, "material_id");
   const color = texto(formData, "color");
   const grosor = numero(formData, "grosor_mm");
   const jobId = texto(formData, "job_id");
 
-  if (ancho === null || ancho <= 0 || alto === null || alto <= 0) {
-    return { error: "Escribe un ancho y un alto mayores que cero.", ok: false };
-  }
   // inventory_items.material_id es NOT NULL en la base, aunque el tipo lo
   // admita nulo — descubierto probando un insert real. Sin esto, el
   // formulario dejaba elegir "Sin material" y el insert fallaba con un error
@@ -73,18 +68,49 @@ export async function crearSobrante(
   if (foto.error) return { error: foto.error, ok: false };
   const fotoUrl = foto.ruta;
 
-  // El costo del sobrante es su área por el precio del material, que es
-  // exactamente el dinero que se recupera al reutilizarlo en vez de tirarlo.
   const { data: material } = await supabase
     .from("materials")
     .select("costo_unitario, unidad")
     .eq("id", materialId)
     .maybeSingle();
 
+  // Un material "por unidad" (tornillos, luces LED, estructuras…) no deja un
+  // retal con medidas: lo que sobra es un número de piezas sueltas. Se pide
+  // la cantidad en vez de ancho/alto, y ancho_cm/alto_cm quedan en 1×1 como
+  // valor neutro (son NOT NULL en la base), igual que ya se hace en
+  // job_items para el mismo tipo de material.
+  const porUnidad = material?.unidad === "unidad";
+
+  let ancho: number;
+  let alto: number;
+  let cantidad: number;
+
+  if (porUnidad) {
+    const cantidadForm = numero(formData, "cantidad");
+    if (cantidadForm === null || cantidadForm <= 0) {
+      return { error: "Escribe cuántas unidades sobraron.", ok: false };
+    }
+    ancho = 1;
+    alto = 1;
+    cantidad = Math.round(cantidadForm);
+  } else {
+    const anchoForm = numero(formData, "ancho_cm");
+    const altoForm = numero(formData, "alto_cm");
+    if (anchoForm === null || anchoForm <= 0 || altoForm === null || altoForm <= 0) {
+      return { error: "Escribe un ancho y un alto mayores que cero.", ok: false };
+    }
+    ancho = anchoForm;
+    alto = altoForm;
+    cantidad = 1;
+  }
+
+  // El costo del sobrante es lo que se recupera al reutilizarlo en vez de
+  // tirarlo: área × precio por m² para una lámina, o cantidad × precio por
+  // unidad para un material que no se corta.
   const costoEstimado = material
     ? material.unidad === "m2"
       ? areaM2(ancho, alto) * material.costo_unitario
-      : material.costo_unitario
+      : material.costo_unitario * cantidad
     : null;
 
   const { error } = await supabase.from("inventory_items").insert({
@@ -92,7 +118,8 @@ export async function crearSobrante(
     material_id: materialId,
     ancho_cm: ancho,
     alto_cm: alto,
-    grosor_mm: grosor,
+    cantidad,
+    grosor_mm: porUnidad ? null : grosor,
     color: color || null,
     foto_url: fotoUrl,
     costo_estimado: costoEstimado,
@@ -122,7 +149,7 @@ export async function marcarUsado(formData: FormData): Promise<void> {
 
   const { data: item } = await supabase
     .from("inventory_items")
-    .select("id, costo_estimado, usado, ancho_cm, alto_cm")
+    .select("id, costo_estimado, usado, ancho_cm, alto_cm, cantidad")
     .eq("id", id)
     .maybeSingle();
 
@@ -138,11 +165,15 @@ export async function marcarUsado(formData: FormData): Promise<void> {
   const tenantId = await obtenerTenantId();
 
   if (tenantId && item.costo_estimado && item.costo_estimado > 0) {
+    const descripcion =
+      item.cantidad > 1
+        ? `Sobrante reutilizado de ${item.cantidad} unidades`
+        : `Sobrante reutilizado de ${item.ancho_cm}×${item.alto_cm} cm`;
     await supabase.from("savings").insert({
       tenant_id: tenantId,
       tipo: "reutilizacion",
       monto: item.costo_estimado,
-      descripcion: `Sobrante reutilizado de ${item.ancho_cm}×${item.alto_cm} cm`,
+      descripcion,
     });
   }
 

@@ -35,6 +35,11 @@ export interface OpcionSobrante {
   material_id: string;
   ancho_cm: number;
   alto_cm: number;
+  // Unidades disponibles (siempre 1 en un sobrante de lámina) y si el
+  // material es "por unidad": determina si el formulario pide cantidad en
+  // vez de heredar ancho/alto.
+  cantidad: number;
+  porUnidad: boolean;
   etiqueta: string;
 }
 
@@ -121,32 +126,40 @@ function CamposPieza({
   const [alto, setAlto] = useState(
     sobrantePrecargado ? String(sobrantePrecargado.alto_cm) : "",
   );
-  const [cantidad, setCantidad] = useState("1");
+  const [cantidad, setCantidad] = useState(
+    sobrantePrecargado?.porUnidad ? String(sobrantePrecargado.cantidad) : "1",
+  );
   const [comprimiendo, setComprimiendo] = useState(false);
 
   // El material a enviar depende del origen: manual lo elige la persona,
   // lámina/sobrante lo trae ya fijo la opción elegida.
-  const materialEfectivo =
-    origen === "lamina"
-      ? laminas.find((l) => l.id === laminaId)
-      : origen === "sobrante"
-        ? sobrantes.find((s) => s.id === sobranteId)
-        : null;
+  const sobranteElegido = sobrantes.find((s) => s.id === sobranteId);
   const materialIdEfectivo =
     origen === "manual"
       ? materialId
       : origen === "lamina"
         ? laminaId
-        : (materialEfectivo as OpcionSobrante | undefined)?.material_id ?? "";
+        : sobranteElegido?.material_id ?? "";
 
-  // Sólo el origen manual puede apuntar a un material "por unidad": una
-  // lámina de stock o un sobrante de inventario siempre tienen medidas
-  // físicas reales, por construcción. Un material así no se corta, así que
-  // no tiene ancho/alto: se envía 1×1 como valor neutro (job_items.ancho_cm
-  // y alto_cm son NOT NULL) y el costo se calcula por cantidad, no por área.
+  // Un material "por unidad" (tornillos, luces LED, estructuras…) no se
+  // corta, así que no tiene ancho/alto: se envía 1×1 como valor neutro
+  // (job_items.ancho_cm/alto_cm son NOT NULL) y el costo se calcula por
+  // cantidad, no por área. Puede llegar por dos caminos: elegido a mano, o
+  // porque el sobrante de Inventario elegido ya es "por unidad" (una lámina
+  // de stock nunca lo es, por construcción).
   const porUnidad =
-    origen === "manual" &&
-    materiales.find((m) => m.id === materialId)?.unidad === "unidad";
+    origen === "manual"
+      ? materiales.find((m) => m.id === materialId)?.unidad === "unidad"
+      : origen === "sobrante"
+        ? (sobranteElegido?.porUnidad ?? false)
+        : false;
+
+  // Cuántas unidades quedan disponibles del sobrante elegido, para no dejar
+  // pedir más de lo que hay.
+  const maximoDisponible =
+    origen === "sobrante" && sobranteElegido?.porUnidad
+      ? sobranteElegido.cantidad
+      : null;
 
   const unidades = modo === "lamina" ? 1 : Math.max(Number(cantidad) || 0, 0);
   const area = porUnidad
@@ -168,6 +181,10 @@ function CamposPieza({
   function elegirSobrante(id: string) {
     setSobranteId(id);
     const sobrante = sobrantes.find((s) => s.id === id);
+    if (sobrante?.porUnidad) {
+      setCantidad(String(sobrante.cantidad));
+      return;
+    }
     if (sobrante) {
       setAncho(String(sobrante.ancho_cm));
       setAlto(String(sobrante.alto_cm));
@@ -193,6 +210,11 @@ function CamposPieza({
             type="hidden"
             name="origen_inventory_item_id"
             value={origen === "sobrante" ? sobranteId : ""}
+          />
+          <input
+            type="hidden"
+            name="origen_sobrante_cantidad"
+            value={maximoDisponible !== null ? cantidad : ""}
           />
 
           <div className="grid gap-2">
@@ -292,8 +314,9 @@ function CamposPieza({
                 {sobrantes.map((sobrante) => (
                   <option key={sobrante.id} value={sobrante.id}>
                     {sobrante.codigo ?? "Sin código"} · {sobrante.etiqueta} ·{" "}
-                    {formatearNumero(sobrante.ancho_cm)}×
-                    {formatearNumero(sobrante.alto_cm)} cm
+                    {sobrante.porUnidad
+                      ? `${sobrante.cantidad} unidades`
+                      : `${formatearNumero(sobrante.ancho_cm)}×${formatearNumero(sobrante.alto_cm)} cm`}
                   </option>
                 ))}
               </select>
@@ -314,17 +337,27 @@ function CamposPieza({
               <input type="hidden" name="ancho_cm" value="1" />
               <input type="hidden" name="alto_cm" value="1" />
               <div className="grid gap-2">
-                <Label htmlFor="cantidad">Cantidad</Label>
+                <Label htmlFor="cantidad">
+                  {maximoDisponible !== null
+                    ? `¿Cuántas usas? (hay ${maximoDisponible} disponibles)`
+                    : "Cantidad"}
+                </Label>
                 <Input
                   id="cantidad"
                   name="cantidad"
                   type="number"
                   step="1"
                   min="1"
+                  max={maximoDisponible ?? undefined}
                   inputMode="numeric"
                   value={cantidad}
                   onChange={(evento) => setCantidad(evento.target.value)}
                 />
+                {maximoDisponible !== null && Number(cantidad) > maximoDisponible ? (
+                  <p className="text-xs text-destructive">
+                    Sólo hay {maximoDisponible} disponibles de ese sobrante.
+                  </p>
+                ) : null}
               </div>
             </>
           ) : (

@@ -67,6 +67,12 @@ export type InventoryItem = {
   material_id: string;
   ancho_cm: number;
   alto_cm: number;
+  /**
+   * Unidades sueltas en este sobrante. 1 para un retal de lámina (ancho_cm ×
+   * alto_cm es su medida real); mayor que 1 sólo con un material "por
+   * unidad", donde ancho_cm/alto_cm quedan en 1×1 como valor neutro.
+   */
+  cantidad: number;
   grosor_mm: number | null;
   color: string | null;
   foto_url: string | null;
@@ -223,7 +229,7 @@ export interface Database {
       };
       inventory_items: {
         Row: InventoryItem;
-        Insert: Requerido<Insertable<InventoryItem, "usado">, "codigo">;
+        Insert: Requerido<Insertable<InventoryItem, "usado" | "cantidad">, "codigo">;
         Update: Partial<InventoryItem>;
         Relationships: [];
       };
@@ -268,6 +274,14 @@ export interface Database {
       siguiente_contador: {
         Args: { p_tenant_id: string; p_tipo: string };
         Returns: number;
+      };
+      consumir_sobrante_unidad: {
+        Args: {
+          p_tenant_id: string;
+          p_inventory_item_id: string;
+          p_cantidad: number;
+        };
+        Returns: number | null;
       };
     };
   };

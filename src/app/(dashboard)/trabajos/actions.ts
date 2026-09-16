@@ -52,15 +52,32 @@ export async function agregarPieza(
   const alto = numero(formData, "alto_cm");
   const descripcion = texto(formData, "descripcion");
   const modo: ModoPieza = texto(formData, "modo") === "lamina" ? "lamina" : "pieza";
-  // Una lámina se registra entera: su cantidad es siempre 1.
-  const cantidad = modo === "lamina" ? 1 : (numero(formData, "cantidad") ?? 1);
-  // Un recorte aprovechable no es la pieza que necesitabas, es lo que sobró
-  // alrededor de ella: no tiene sentido guardarlo con cantidad > 1.
-  const guardarComoSobrante =
-    texto(formData, "guardar_sobrante") === "on" && modo === "pieza" && cantidad === 1;
   // Si el material salió de un sobrante concreto de Inventario (en vez de
   // stock nuevo de Materiales), ese sobrante se cierra al guardar la pieza.
   const origenInventoryItemId = texto(formData, "origen_inventory_item_id");
+  // Sólo aplica cuando el sobrante origen es "por unidad" (tornillos, luces
+  // LED…): cuántas de las unidades disponibles se usan en este trabajo. Un
+  // sobrante de lámina siempre se usa completo, no tiene este campo. Cuando
+  // existe, manda sobre el campo "cantidad" genérico: la cantidad real de la
+  // pieza es la que se pidió consumir del sobrante, no un valor aparte.
+  const origenSobranteCantidad = numero(formData, "origen_sobrante_cantidad");
+  // Una lámina se registra entera: su cantidad es siempre 1. Se redondea de
+  // una vez para que el mismo número se use tanto al restar del sobrante
+  // origen (RPC) como al insertar la pieza, sin desajustes por decimales.
+  const cantidad = Math.round(
+    modo === "lamina"
+      ? 1
+      : (origenSobranteCantidad ?? numero(formData, "cantidad") ?? 1),
+  );
+  // Un recorte aprovechable no es la pieza que necesitabas, es lo que sobró
+  // alrededor de ella: no tiene sentido guardarlo con cantidad > 1. Tampoco
+  // aplica si el origen ya es un sobrante (no hay nada nuevo que "sobre" de
+  // usar otro sobrante).
+  const guardarComoSobrante =
+    texto(formData, "guardar_sobrante") === "on" &&
+    modo === "pieza" &&
+    cantidad === 1 &&
+    !origenInventoryItemId;
 
   if (!jobId) return { error: "Falta el trabajo.", ok: false };
   // A diferencia del resto de tablas, job_items.material_id es NOT NULL: sin
@@ -78,22 +95,48 @@ export async function agregarPieza(
 
   const supabase = await createClient();
 
-  // Se cierra el sobrante origen ANTES de insertar la pieza: si dos personas
-  // usan el mismo sobrante a la vez, sólo una debe poder continuar. La
-  // condición usado=false va en el propio update (no en un select previo)
-  // para que el chequeo sea atómico — comprobado contra la base real: un
-  // update que no afecta filas devuelve un array vacío, no un error.
+  // Se cierra (o se descuenta) el sobrante origen ANTES de insertar la
+  // pieza: si dos personas usan el mismo sobrante a la vez, sólo una debe
+  // poder continuar.
   if (origenInventoryItemId) {
-    const { data: filasActualizadas, error: errorOrigen } = await supabase
-      .from("inventory_items")
-      .update({ usado: true })
-      .eq("id", origenInventoryItemId)
-      .eq("usado", false)
-      .select("id");
+    if (origenSobranteCantidad !== null) {
+      // Sobrante "por unidad" (tornillos, luces LED…): se puede usar sólo
+      // una parte, ej. 5 de 8 disponibles. consumir_sobrante_unidad resta la
+      // cantidad de forma atómica en la base (no en dos pasos desde aquí,
+      // que dejaría una ventana de condición de carrera) y marca usado=true
+      // sólo si llega a cero. Devuelve null si no había suficiente.
+      const { data: cantidadRestante, error: errorOrigen } = await supabase.rpc(
+        "consumir_sobrante_unidad",
+        {
+          p_tenant_id: tenantId,
+          p_inventory_item_id: origenInventoryItemId,
+          p_cantidad: origenSobranteCantidad,
+        },
+      );
+      if (errorOrigen) return { error: errorOrigen.message, ok: false };
+      if (cantidadRestante === null) {
+        return {
+          error: "No quedan suficientes unidades disponibles de ese sobrante.",
+          ok: false,
+        };
+      }
+    } else {
+      // Sobrante de lámina: se usa completo, no admite cantidad parcial. La
+      // condición usado=false va en el propio update (no en un select
+      // previo) para que el chequeo sea atómico — comprobado contra la base
+      // real: un update que no afecta filas devuelve un array vacío, no un
+      // error.
+      const { data: filasActualizadas, error: errorOrigen } = await supabase
+        .from("inventory_items")
+        .update({ usado: true })
+        .eq("id", origenInventoryItemId)
+        .eq("usado", false)
+        .select("id");
 
-    if (errorOrigen) return { error: errorOrigen.message, ok: false };
-    if (!filasActualizadas?.length) {
-      return { error: "Este sobrante ya fue usado o vendido.", ok: false };
+      if (errorOrigen) return { error: errorOrigen.message, ok: false };
+      if (!filasActualizadas?.length) {
+        return { error: "Este sobrante ya fue usado o vendido.", ok: false };
+      }
     }
   }
 
@@ -105,7 +148,7 @@ export async function agregarPieza(
     material_id: materialId,
     ancho_cm: ancho,
     alto_cm: alto,
-    cantidad: Math.round(cantidad),
+    cantidad,
     modo,
     descripcion: descripcion || null,
     foto_url: foto.ruta,

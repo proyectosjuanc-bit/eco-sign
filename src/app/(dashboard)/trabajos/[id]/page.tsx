@@ -76,10 +76,11 @@ export default async function TrabajoPage({
       .from("inventory_items")
       .select("ancho_cm, alto_cm, material_id")
       .eq("job_id", id),
-    // Sobrantes que se pueden elegir como origen de un corte nuevo.
+    // Sobrantes que se pueden elegir como origen de una pieza nueva: de
+    // lámina (se cortan) o por unidad (se consumen en parte o del todo).
     supabase
       .from("inventory_items")
-      .select("id, codigo, ancho_cm, alto_cm, material_id, color")
+      .select("id, codigo, ancho_cm, alto_cm, material_id, color, cantidad")
       .eq("usado", false)
       .order("codigo"),
   ]);
@@ -175,6 +176,9 @@ export default async function TrabajoPage({
       stock_laminas: material.stock_laminas ?? 0,
     }));
 
+  // Un sobrante "por unidad" no se corta: se usa completo o en parte (ver
+  // OpcionSobrante.porUnidad, que el formulario usa para pedir cantidad en
+  // vez de ancho/alto).
   const sobrantesOpciones: OpcionSobrante[] = (sobrantesDisponibles ?? []).map(
     (sobrante) => {
       const material = porMaterial.get(sobrante.material_id);
@@ -184,14 +188,15 @@ export default async function TrabajoPage({
         material_id: sobrante.material_id,
         ancho_cm: sobrante.ancho_cm,
         alto_cm: sobrante.alto_cm,
+        cantidad: sobrante.cantidad,
+        porUnidad: material?.unidad === "unidad",
         etiqueta: material
           ? material.color
             ? `${material.tipo} · ${material.color}`
             : material.tipo
           : (sobrante.color ?? "Material"),
       };
-    },
-  );
+    });
 
   return (
     <>

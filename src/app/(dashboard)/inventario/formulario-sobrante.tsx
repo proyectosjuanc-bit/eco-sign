@@ -82,14 +82,21 @@ function CamposSobrante({
 }) {
   const [comprimiendo, setComprimiendo] = useState(false);
   const [archivoFoto, setArchivoFoto] = useState<File | null>(null);
+  const [materialId, setMaterialId] = useState("");
   const [ancho, setAncho] = useState("");
   const [alto, setAlto] = useState("");
   const [color, setColor] = useState("");
+  const [cantidad, setCantidad] = useState("1");
 
   const area = areaM2(
     Number(ancho.replace(",", ".")) || 0,
     Number(alto.replace(",", ".")) || 0,
   );
+
+  // Un material por unidad (tornillos, luces LED, estructuras…) no deja un
+  // retal con medidas: lo que sobra es un número de piezas sueltas.
+  const porUnidad =
+    materiales.find((m) => m.id === materialId)?.unidad === "unidad";
 
   return (
     <Card>
@@ -108,21 +115,24 @@ function CamposSobrante({
             onArchivo={setArchivoFoto}
           />
 
-          <PanelMedicion
-            archivo={archivoFoto}
-            onMedido={(medida) => {
-              setAncho(String(medida.anchoCm));
-              setAlto(String(medida.altoCm));
-              if (medida.colorHex) setColor(medida.colorHex);
-            }}
-          />
+          {!porUnidad ? (
+            <PanelMedicion
+              archivo={archivoFoto}
+              onMedido={(medida) => {
+                setAncho(String(medida.anchoCm));
+                setAlto(String(medida.altoCm));
+                if (medida.colorHex) setColor(medida.colorHex);
+              }}
+            />
+          ) : null}
 
           <div className="grid gap-2">
             <Label htmlFor="material_id">Material</Label>
             <select
               id="material_id"
               name="material_id"
-              defaultValue=""
+              value={materialId}
+              onChange={(evento) => setMaterialId(evento.target.value)}
               required
               className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
@@ -166,66 +176,86 @@ function CamposSobrante({
             </div>
           ) : null}
 
-          <div className="grid grid-cols-2 gap-3">
+          {porUnidad ? (
             <div className="grid gap-2">
-              <Label htmlFor="ancho_cm">Ancho (cm)</Label>
+              <Label htmlFor="cantidad">¿Cuántas unidades sobraron?</Label>
               <Input
-                id="ancho_cm"
-                name="ancho_cm"
+                id="cantidad"
+                name="cantidad"
                 type="number"
-                step="0.1"
-                min="0"
-                inputMode="decimal"
-                value={ancho}
-                onChange={(evento) => setAncho(evento.target.value)}
+                step="1"
+                min="1"
+                inputMode="numeric"
+                placeholder="8"
+                value={cantidad}
+                onChange={(evento) => setCantidad(evento.target.value)}
                 required
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="alto_cm">Alto (cm)</Label>
-              <Input
-                id="alto_cm"
-                name="alto_cm"
-                type="number"
-                step="0.1"
-                min="0"
-                inputMode="decimal"
-                value={alto}
-                onChange={(evento) => setAlto(evento.target.value)}
-                required
-              />
-            </div>
-          </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="ancho_cm">Ancho (cm)</Label>
+                  <Input
+                    id="ancho_cm"
+                    name="ancho_cm"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    inputMode="decimal"
+                    value={ancho}
+                    onChange={(evento) => setAncho(evento.target.value)}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="alto_cm">Alto (cm)</Label>
+                  <Input
+                    id="alto_cm"
+                    name="alto_cm"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    inputMode="decimal"
+                    value={alto}
+                    onChange={(evento) => setAlto(evento.target.value)}
+                    required
+                  />
+                </div>
+              </div>
 
-          {area > 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Área: <strong>{formatearNumero(area)} m²</strong>
-            </p>
-          ) : null}
+              {area > 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Área: <strong>{formatearNumero(area)} m²</strong>
+                </p>
+              ) : null}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-2">
-              <Label htmlFor="color">Color</Label>
-              <Input
-                id="color"
-                name="color"
-                placeholder="Blanco"
-                value={color}
-                onChange={(evento) => setColor(evento.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="grosor_mm">Grosor (mm)</Label>
-              <Input
-                id="grosor_mm"
-                name="grosor_mm"
-                type="number"
-                step="0.1"
-                min="0"
-                inputMode="decimal"
-              />
-            </div>
-          </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="color">Color</Label>
+                  <Input
+                    id="color"
+                    name="color"
+                    placeholder="Blanco"
+                    value={color}
+                    onChange={(evento) => setColor(evento.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="grosor_mm">Grosor (mm)</Label>
+                  <Input
+                    id="grosor_mm"
+                    name="grosor_mm"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    inputMode="decimal"
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           {error ? (
             <p
