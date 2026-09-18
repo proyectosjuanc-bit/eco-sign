@@ -209,7 +209,7 @@ restricción de destinatario.
 En producción hay que añadir la cabecera del secreto:
 
 ```bash
-curl -X POST https://eco-sign-eight.vercel.app/api/test-email \
+curl -X POST https://reutilizando.online/api/test-email \
   -H "Content-Type: application/json" \
   -H "X-Test-Secret: TU_SECRETO" \
   -d '{"to":"tu-correo@gmail.com","tipo":"resumen"}'

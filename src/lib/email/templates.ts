@@ -120,8 +120,10 @@ function boton(href: string, texto: string): string {
 </table>`;
 }
 
-const URL_PANEL = "https://eco-sign-eight.vercel.app/dashboard";
-const URL_INVENTARIO = "https://eco-sign-eight.vercel.app/inventario";
+/** Dominio propio de la aplicación, el mismo desde el que sale el correo. */
+const URL_BASE = "https://reutilizando.online";
+const URL_PANEL = `${URL_BASE}/dashboard`;
+const URL_INVENTARIO = `${URL_BASE}/inventario`;
 
 export function bienvenida({
   nombre,
