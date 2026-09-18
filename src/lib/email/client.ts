@@ -22,10 +22,12 @@ export const resend = new Resend(process.env.RESEND_API_KEY);
 /**
  * Remitente de todos los correos.
  *
- * Mientras no haya un dominio propio verificado en Resend, la cuenta sólo
- * puede enviar al correo con el que se registró, y el remitente tiene que ser
- * el de pruebas. Al verificar el dominio se cambia por
- * `ECO-SIGN <noreply@eco-sign.com>` (ver README-EMAIL.md) y desaparece esa
- * restricción de destinatario.
+ * `reutilizando.online` está verificado en Resend, así que se puede enviar a
+ * cualquier destinatario: ya no aplica la restricción del remitente de pruebas
+ * (`onboarding@resend.dev`), que sólo permitía escribir al correo con el que se
+ * registró la cuenta.
+ *
+ * Esta constante la usan las tres funciones de envío, así que cambiar de
+ * dominio es cambiar sólo esta línea (ver README-EMAIL.md).
  */
-export const REMITENTE = "ECO-SIGN <onboarding@resend.dev>";
+export const REMITENTE = "ECO-SIGN <noreply@reutilizando.online>";

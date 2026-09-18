@@ -1,7 +1,7 @@
 # Correo transaccional con Resend
 
-Cómo está montado el envío de correo de ECO-SIGN y qué hay que hacer para
-llevarlo a producción con un dominio propio.
+Cómo está montado el envío de correo de ECO-SIGN. Los correos salen desde
+`noreply@reutilizando.online`, con el dominio ya verificado en Resend.
 
 Hay **dos canales de correo distintos** y conviene no confundirlos:
 
@@ -113,17 +113,17 @@ hay que volver a desplegar (Deployments → ⋯ → Redeploy).
 
 ---
 
-## Límite actual: sólo tu propio correo
+## Remitente y dominio
 
-Mientras no haya un dominio verificado, Resend está en modo de pruebas:
+Todos los correos salen de **`ECO-SIGN <noreply@reutilizando.online>`**, desde
+el dominio `reutilizando.online`, verificado en Resend.
 
-- El remitente tiene que ser `onboarding@resend.dev`.
-- **Sólo puedes enviar al correo con el que te registraste en Resend.** Un envío
-  a cualquier otra dirección se rechaza con un error del tipo
-  `You can only send testing emails to your own email address`.
+Al estar verificado **se puede escribir a cualquier destinatario**. Antes, con
+el remitente de pruebas `onboarding@resend.dev`, sólo se podía enviar al correo
+con el que se registró la cuenta; esa restricción ya no aplica.
 
-Esto no es un fallo del código. Es la restricción de Resend hasta verificar un
-dominio propio.
+El remitente vive en una sola constante, `REMITENTE` en
+`src/lib/email/client.ts`, que usan las tres funciones de envío.
 
 ### Límites del plan gratuito
 
@@ -138,63 +138,55 @@ vigila el tope diario de 100.
 
 ---
 
-## Verificar un dominio propio
+## Cómo cambiar el remitente en el futuro
 
-Es lo que quita la restricción de destinatario y permite enviar desde
-`noreply@eco-sign.com`.
+Si algún día se rota el dominio o se quiere otra dirección, el cambio en código
+es de **una sola línea**.
 
-1. En Resend: **Domains** → **Add Domain** → escribe `eco-sign.com`.
-2. Resend muestra los registros DNS que hay que crear. Añádelos donde tengas el
-   dominio (GoDaddy, Namecheap, Cloudflare…).
-3. Pulsa **Verify**. La propagación suele tardar minutos, pero puede llegar a 48
-   horas.
+### Si sólo cambia la dirección, dentro del mismo dominio
 
-Los tres registros y para qué sirve cada uno:
-
-| Tipo | Para qué |
-|---|---|
-| **MX** | Recibe los rebotes y las respuestas automáticas. |
-| **TXT (SPF)** | Declara que Resend puede enviar en nombre de tu dominio. |
-| **TXT (DKIM)** | Firma criptográficamente cada correo; sin esto Gmail lo marca como sospechoso. |
-
-Copia los valores **exactamente** como los da Resend. Un espacio de más en el
-DKIM basta para que la verificación falle.
-
-Conviene añadir también un registro **DMARC** (`_dmarc.eco-sign.com`, tipo TXT,
-valor `v=DMARC1; p=none;`). No lo exige Resend, pero mejora bastante la entrega
-en Gmail y Outlook.
-
----
-
-## Migrar a `noreply@eco-sign.com`
-
-Cuando el dominio aparezca como **Verified**, el cambio es de una línea.
-
-En `src/lib/email/client.ts`:
+Por ejemplo pasar de `noreply@` a `soporte@`. Edita `REMITENTE` en
+`src/lib/email/client.ts` y publica. No hace falta tocar nada en Resend: un
+dominio verificado admite cualquier buzón bajo él.
 
 ```ts
-export const REMITENTE = "ECO-SIGN <onboarding@resend.dev>";
+export const REMITENTE = "ECO-SIGN <soporte@reutilizando.online>";
 ```
 
-pasa a:
+Vale la pena pensarlo: una dirección que la gente pueda responder es mejor que
+un `noreply@`. Un cliente que responde a un `noreply` cree que te escribió y
+nunca recibe respuesta.
 
-```ts
-export const REMITENTE = "ECO-SIGN <noreply@eco-sign.com>";
-```
+### Si cambia el dominio entero
 
-Esa constante la usan las tres funciones de envío, así que no hay que tocar nada
-más. Después:
+1. En Resend: **Domains** → **Add Domain** → escribe el dominio nuevo.
+2. Resend muestra los registros DNS a crear. Añádelos donde tengas el dominio
+   (GoDaddy, Namecheap, Cloudflare…):
 
-1. Publica el cambio.
-2. Prueba con el endpoint enviando **a una dirección que no sea la tuya** — es
-   la forma de confirmar que la restricción desapareció de verdad.
-3. Considera cambiar también el SMTP de autenticación en Supabase para que los
-   correos de confirmación salgan del mismo remitente. Que unos lleguen de
-   `resend.dev` y otros de `eco-sign.com` se ve descuidado.
+   | Tipo | Para qué |
+   |---|---|
+   | **MX** | Recibe los rebotes y las respuestas automáticas. |
+   | **TXT (SPF)** | Declara que Resend puede enviar en nombre de tu dominio. |
+   | **TXT (DKIM)** | Firma criptográficamente cada correo; sin esto Gmail lo marca como sospechoso. |
 
-Si usas una dirección que la gente pueda responder, `soporte@eco-sign.com` es
-mejor que `noreply@`: un cliente que responde a un `noreply` cree que te escribió
-y nunca recibe respuesta.
+   Copia los valores **exactamente** como los da Resend: un espacio de más en el
+   DKIM basta para que la verificación falle.
+
+   Conviene añadir también un **DMARC** (`_dmarc.<tu-dominio>`, tipo TXT, valor
+   `v=DMARC1; p=none;`). No lo exige Resend, pero mejora la entrega en Gmail y
+   Outlook.
+
+3. Espera a que aparezca como **Verified**. Suele tardar minutos, pero puede
+   llegar a 48 horas.
+4. Cambia `REMITENTE` en `src/lib/email/client.ts` y publica.
+5. Comprueba con el endpoint de prueba, enviando a una dirección cualquiera.
+6. **Actualiza también el SMTP de Supabase** (Authentication → Emails → SMTP
+   Settings) para que los correos de confirmación salgan del mismo remitente.
+   Que unos lleguen de un dominio y otros de otro se ve descuidado y perjudica
+   la entrega.
+
+No apagues el dominio viejo el mismo día: deja unos días de solape por si algo
+quedó apuntando ahí.
 
 ---
 
@@ -211,8 +203,8 @@ curl -X POST http://localhost:3000/api/test-email \
 `tipo` acepta `bienvenida`, `resumen` o `sobrante`. Si se omite, manda la de
 bienvenida.
 
-Recuerda: mientras no haya dominio verificado, `to` tiene que ser el correo con
-el que te registraste en Resend.
+`to` puede ser cualquier dirección: el dominio está verificado, así que no hay
+restricción de destinatario.
 
 En producción hay que añadir la cabecera del secreto:
 
