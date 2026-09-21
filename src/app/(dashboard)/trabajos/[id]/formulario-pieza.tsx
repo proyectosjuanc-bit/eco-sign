@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CampoFoto } from "@/components/dashboard/campo-foto";
+import { FOTOS_ACTIVAS } from "@/lib/funciones";
 import { areaM2, formatearNumero } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ModoPieza } from "@/types/database";
@@ -480,7 +481,9 @@ function CamposPieza({
             </label>
           ) : null}
 
-          <CampoFoto etiqueta="Foto de la pieza" onEstadoChange={setComprimiendo} />
+          {FOTOS_ACTIVAS ? (
+            <CampoFoto etiqueta="Foto de la pieza" onEstadoChange={setComprimiendo} />
+          ) : null}
 
           {error ? (
             <p
@@ -639,7 +642,9 @@ function CamposSobranteDeCorte({
         </div>
       </div>
 
-      <CampoFoto etiqueta="Foto del sobrante" onEstadoChange={setComprimiendo} />
+      {FOTOS_ACTIVAS ? (
+        <CampoFoto etiqueta="Foto del sobrante" onEstadoChange={setComprimiendo} />
+      ) : null}
 
       {estado.error ? (
         <p

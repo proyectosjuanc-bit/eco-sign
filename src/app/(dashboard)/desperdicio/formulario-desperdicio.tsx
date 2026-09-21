@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CampoFoto } from "@/components/dashboard/campo-foto";
+import { FOTOS_ACTIVAS } from "@/lib/funciones";
 import { areaM2, formatearNumero } from "@/lib/format";
 
 /** Registro de desperdicio, también con foto desde la cámara del móvil. */
@@ -156,7 +157,9 @@ function CamposDesperdicio({
             />
           </div>
 
-          <CampoFoto etiqueta="Foto" onEstadoChange={setComprimiendo} />
+          {FOTOS_ACTIVAS ? (
+            <CampoFoto etiqueta="Foto" onEstadoChange={setComprimiendo} />
+          ) : null}
 
           {error ? (
             <p

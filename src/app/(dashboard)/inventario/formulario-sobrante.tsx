@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CampoFoto } from "@/components/dashboard/campo-foto";
 import { PanelMedicion } from "@/components/inventario/panel-medicion";
+import { FOTOS_ACTIVAS } from "@/lib/funciones";
 import { areaM2, formatearNumero } from "@/lib/format";
 import type { Unidad } from "@/types/database";
 
@@ -35,10 +36,13 @@ export interface OpcionTrabajo {
 /**
  * Alta de sobrante desde el taller.
  *
- * El input de foto usa capture="environment" para que en el móvil abra la
- * cámara trasera directamente. Con una hoja A4 en la foto, OpenCV.js sugiere
- * el ancho, el alto y el color; el usuario siempre puede corregirlos a mano,
- * y sin foto los escribe todos él mismo como antes.
+ * Las medidas se escriben a mano. Cada sobrante recibe un código (`SOB-014`)
+ * que se marca físicamente sobre el material, y ése es el identificador que
+ * vale en el taller.
+ *
+ * Con `FOTOS_ACTIVAS` en true vuelven a aparecer el campo de foto y el panel
+ * de medición automática, que sugiere ancho, alto y color a partir de una
+ * hoja A4 o una regla en la imagen (ver `src/lib/funciones.ts`).
  */
 export function FormularioSobrante({
   materiales,
@@ -103,27 +107,32 @@ function CamposSobrante({
       <CardHeader>
         <CardTitle>Registrar sobrante</CardTitle>
         <CardDescription>
-          Toma la foto del retal. Con una hoja A4 junto a él, el sistema
-          sugiere las medidas y el color.
+          {FOTOS_ACTIVAS
+            ? "Toma la foto del retal. Con una hoja A4 junto a él, el sistema sugiere las medidas y el color."
+            : "Anota las medidas del retal. Al guardarlo recibe un código para marcarlo sobre el material."}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form action={accion} className="flex flex-col gap-4">
-          <CampoFoto
-            etiqueta="Foto del sobrante"
-            onEstadoChange={setComprimiendo}
-            onArchivo={setArchivoFoto}
-          />
+          {FOTOS_ACTIVAS ? (
+            <>
+              <CampoFoto
+                etiqueta="Foto del sobrante"
+                onEstadoChange={setComprimiendo}
+                onArchivo={setArchivoFoto}
+              />
 
-          {!porUnidad ? (
-            <PanelMedicion
-              archivo={archivoFoto}
-              onMedido={(medida) => {
-                setAncho(String(medida.anchoCm));
-                setAlto(String(medida.altoCm));
-                if (medida.colorHex) setColor(medida.colorHex);
-              }}
-            />
+              {!porUnidad ? (
+                <PanelMedicion
+                  archivo={archivoFoto}
+                  onMedido={(medida) => {
+                    setAncho(String(medida.anchoCm));
+                    setAlto(String(medida.altoCm));
+                    if (medida.colorHex) setColor(medida.colorHex);
+                  }}
+                />
+              ) : null}
+            </>
           ) : null}
 
           <div className="grid gap-2">

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { areaM2, formatearMoneda, formatearNumero } from "@/lib/format";
+import { FOTOS_ACTIVAS } from "@/lib/funciones";
 import { createClient } from "@/lib/supabase/server";
 import { firmarFotos } from "@/lib/supabase/subir-foto";
 
@@ -35,10 +36,11 @@ export default async function InventarioPage() {
         .limit(30),
     ]);
 
-  const firmas = await firmarFotos(
-    supabase,
-    (sobrantes ?? []).map((item) => item.foto_url),
-  );
+  // Firmar cuesta una llamada a Storage por lote; sin fotos que mostrar no
+  // tiene sentido pedirlas.
+  const firmas = FOTOS_ACTIVAS
+    ? await firmarFotos(supabase, (sobrantes ?? []).map((item) => item.foto_url))
+    : new Map<string, string>();
 
   const porMaterial = new Map((materiales ?? []).map((m) => [m.id, m]));
 
@@ -71,9 +73,18 @@ export default async function InventarioPage() {
       </EncabezadoPagina>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {/* Sin la franja de foto la tarjeta es mucho más baja; a tres
+            columnas quedaba tan estrecha que la fila de botones se
+            recortaba. Con fotos activas se recupera la tercera columna. */}
+        <div
+          className={
+            FOTOS_ACTIVAS
+              ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+              : "grid gap-4 sm:grid-cols-2"
+          }
+        >
           {!sobrantes?.length ? (
-            <Card className="sm:col-span-2 xl:col-span-3">
+            <Card className={FOTOS_ACTIVAS ? "sm:col-span-2 xl:col-span-3" : "sm:col-span-2"}>
               <CardContent className="p-6 text-sm text-muted-foreground">
                 Todavía no hay sobrantes registrados.
               </CardContent>
@@ -83,23 +94,30 @@ export default async function InventarioPage() {
               const firma = item.foto_url ? firmas.get(item.foto_url) : null;
               const porUnidad = porMaterial.get(item.material_id)?.unidad === "unidad";
               return (
-                <Card key={item.id} className="overflow-hidden pt-0">
-                  {firma ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={firma}
-                      alt={
-                        porUnidad
-                          ? `Sobrante de ${item.cantidad} unidades`
-                          : `Sobrante de ${item.ancho_cm}×${item.alto_cm} cm`
-                      }
-                      className="h-36 w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-36 items-center justify-center bg-muted text-xs text-muted-foreground">
-                      Sin foto
-                    </div>
-                  )}
+                <Card
+                  key={item.id}
+                  className={FOTOS_ACTIVAS ? "overflow-hidden pt-0" : "overflow-hidden"}
+                >
+                  {/* Sin fotos la tarjeta no reserva la franja de imagen: el
+                      código y las medidas quedan arriba del todo. */}
+                  {FOTOS_ACTIVAS ? (
+                    firma ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={firma}
+                        alt={
+                          porUnidad
+                            ? `Sobrante de ${item.cantidad} unidades`
+                            : `Sobrante de ${item.ancho_cm}×${item.alto_cm} cm`
+                        }
+                        className="h-36 w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-36 items-center justify-center bg-muted text-xs text-muted-foreground">
+                        Sin foto
+                      </div>
+                    )
+                  ) : null}
 
                   <CardContent className="flex flex-col gap-3">
                     <div className="flex items-start justify-between gap-2">
@@ -150,21 +168,22 @@ export default async function InventarioPage() {
                         >
                           Usar en un trabajo
                         </Button>
-                        <div className="flex items-center justify-between">
-                          <div className="flex gap-1">
-                            <DialogoVender id={item.id} codigo={item.codigo} />
-                            <form action={marcarUsado}>
-                              <input type="hidden" name="id" value={item.id} />
-                              <Button
-                                type="submit"
-                                size="sm"
-                                variant="ghost"
-                                className="text-muted-foreground"
-                              >
-                                Reutilizar
-                              </Button>
-                            </form>
-                          </div>
+                        {/* flex-wrap y no justify-between: en una tarjeta
+                            estrecha los tres botones no caben en una línea y
+                            el último se recortaba. Así baja de línea. */}
+                        <div className="flex flex-wrap items-center gap-1">
+                          <DialogoVender id={item.id} codigo={item.codigo} />
+                          <form action={marcarUsado}>
+                            <input type="hidden" name="id" value={item.id} />
+                            <Button
+                              type="submit"
+                              size="sm"
+                              variant="ghost"
+                              className="text-muted-foreground"
+                            >
+                              Reutilizar
+                            </Button>
+                          </form>
                           <form action={eliminarSobrante}>
                             <input type="hidden" name="id" value={item.id} />
                             <Button

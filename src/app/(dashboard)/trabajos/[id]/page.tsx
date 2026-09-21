@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { areaM2, formatearFecha, formatearMoneda, formatearNumero } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+import { FOTOS_ACTIVAS } from "@/lib/funciones";
 import { firmarFotos } from "@/lib/supabase/subir-foto";
 
 /** En Next 16 los params y searchParams de una ruta llegan como promesa. */
@@ -86,7 +87,10 @@ export default async function TrabajoPage({
   ]);
 
   const porMaterial = new Map((materiales ?? []).map((m) => [m.id, m]));
-  const firmas = await firmarFotos(supabase, (piezas ?? []).map((p) => p.foto_url));
+  // Sin fotos que mostrar no hace falta pedir las URLs firmadas a Storage.
+  const firmas = FOTOS_ACTIVAS
+    ? await firmarFotos(supabase, (piezas ?? []).map((p) => p.foto_url))
+    : new Map<string, string>();
 
   // Los materiales "por unidad" (tornillos, luces LED, estructuras…) no se
   // cortan de una lámina: su consumo no se mide en m², así que quedan fuera
@@ -250,7 +254,9 @@ export default async function TrabajoPage({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-0" />
+                    {/* La columna de miniatura desaparece entera con las
+                        fotos apagadas, para no dejar un hueco vacío. */}
+                    {FOTOS_ACTIVAS ? <TableHead className="w-0" /> : null}
                     <TableHead>Material</TableHead>
                     <TableHead className="text-right">Medidas</TableHead>
                     <TableHead className="text-right">Cant.</TableHead>
@@ -268,18 +274,20 @@ export default async function TrabajoPage({
                       : null;
                     return (
                       <TableRow key={pieza.id}>
-                        <TableCell>
-                          {firma ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={firma}
-                              alt={pieza.descripcion ?? "Foto de la pieza"}
-                              className="size-10 rounded object-cover"
-                            />
-                          ) : (
-                            <div className="size-10 rounded bg-muted" />
-                          )}
-                        </TableCell>
+                        {FOTOS_ACTIVAS ? (
+                          <TableCell>
+                            {firma ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={firma}
+                                alt={pieza.descripcion ?? "Foto de la pieza"}
+                                className="size-10 rounded object-cover"
+                              />
+                            ) : (
+                              <div className="size-10 rounded bg-muted" />
+                            )}
+                          </TableCell>
+                        ) : null}
                         <TableCell className="font-medium">
                           <span className="flex flex-col">
                             <span>{material?.tipo ?? "—"}</span>
