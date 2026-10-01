@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 
 /**
  * Alta de empresa. "empresa" y "nombre" viajan como user metadata del signUp:
@@ -91,10 +92,9 @@ export default function RegisterPage() {
 
           <div className="grid gap-2">
             <Label htmlFor="password">Contraseña</Label>
-            <Input
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
               autoComplete="new-password"
               minLength={6}
               required
