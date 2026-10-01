@@ -233,7 +233,7 @@ admin): un material por unidad guarda `ancho_cm`/`alto_cm`/`costo_lamina`
 nulos y sólo `costo_unitario` + `stock_laminas`; una pieza de 20 unidades a
 $3.500 calcula $70.000 de costo teórico y aporta 0 al área consumida.
 
-## Carga masiva de materiales por CSV
+## Carga masiva de materiales (plantilla de Excel o CSV)
 
 `importarMateriales` (`materiales/actions.ts`) se **suma** al alta manual,
 no la reemplaza: el formulario de uno en uno sigue igual, y esto es para
@@ -254,12 +254,49 @@ el caso de un material por unidad (tornillos, luces LED). Tener esa regla
 duplicada sería la forma más fácil de que las dos vías empezaran a dar
 precios distintos para el mismo material.
 
-El parser (`src/lib/csv.ts`) no usa librerías: la decisión fue no añadir
-dependencias, y la plantilla que ofrece la aplicación siempre usa coma como
-separador. Cubre comillas dobles (campos con comas dentro, como un color
-"Azul, brillante"), comillas escapadas (`""`), saltos `\r\n` y `\n`, y el
-BOM que Excel escribe al exportar UTF-8. No cubre separadores alternativos
-por configuración regional (`;`), porque la plantilla no los produce.
+### Plantilla de Excel
+
+La plantilla que se descarga es un `.xlsx` (ruta `/materiales/plantilla`,
+generada en el servidor por `src/lib/materiales-archivo.ts` con exceljs).
+Antes era un CSV, y tenía dos problemas para un taller: el formato no es
+familiar, y Excel configurado para Colombia usa `;` como separador de
+listas, así que un CSV separado por comas se abría con todo amontonado en
+la primera columna.
+
+La plantilla trae encabezados en español ("Tipo de material", "Se mide
+por"…), una nota de ayuda en cada encabezado, lista desplegable para la
+unidad ("Lámina (m²)", "Unidad", "Metro lineal"), validación de que los
+números sean ≥ 0, encabezado fijo y una hoja "Instrucciones" con ejemplos.
+La hoja "Materiales" va **vacía** a propósito: con filas de ejemplo dentro,
+subir la plantilla sin borrarlas crearía materiales de mentira.
+
+Se añadió exceljs como dependencia (la decisión anterior de no usar
+librerías valía para un CSV; leer y escribir `.xlsx` a mano no es
+razonable). Sólo corre en el servidor, así que no pesa en el navegador.
+
+### Lectura del archivo subido
+
+`leerArchivoMateriales` acepta el `.xlsx` y sigue aceptando CSV. Decide por
+el contenido (un `.xlsx` es un zip y empieza por `PK`), no sólo por el
+nombre. Las columnas se reconocen por el encabezado, sin importar tildes ni
+mayúsculas, con el título en español **o** la clave técnica de antes
+(`tipo`, `ancho_cm`…): un CSV preparado con la plantilla vieja sigue
+sirviendo. `unidadDesdeTexto` traduce "Lámina (m²)" → `m2`, etc.
+
+De una celda de Excel se lee el valor crudo, no el texto formateado: con el
+formato de miles, `250000` se vería como "250.000" o "250,000" y se leería
+mal. Se aceptan fórmulas (se usa su resultado) y números escritos como texto
+con coma decimal.
+
+El número de fila que se reporta es la fila real de Excel, aunque haya
+filas vacías en medio. Topes: 2 MB y 2.000 materiales por archivo. Un `.xls`
+(formato antiguo) se rechaza con un mensaje que pide guardarlo como `.xlsx`.
+
+El parser de CSV (`src/lib/csv.ts`) no usa librerías. Cubre comillas dobles
+(campos con comas dentro, como un color "Azul, brillante"), comillas
+escapadas (`""`), saltos `\r\n` y `\n`, y el BOM que Excel escribe al
+exportar UTF-8. No cubre `;` como separador: quien use Excel debería subir
+la plantilla `.xlsx` directamente.
 
 Las filas se insertan **una por una, no en lote**: así una fila con datos
 raros no descarta a las demás, y el resumen puede decir exactamente qué
@@ -280,6 +317,15 @@ entero; una coma decimal (`1500,50`) se leyó como 1500.5; y el costo por m²
 derivado de una lámina de 120×180 a $250.000 dio $115.740,74 — el redondeo
 a 2 decimales es de la columna `numeric(14,2)`, el mismo que ya aplicaba al
 alta manual.
+
+Verificado el 30 de septiembre de 2026 en la aplicación, con un usuario de
+prueba (creado y borrado): la plantilla descargada desde la tarjeta trae las
+dos hojas, la lista desplegable y las notas; llenada con 5 materiales y una
+fila vacía en medio, creó los 4 válidos y reportó la **fila 5** (sin tipo)
+con su número real de Excel; "Metro lineal" se guardó como `metro_lineal`,
+una lámina sin unidad como `m2`, y `85000,5` escrito como texto se leyó
+bien. El CSV de la plantilla vieja creó sus 2 materiales, y un `.xlsx` sin
+la columna de tipo se rechazó con un mensaje claro.
 
 ## Cantidad en sobrantes de inventario, para sobrantes por unidad
 
@@ -351,6 +397,47 @@ metadata del `signUp`. Las claves deben llamarse exactamente `empresa` y
 
 La confirmación por correo **está activada**, así que un registro nuevo no
 devuelve sesión: la aplicación muestra el aviso de revisar el correo.
+
+### Confirmación de cuenta y correo de bienvenida
+
+El enlace del correo de confirmación (lo envía Supabase, no Resend) vuelve a
+`/auth/confirmar` (`signUp` lo pide con `emailRedirectTo`). Esa ruta valida
+el enlace, deja la sesión iniciada y entra directo al panel, y **recién ahí**
+envía el correo de bienvenida.
+
+Antes la bienvenida salía al registrarse: llegaba junto al de confirmación,
+y su botón "Entrar al panel" llevaba a un login que respondía "Debes
+confirmar tu correo". Para quien se registra, el correo llamativo era el
+equivocado.
+
+`/auth/confirmar` acepta las dos formas de enlace:
+
+- `?token_hash=…&type=signup` — la de la plantilla personalizada de abajo.
+  Funciona aunque el correo se abra en otro navegador o en el celular.
+- `?code=…` — la de la plantilla por defecto (PKCE). Sólo inicia sesión en
+  el mismo navegador del registro; en otro, Supabase ya confirmó el correo
+  antes de redirigir, y la ruta manda al login con un aviso.
+
+Si el enlace falla (ya usado o vencido) se va a `/login?confirmacion=fallida`,
+que lo explica. Si `/auth/confirmar` no está en las Redirect URLs, Supabase
+vuelve a la Site URL; la portada reenvía `?code=` o `?token_hash=` a
+`/auth/confirmar`, así que tampoco se pierde.
+
+Configuración en Supabase (Authentication):
+
+- **URL Configuration**: Site URL `https://reutilizando.online`; Redirect
+  URLs `https://reutilizando.online/auth/confirmar` y
+  `http://localhost:3000/auth/confirmar`.
+- **Email Templates → Confirm signup**: enlace
+  `{{ .SiteURL }}/auth/confirmar?token_hash={{ .TokenHash }}&type=signup`.
+
+Verificado el 30 de septiembre de 2026 en local, con un enlace generado por
+el cliente admin (sin enviar correo): antes de confirmar, el login responde
+"Debes confirmar tu correo"; el enlace abierto en un navegador sin sesión
+entra a `/dashboard` con el nombre de la empresa en la cabecera y deja
+`email_confirmed_at` puesto; el mismo enlace reusado lleva al login con el
+aviso; `/?code=invalido` se reenvía y termina en el mismo aviso; y después
+el login con contraseña entra normal.
 
 ## Capacidad: máquinas compartidas entre talleres
 

@@ -24,7 +24,10 @@ export function FormularioLogin() {
     ESTADO_AUTH_INICIAL,
   );
   // El proxy guarda aquí la ruta que el usuario intentaba abrir sin sesión.
-  const destino = useSearchParams().get("redirect") ?? "";
+  const parametros = useSearchParams();
+  const destino = parametros.get("redirect") ?? "";
+  // /auth/confirmar manda aquí cuando el enlace del correo no sirvió.
+  const confirmacionFallida = parametros.get("confirmacion") === "fallida";
 
   return (
     <Card>
@@ -35,6 +38,13 @@ export function FormularioLogin() {
       <CardContent>
         <form action={accion} className="flex flex-col gap-4">
           <input type="hidden" name="redirect" value={destino} />
+
+          {confirmacionFallida && !estado.error ? (
+            <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              Ese enlace de confirmación ya se usó o venció. Si ya confirmaste
+              tu cuenta, entra con tu correo y contraseña.
+            </p>
+          ) : null}
 
           <div className="grid gap-2">
             <Label htmlFor="email">Correo</Label>

@@ -1,16 +1,29 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import type { EstadoAuth } from "@/lib/form-state";
-import { sendWelcomeEmail } from "@/lib/email/send";
 import { createClient } from "@/lib/supabase/server";
 
 /** Estado que `useActionState` devuelve a los formularios de auth. */
 function textoDe(formData: FormData, campo: string): string {
   const valor = formData.get(campo);
   return typeof valor === "string" ? valor.trim() : "";
+}
+
+/**
+ * Dominio desde el que se usa la app (producción o localhost), para que el
+ * enlace de confirmación vuelva al mismo sitio donde se hizo el registro.
+ */
+async function origenDeLaApp(): Promise<string> {
+  const h = await headers();
+  const origen = h.get("origin");
+  if (origen) return origen;
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const protocolo = h.get("x-forwarded-proto") ?? "https";
+  return host ? `${protocolo}://${host}` : "https://reutilizando.online";
 }
 
 /** Traduce los errores de Supabase Auth, que llegan en inglés. */
@@ -89,31 +102,30 @@ export async function registrarse(
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    // El trigger handle_new_user lee esta metadata para crear el tenant con el
-    // nombre de la empresa y el profile del usuario.
-    options: { data: { nombre, empresa } },
+    options: {
+      // El trigger handle_new_user lee esta metadata para crear el tenant con
+      // el nombre de la empresa y el profile del usuario.
+      data: { nombre, empresa },
+      // El enlace del correo vuelve a /auth/confirmar, que inicia la sesión y
+      // envía la bienvenida. Debe estar en Redirect URLs de Supabase (Auth >
+      // URL Configuration); si no, Supabase usa la Site URL.
+      emailRedirectTo: `${await origenDeLaApp()}/auth/confirmar`,
+    },
   });
 
   if (error) {
     return { error: traducirError(error.message) };
   }
 
-  // El correo de bienvenida no se espera: la cuenta ya está creada y el usuario
-  // no debería aguardar a un proveedor externo para ver la confirmación. Si
-  // falla, `sendWelcomeEmail` lo registra y devuelve ok:false sin lanzar, así
-  // que el `catch` es sólo una red de seguridad para un fallo inesperado.
-  //
-  // Va aquí, antes del redirect: `redirect()` lanza internamente en Next para
-  // cortar la ejecución, así que cualquier cosa escrita después no correría.
-  void sendWelcomeEmail(email, nombre, empresa).catch((fallo) => {
-    console.error("[registro] Falló el correo de bienvenida:", fallo);
-  });
+  // La bienvenida ya no sale aquí sino al confirmar (/auth/confirmar): si
+  // llegaba junto al correo de confirmación, su botón "Entrar al panel"
+  // llevaba a un login que todavía no dejaba entrar.
 
   // Sin sesión activa, el proyecto tiene la confirmación por correo activada.
   if (!data.session) {
     return {
       error: null,
-      mensaje: `Cuenta creada. Te enviamos un correo a ${email} para confirmarla.`,
+      mensaje: `Cuenta creada. Te enviamos un correo a ${email}: ábrelo y toca el enlace para confirmar tu cuenta y entrar. Si no lo ves, revisa la carpeta de spam.`,
     };
   }
 

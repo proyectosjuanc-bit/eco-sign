@@ -8,7 +8,22 @@ import { getUsuarioActual } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
 /** Portada pública. Con sesión iniciada, lleva directo al panel. */
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ code?: string; token_hash?: string; type?: string }>;
+}) {
+  // Si /auth/confirmar no está en las Redirect URLs de Supabase, el enlace de
+  // confirmación vuelve a la Site URL (esta portada) con ?code=… o
+  // ?token_hash=…. Se reenvía a la ruta que sabe iniciar la sesión con eso.
+  const { code, token_hash: tokenHash, type } = await searchParams;
+  if (code || (tokenHash && type)) {
+    const parametros = new URLSearchParams(
+      code ? { code } : { token_hash: tokenHash!, type: type! },
+    );
+    redirect(`/auth/confirmar?${parametros}`);
+  }
+
   if (await getUsuarioActual()) {
     redirect("/dashboard");
   }
