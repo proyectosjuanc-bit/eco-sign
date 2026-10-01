@@ -511,10 +511,17 @@ Bucket `maquinas`, privado como `sobrantes`, con la misma convención
 `{tenant_id}/{uuid}.ext`, rutas (no URLs) en `machines.fotos` y URLs firmadas
 al mostrar. Máximo 4 fotos por máquina, 5 MB, JPEG/PNG/WebP.
 
-Las fotos de máquinas **no dependen de `FOTOS_ACTIVAS`**: ese interruptor
-apaga las fotos de sobrantes, piezas y desperdicio porque en el taller las
-medidas se escriben a mano. En una máquina que se ofrece a otro taller, la
-foto es parte de la oferta.
+Las fotos de máquinas **no dependen de `FOTOS_ACTIVAS`** (`src/lib/funciones.ts`):
+ese interruptor controla sólo las fotos de sobrantes, piezas y desperdicio.
+En una máquina que se ofrece a otro taller, la foto es parte de la oferta y
+siempre está disponible.
+
+Desde el 1 de octubre de 2026 `FOTOS_ACTIVAS` está encendido, pero la
+medición automática con OpenCV va en un interruptor aparte,
+`MEDICION_AUTOMATICA_ACTIVA`, apagado: la foto queda como registro visual y
+las medidas se siguen escribiendo a mano. Verificado en el navegador: un
+sobrante guardado con foto la muestra en su tarjeta, no aparece el panel de
+medición y OpenCV.js no se descarga.
 
 ### Probar el RLS
 

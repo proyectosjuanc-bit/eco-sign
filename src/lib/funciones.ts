@@ -7,21 +7,26 @@
  */
 
 /**
- * Tomar fotos de sobrantes, piezas y desperdicio, y medir automáticamente con
- * la cámara (hoja A4 o regla de referencia).
+ * Tomar fotos de sobrantes, piezas y desperdicio, y verlas después en
+ * Inventario y en el detalle de cada trabajo.
  *
- * Apagado a propósito: en el taller las medidas se escriben a mano, y cada
- * sobrante se identifica por su código (`SOB-014`) escrito físicamente sobre
- * el material, que es más fiable que reconocerlo por una foto.
+ * Encendido: la foto sirve de registro visual. Las medidas se siguen
+ * escribiendo a mano, y cada sobrante se identifica por su código (`SOB-014`)
+ * marcado físicamente sobre el material.
  *
- * Con esto en `false`:
- * - No aparece ningún campo de foto en los formularios.
- * - No aparece el panel de medición automática.
- * - No se muestran las fotos ya guardadas (las filas antiguas conservan su
- *   `foto_url` en la base, no se borra nada).
- * - OpenCV.js no se descarga nunca, así que la aplicación carga más rápido.
- *
- * Para reactivarlo basta con poner `true`: el código de subida, medición y
- * visualización sigue intacto.
+ * Con esto en `false` desaparecen los campos de foto y las fotos ya guardadas
+ * (las filas conservan su `foto_url` en la base, no se borra nada).
  */
-export const FOTOS_ACTIVAS = false;
+export const FOTOS_ACTIVAS = true;
+
+/**
+ * Medir el sobrante automáticamente a partir de la foto (hoja A4 o regla de
+ * referencia junto al retal), con OpenCV.js en el navegador.
+ *
+ * Apagado a propósito: por ahora la foto es sólo foto, y las medidas se
+ * escriben a mano. Con esto en `false` no aparece el panel de medición y
+ * OpenCV.js no se descarga nunca, así que el formulario carga igual de rápido.
+ *
+ * Sólo tiene efecto con `FOTOS_ACTIVAS` en `true`: sin foto no hay qué medir.
+ */
+export const MEDICION_AUTOMATICA_ACTIVA = false;

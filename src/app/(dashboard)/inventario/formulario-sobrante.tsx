@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CampoFoto } from "@/components/dashboard/campo-foto";
 import { PanelMedicion } from "@/components/inventario/panel-medicion";
-import { FOTOS_ACTIVAS } from "@/lib/funciones";
+import { FOTOS_ACTIVAS, MEDICION_AUTOMATICA_ACTIVA } from "@/lib/funciones";
 import { areaM2, formatearNumero } from "@/lib/format";
 import type { Unidad } from "@/types/database";
 
@@ -40,9 +40,9 @@ export interface OpcionTrabajo {
  * que se marca físicamente sobre el material, y ése es el identificador que
  * vale en el taller.
  *
- * Con `FOTOS_ACTIVAS` en true vuelven a aparecer el campo de foto y el panel
- * de medición automática, que sugiere ancho, alto y color a partir de una
- * hoja A4 o una regla en la imagen (ver `src/lib/funciones.ts`).
+ * `FOTOS_ACTIVAS` muestra el campo de foto; `MEDICION_AUTOMATICA_ACTIVA`
+ * añade el panel que sugiere ancho, alto y color a partir de una hoja A4 o
+ * una regla en la imagen (ver `src/lib/funciones.ts`).
  */
 export function FormularioSobrante({
   materiales,
@@ -107,7 +107,7 @@ function CamposSobrante({
       <CardHeader>
         <CardTitle>Registrar sobrante</CardTitle>
         <CardDescription>
-          {FOTOS_ACTIVAS
+          {FOTOS_ACTIVAS && MEDICION_AUTOMATICA_ACTIVA
             ? "Toma la foto del retal. Con una hoja A4 junto a él, el sistema sugiere las medidas y el color."
             : "Anota las medidas del retal. Al guardarlo recibe un código para marcarlo sobre el material."}
         </CardDescription>
@@ -122,7 +122,7 @@ function CamposSobrante({
                 onArchivo={setArchivoFoto}
               />
 
-              {!porUnidad ? (
+              {MEDICION_AUTOMATICA_ACTIVA && !porUnidad ? (
                 <PanelMedicion
                   archivo={archivoFoto}
                   onMedido={(medida) => {
