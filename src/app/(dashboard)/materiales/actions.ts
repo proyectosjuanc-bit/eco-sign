@@ -7,7 +7,7 @@ import { costoPorM2 } from "@/lib/lamina";
 import { createClient } from "@/lib/supabase/server";
 import { ERROR_SIN_TENANT, obtenerTenantId } from "@/lib/supabase/tenant";
 import { texto, numero } from "@/lib/form-data";
-import { parsearCsv, filasComoObjetos } from "@/lib/csv";
+import { leerArchivoMateriales, unidadDesdeTexto } from "@/lib/materiales-archivo";
 import type { Unidad } from "@/types/database";
 
 const UNIDADES: readonly Unidad[] = ["m2", "unidad", "metro_lineal"];
@@ -31,7 +31,7 @@ interface DatosMaterial {
  * lámina se deriva el precio por m²; sin ellos se acepta el costo por
  * unidad escrito directo (el caso de un material que no viene en láminas).
  * La usan tanto `crearMaterial` (un FormData) como `importarMateriales`
- * (una fila de CSV), para no tener la misma regla escrita dos veces.
+ * (una fila del archivo de Excel o CSV), para no tener la misma regla escrita dos veces.
  */
 type ResultadoMaterial =
   | { ok: true; material: MaterialParaInsertar }
@@ -135,7 +135,7 @@ function numeroDeCelda(valor: string | undefined): number | null {
 }
 
 /**
- * Carga varios materiales de golpe desde un archivo CSV.
+ * Carga varios materiales de golpe desde la plantilla de Excel (o un CSV).
  *
  * Se suma al alta manual, no la reemplaza: mismas columnas, misma regla de
  * derivar el precio por m² (`prepararMaterial`), fila por fila. Una fila que
@@ -149,11 +149,12 @@ export async function importarMateriales(
 ): Promise<EstadoImportacion> {
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File) || archivo.size === 0) {
-    return { error: "Elige un archivo CSV.", creadas: 0, fallidas: [] };
+    return { error: "Elige el archivo de Excel con tus materiales.", creadas: 0, fallidas: [] };
   }
 
-  const contenido = await archivo.text();
-  const filas = filasComoObjetos(parsearCsv(contenido));
+  const lectura = await leerArchivoMateriales(archivo);
+  if (lectura.error !== null) return { error: lectura.error, creadas: 0, fallidas: [] };
+  const filas = lectura.filas;
 
   if (!filas.length) {
     return {
@@ -173,16 +174,13 @@ export async function importarMateriales(
 
   // Fila por fila, no en lote: así una fila con datos raros no descarta las
   // demás, y el resumen puede decir exactamente cuál falló y por qué.
-  for (let i = 0; i < filas.length; i++) {
-    const fila = filas[i];
-    // +2: la fila 1 es el encabezado y los números de Excel empiezan en 1.
-    const numeroFila = i + 2;
-
+  for (const { numero: numeroFila, datos: fila } of filas) {
     const resultado = prepararMaterial({
       tipo: fila.tipo ?? "",
       color: fila.color ?? "",
       grosor: numeroDeCelda(fila.grosor_mm),
-      unidadCruda: fila.unidad ?? "",
+      // La plantilla muestra "Lámina (m²)", "Unidad"…; aquí se pasa al valor interno.
+      unidadCruda: unidadDesdeTexto(fila.unidad ?? ""),
       ancho: numeroDeCelda(fila.ancho_cm),
       alto: numeroDeCelda(fila.alto_cm),
       costoLamina: numeroDeCelda(fila.costo_lamina),

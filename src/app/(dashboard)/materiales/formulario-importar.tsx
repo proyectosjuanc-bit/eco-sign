@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 
 import { importarMateriales } from "./actions";
@@ -13,46 +14,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-const ENCABEZADOS = [
-  "tipo",
-  "color",
-  "unidad",
-  "ancho_cm",
-  "alto_cm",
-  "costo_lamina",
-  "costo_unitario",
-  "stock_laminas",
-  "grosor_mm",
-] as const;
-
-// Dos filas de ejemplo: una lámina (Acrílico, se deriva el precio por m²) y
-// un material por unidad (Luces LED, precio directo). Mismas columnas que
-// pide el alta manual, para que no diverja de esa estructura.
-const FILAS_EJEMPLO = [
-  ["Acrílico", "Blanco", "m2", "120", "180", "250000", "", "5", "3"],
-  ["Luces LED", "", "unidad", "", "", "", "3500", "100", ""],
-];
-
-function generarPlantillaCsv(): string {
-  const filas = [ENCABEZADOS.join(","), ...FILAS_EJEMPLO.map((f) => f.join(","))];
-  // BOM al inicio, para que Excel detecte UTF-8 al abrir el archivo directo.
-  return "﻿" + filas.join("\r\n") + "\r\n";
-}
-
-function descargarPlantilla() {
-  const blob = new Blob([generarPlantillaCsv()], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const enlace = document.createElement("a");
-  enlace.href = url;
-  enlace.download = "materiales-plantilla.csv";
-  document.body.appendChild(enlace);
-  enlace.click();
-  document.body.removeChild(enlace);
-  URL.revokeObjectURL(url);
-}
-
 /**
- * Carga varios materiales de golpe desde un CSV.
+ * Carga varios materiales de golpe desde la plantilla de Excel.
  *
  * Se suma al alta manual (`FormularioMaterial`), no la reemplaza: para dar
  * de alta un material suelto se sigue usando ese formulario; esto es para
@@ -75,8 +38,15 @@ export function FormularioImportar() {
       </CardHeader>
       <CardContent>
         <div className="flex flex-col gap-4">
-          <Button type="button" variant="outline" onClick={descargarPlantilla}>
-            Descargar plantilla CSV
+          {/* La genera una ruta del servidor (materiales/plantilla): exceljs
+              no tiene por qué viajar al navegador. prefetch={false} para no
+              generar el archivo cada vez que se muestra la tarjeta. */}
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href="/materiales/plantilla" prefetch={false} download />}
+          >
+            Descargar plantilla de Excel
           </Button>
 
           {/* Se remonta con una key nueva tras cada envío: así el campo de
@@ -146,15 +116,15 @@ function CamposImportar({
     <form action={accion} className="flex flex-col gap-3">
       <label className="flex cursor-pointer flex-col items-center gap-1 rounded-md border border-dashed p-4 text-center text-sm hover:bg-muted">
         <span className="font-medium">
-          {nombreArchivo ?? "Elige el archivo CSV completado"}
+          {nombreArchivo ?? "Elige la plantilla de Excel completada"}
         </span>
         <span className="text-xs text-muted-foreground">
-          Mismas columnas que la plantilla, exportado desde Excel como CSV
+          El archivo .xlsx tal cual lo guardaste. También sirve un CSV.
         </span>
         <input
           type="file"
           name="archivo"
-          accept=".csv,text/csv"
+          accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
           className="hidden"
           onChange={(evento) =>
             setNombreArchivo(evento.target.files?.[0]?.name ?? null)

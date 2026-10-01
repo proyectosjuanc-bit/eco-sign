@@ -58,21 +58,3 @@ export function parsearCsv(contenido: string): string[][] {
 
   return filas.filter((f) => f.some((c) => c.trim() !== ""));
 }
-
-/**
- * Convierte filas de CSV con encabezado en objetos {columna: valor}, usando
- * la primera fila como nombres de columna. Columnas de más o de menos en una
- * fila se ignoran o quedan como cadena vacía, para no reventar por un CSV
- * mal alineado.
- */
-export function filasComoObjetos(filas: string[][]): Record<string, string>[] {
-  if (!filas.length) return [];
-  const encabezados = filas[0].map((h) => h.trim().toLowerCase());
-  return filas.slice(1).map((fila) => {
-    const objeto: Record<string, string> = {};
-    encabezados.forEach((encabezado, i) => {
-      objeto[encabezado] = (fila[i] ?? "").trim();
-    });
-    return objeto;
-  });
-}
