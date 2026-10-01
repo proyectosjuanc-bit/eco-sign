@@ -4,7 +4,9 @@ import { REMITENTE, resend } from "./client";
 import {
   alertaSobranteDisponible,
   bienvenida,
+  respuestaSolicitud,
   resumenMensual,
+  solicitudMaquinaRecibida,
   type Plantilla,
 } from "./templates";
 
@@ -34,7 +36,11 @@ export interface ResultadoEnvio {
  * ausente) o devolviendo `{ error }` en la respuesta (destinatario rechazado,
  * límite alcanzado). Las dos se tratan igual aquí.
  */
-async function enviar(para: string, plantilla: Plantilla): Promise<ResultadoEnvio> {
+async function enviar(
+  para: string | string[],
+  plantilla: Plantilla,
+  responderA?: string,
+): Promise<ResultadoEnvio> {
   try {
     const { error } = await resend.emails.send({
       from: REMITENTE,
@@ -42,6 +48,7 @@ async function enviar(para: string, plantilla: Plantilla): Promise<ResultadoEnvi
       subject: plantilla.subject,
       html: plantilla.html,
       text: plantilla.text,
+      ...(responderA ? { replyTo: responderA } : {}),
     });
 
     if (error) {
@@ -89,4 +96,29 @@ export function sendSobranteAlert(
     email,
     alertaSobranteDisponible({ nombre, codigoSobrante, material, medidas }),
   );
+}
+
+/**
+ * Aviso al dueño de una máquina (a todos los admins de su taller) de que otro
+ * taller la quiere usar. `responderA` es el correo de quien pide: así el dueño
+ * contesta desde su bandeja y la respuesta le llega directo al solicitante.
+ */
+export function sendSolicitudMaquina(
+  para: string[],
+  responderA: string | undefined,
+  datos: Parameters<typeof solicitudMaquinaRecibida>[0],
+): Promise<ResultadoEnvio> {
+  return enviar(para, solicitudMaquinaRecibida(datos), responderA);
+}
+
+/**
+ * Respuesta (aceptada o rechazada) al taller que pidió la máquina. Sin
+ * `replyTo`: el correo del dueño no se comparte, sólo el teléfono que él
+ * publicó con la máquina.
+ */
+export function sendRespuestaSolicitud(
+  para: string[],
+  datos: Parameters<typeof respuestaSolicitud>[0],
+): Promise<ResultadoEnvio> {
+  return enviar(para, respuestaSolicitud(datos));
 }

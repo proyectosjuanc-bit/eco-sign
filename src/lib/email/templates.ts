@@ -277,3 +277,144 @@ Ver el inventario: ${URL_INVENTARIO}
 ${PIE}`,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Capacidad: solicitudes de máquinas entre talleres
+// ---------------------------------------------------------------------------
+
+const URL_RECIBIDAS = `${URL_BASE}/capacidad/solicitudes-recibidas`;
+const URL_ENVIADAS = `${URL_BASE}/capacidad/solicitudes-enviadas`;
+
+/** Texto libre de otra persona: escapado y con sus saltos de línea. */
+function textoLibre(valor: string): string {
+  return escapar(valor).replace(/\n/g, "<br>");
+}
+
+/**
+ * Aviso al dueño de una máquina de que otro taller quiere usarla.
+ *
+ * El correo sale con `replyTo` apuntando al solicitante (ver
+ * `sendSolicitudMaquina`), así que el dueño puede contestar directamente
+ * desde su bandeja para coordinar, sin entrar a la aplicación.
+ */
+export function solicitudMaquinaRecibida({
+  nombrePropietario,
+  nombreSolicitante,
+  nombreMaquina,
+  fechaDeseada,
+  duracion,
+  mensaje,
+}: {
+  nombrePropietario: string;
+  nombreSolicitante: string;
+  nombreMaquina: string;
+  /** Ya formateada para leer, por ejemplo "15 oct 2026". */
+  fechaDeseada: string;
+  duracion: string;
+  mensaje: string;
+}): Plantilla {
+  const propietario = escapar(nombrePropietario);
+  const solicitante = escapar(nombreSolicitante);
+  const maquina = escapar(nombreMaquina);
+
+  return {
+    subject: `Nueva solicitud de disponibilidad para ${nombreMaquina}`,
+    html: envolver(
+      titulo("Un taller quiere usar tu máquina") +
+        parrafo(
+          `${propietario}, <strong>${solicitante}</strong> pidió disponibilidad de <strong>${maquina}</strong>.`,
+        ) +
+        recuadro([
+          { etiqueta: "Fecha deseada", valor: escapar(fechaDeseada) },
+          { etiqueta: "Duración", valor: escapar(duracion) },
+        ]) +
+        `<p style="margin:0 0 6px 0;font-size:13px;color:${GRIS};">Su mensaje:</p>` +
+        `<blockquote style="margin:0 0 16px 0;padding:10px 14px;border-left:3px solid ${VERDE};background-color:${FONDO};">${textoLibre(mensaje)}</blockquote>` +
+        parrafo(
+          "Acepta o rechaza la solicitud desde la aplicación. Si quieres preguntarle algo antes, responde este correo: le llega directamente a ese taller.",
+        ) +
+        boton(URL_RECIBIDAS, "Ver la solicitud"),
+    ),
+    text: `Un taller quiere usar tu máquina
+
+${nombrePropietario}, ${nombreSolicitante} pidió disponibilidad de ${nombreMaquina}.
+
+Fecha deseada: ${fechaDeseada}
+Duración: ${duracion}
+
+Su mensaje:
+${mensaje}
+
+Acepta o rechaza la solicitud desde la aplicación. Si quieres preguntarle algo antes, responde este correo: le llega directamente a ese taller.
+
+Ver la solicitud: ${URL_RECIBIDAS}
+
+${PIE}`,
+  };
+}
+
+/**
+ * Respuesta del dueño al taller que pidió la máquina.
+ *
+ * Al aceptar se incluye el teléfono que el dueño publicó con la máquina: el
+ * pago y la entrega se coordinan por fuera de la plataforma, y ése es el dato
+ * que él mismo decidió hacer público. Su correo no se comparte.
+ */
+export function respuestaSolicitud({
+  nombreSolicitante,
+  nombrePropietario,
+  nombreMaquina,
+  estado,
+  telefono,
+}: {
+  nombreSolicitante: string;
+  nombrePropietario: string;
+  nombreMaquina: string;
+  estado: "aceptada" | "rechazada";
+  telefono: string;
+}): Plantilla {
+  const solicitante = escapar(nombreSolicitante);
+  const propietario = escapar(nombrePropietario);
+  const maquina = escapar(nombreMaquina);
+  const aceptada = estado === "aceptada";
+
+  const cuerpoHtml = aceptada
+    ? parrafo(
+        `<strong style="color:${VERDE};">${propietario} aceptó tu solicitud</strong> para usar <strong>${maquina}</strong>.`,
+      ) +
+      recuadro([{ etiqueta: "Teléfono del taller", valor: escapar(telefono) }]) +
+      parrafo(
+        "Llámalo o escríbele para acordar el horario exacto, el pago y la entrega. ECO-SIGN no cobra ni interviene en ese acuerdo.",
+      )
+    : parrafo(
+        `${propietario} no puede atender tu solicitud para <strong>${maquina}</strong> esta vez.`,
+      ) +
+      parrafo("Puedes buscar otra máquina parecida en la red de talleres.");
+
+  const cuerpoTexto = aceptada
+    ? `${nombrePropietario} aceptó tu solicitud para usar ${nombreMaquina}.
+
+Teléfono del taller: ${telefono}
+
+Llámalo o escríbele para acordar el horario exacto, el pago y la entrega. ECO-SIGN no cobra ni interviene en ese acuerdo.`
+    : `${nombrePropietario} no puede atender tu solicitud para ${nombreMaquina} esta vez.
+
+Puedes buscar otra máquina parecida en la red de talleres.`;
+
+  return {
+    subject: `Tu solicitud fue ${estado}`,
+    html: envolver(
+      titulo(aceptada ? "Tienes máquina" : "Solicitud rechazada") +
+        parrafo(`Hola, ${solicitante}.`) +
+        cuerpoHtml +
+        boton(URL_ENVIADAS, "Ver mis solicitudes"),
+    ),
+    text: `Hola, ${nombreSolicitante}.
+
+${cuerpoTexto}
+
+Ver mis solicitudes: ${URL_ENVIADAS}
+
+${PIE}`,
+  };
+}

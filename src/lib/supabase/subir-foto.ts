@@ -5,12 +5,16 @@ import type { Database } from "@/types/database";
 /** Tope de subida: las fotos de móvil rara vez pasan de 5 MB. */
 export const MAX_FOTO_BYTES = 5 * 1024 * 1024;
 
+/** Buckets de fotos. Los dos son privados y exigen la carpeta {tenant_id}/. */
+export type BucketFotos = "sobrantes" | "maquinas";
+
 export type ResultadoFoto =
   | { ruta: string | null; error: null }
   | { ruta: null; error: string };
 
 /**
- * Sube una foto al bucket "sobrantes" y devuelve su ruta.
+ * Sube una foto al bucket indicado ("sobrantes" si no se dice otro) y devuelve
+ * su ruta.
  *
  * Las políticas del bucket exigen que la primera carpeta sea el tenant, así que
  * la ruta siempre es `{tenantId}/{prefijo}{uuid}.{ext}`. Se guarda la ruta y no
@@ -24,6 +28,7 @@ export async function subirFoto(
   archivo: FormDataEntryValue | null,
   tenantId: string,
   prefijo = "",
+  bucket: BucketFotos = "sobrantes",
 ): Promise<ResultadoFoto> {
   if (!(archivo instanceof File) || archivo.size === 0) {
     return { ruta: null, error: null };
@@ -39,7 +44,7 @@ export async function subirFoto(
   const ruta = `${tenantId}/${prefijo}${crypto.randomUUID()}.${extension}`;
 
   const { error } = await supabase.storage
-    .from("sobrantes")
+    .from(bucket)
     .upload(ruta, archivo, { contentType: archivo.type, upsert: false });
 
   if (error) {
@@ -61,6 +66,7 @@ export const VIGENCIA_FIRMA = 60 * 60;
 export async function firmarFotos(
   supabase: SupabaseClient<Database>,
   rutas: (string | null)[],
+  bucket: BucketFotos = "sobrantes",
 ): Promise<Map<string, string>> {
   const limpias = rutas.filter((ruta): ruta is string => Boolean(ruta));
   const firmas = new Map<string, string>();
@@ -68,7 +74,7 @@ export async function firmarFotos(
   if (!limpias.length) return firmas;
 
   const { data } = await supabase.storage
-    .from("sobrantes")
+    .from(bucket)
     .createSignedUrls(limpias, VIGENCIA_FIRMA);
 
   for (const firma of data ?? []) {

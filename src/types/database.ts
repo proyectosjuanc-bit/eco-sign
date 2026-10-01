@@ -170,6 +170,97 @@ export type Sale = {
   fecha: string;
 };
 
+/** Valores del CHECK de machines.tipo. */
+export type TipoMaquina =
+  | "impresora_gran_formato"
+  | "laser_corte"
+  | "plotter_corte"
+  | "impresora_3d"
+  | "router_cnc"
+  | "otra";
+
+/** Valores del CHECK de machines.unidad_precio. */
+export type UnidadPrecio =
+  | "minuto"
+  | "hora"
+  | "metro_lineal"
+  | "metro_cuadrado"
+  | "pieza";
+
+/** Sólo las publicadas las ven otros talleres. */
+export type EstadoPublicacion = "borrador" | "publicada" | "pausada";
+
+export type EstadoOperativo = "disponible" | "ocupada" | "mantenimiento";
+
+export type DiaSemana =
+  | "lunes"
+  | "martes"
+  | "miercoles"
+  | "jueves"
+  | "viernes"
+  | "sabado"
+  | "domingo";
+
+/** Franjas "HH:MM-HH:MM" por día. Un día sin clave = no disponible. */
+export type DisponibilidadHoraria = Partial<Record<DiaSemana, string[]>>;
+
+/**
+ * Campos según el tipo de máquina. La lista de claves por tipo vive en
+ * `src/lib/capacidad/tipos.ts`; aquí sólo la forma de los valores.
+ */
+export type Especificaciones = Record<string, string | number | string[]>;
+
+/** Máquina que un taller ofrece a la red (tabla `machines`). */
+export type Machine = {
+  id: string;
+  tenant_id: string;
+  nombre: string;
+  tipo: TipoMaquina;
+  descripcion: string | null;
+  ciudad: string;
+  zona: string | null;
+  especificaciones: Especificaciones;
+  precio: number;
+  unidad_precio: UnidadPrecio;
+  estado_publicacion: EstadoPublicacion;
+  estado_operativo: EstadoOperativo;
+  disponibilidad_horaria: DisponibilidadHoraria;
+  /** Rutas en el bucket "maquinas", no URLs: se firman al mostrarlas. */
+  fotos: string[];
+  contacto_telefono: string;
+  /** Reputación futura: sólo los escriben triggers, nunca la aplicación. */
+  rating_promedio: number;
+  total_solicitudes: number;
+  total_completadas: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EstadoSolicitud =
+  | "pendiente"
+  | "aceptada"
+  | "rechazada"
+  | "cancelada"
+  | "completada";
+
+/** Solicitud de uso de una máquina de otro taller (tabla `machine_requests`). */
+export type MachineRequest = {
+  id: string;
+  machine_id: string;
+  tenant_solicitante: string;
+  /** Copia de machines.tenant_id, para que las políticas RLS no hagan join. */
+  tenant_propietario: string;
+  mensaje: string;
+  fecha_deseada: string;
+  duracion_estimada: string;
+  estado: EstadoSolicitud;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Columnas de reputación: la base no deja que el usuario las escriba. */
+type Reputacion = "rating_promedio" | "total_solicitudes" | "total_completadas";
+
 /** Columnas que la base rellena sola: nunca se envían en un insert. */
 type Generado = "id" | "created_at";
 
@@ -263,6 +354,33 @@ export interface Database {
         Update: Partial<Sale>;
         Relationships: [];
       };
+      machines: {
+        Row: Machine;
+        Insert: Omit<
+          Insertable<
+            Machine,
+            | "especificaciones"
+            | "estado_publicacion"
+            | "estado_operativo"
+            | "disponibilidad_horaria"
+            | "fotos"
+            | "updated_at"
+            | Reputacion
+          >,
+          Reputacion | "updated_at"
+        >;
+        /** Sin tenant_id ni reputación: la base no da permiso de update ahí. */
+        Update: Partial<Omit<Machine, "id" | "tenant_id" | "created_at" | "updated_at" | Reputacion>>;
+        Relationships: [];
+      };
+      machine_requests: {
+        Row: MachineRequest;
+        /** Sin estado: toda solicitud nace "pendiente". */
+        Insert: Omit<Insertable<MachineRequest, "estado" | "updated_at">, "estado" | "updated_at">;
+        /** Una vez enviada sólo cambia el estado (permiso por columna en la base). */
+        Update: Pick<Partial<MachineRequest>, "estado">;
+        Relationships: [];
+      };
     };
     /** El MVP1 no usa vistas, pero GenericSchema exige la clave. */
     Views: Record<never, never>;
@@ -282,6 +400,14 @@ export interface Database {
           p_cantidad: number;
         };
         Returns: number | null;
+      };
+      nombres_talleres: {
+        Args: { p_ids: string[] };
+        Returns: { id: string; nombre: string }[];
+      };
+      contraparte_solicitud: {
+        Args: { p_request_id: string };
+        Returns: { email: string; nombre: string | null; empresa: string }[];
       };
     };
   };

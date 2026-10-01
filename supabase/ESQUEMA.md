@@ -351,3 +351,89 @@ metadata del `signUp`. Las claves deben llamarse exactamente `empresa` y
 
 La confirmación por correo **está activada**, así que un registro nuevo no
 devuelve sesión: la aplicación muestra el aviso de revisar el correo.
+
+## Capacidad: máquinas compartidas entre talleres
+
+La migración `20260930_capacidad.sql` crea `machines` y `machine_requests`.
+Es la **primera parte de ECO-SIGN donde un tenant ve datos de otro**: hasta
+aquí toda política era `tenant_id = current_tenant_id()`.
+
+### Quién ve qué
+
+| Dato | Quién lo ve |
+|---|---|
+| Máquina en `borrador` o `pausada` | Sólo su dueño, y quien ya la pidió alguna vez (para que su historial no pierda el nombre) |
+| Máquina `publicada` | Cualquier usuario con sesión. Sin sesión, nadie |
+| Solicitud | Sólo el solicitante y el propietario |
+| Nombre de otro taller | Sólo si tiene una máquina publicada o comparte una solicitud contigo (`nombres_talleres`) |
+| Correo de otro taller | Nunca llega al navegador. `contraparte_solicitud` lo da a las Server Actions sólo si quien llama es parte de la solicitud, para enviar el aviso |
+| Foto en el bucket `maquinas` | Las propias siempre; las de otro taller sólo si están en `fotos` de una máquina publicada |
+
+`tenants` y `profiles` siguen cerrados a cada taller: las dos funciones
+`security definer` son la única ventana a otro taller y devuelven sólo esos
+campos.
+
+### Lo que el usuario no puede escribir aunque RLS le deje tocar la fila
+
+RLS decide **qué filas**; los `GRANT` por columna deciden **qué columnas**.
+La migración quita a `authenticated` el permiso de tabla y lo devuelve por
+columna:
+
+- `machines`: ni `tenant_id` en un update (una máquina no cambia de dueño) ni
+  `rating_promedio` / `total_solicitudes` / `total_completadas`, que sólo
+  mueve el trigger `capacidad_contar_solicitudes`.
+- `machine_requests`: al insertar no se puede elegir `estado` (nace
+  `pendiente`), y después sólo se puede cambiar `estado`: el mensaje, la
+  fecha y las partes quedan fijos.
+
+`anon` no tiene ningún permiso sobre las dos tablas.
+
+### Transiciones de estado de una solicitud
+
+RLS no ve el valor anterior de una fila, así que las transiciones las valida
+el trigger `validar_transicion_solicitud`:
+
+| Quién | De | A |
+|---|---|---|
+| Propietario | `pendiente` | `aceptada`, `rechazada` |
+| Propietario | `aceptada` | `completada` |
+| Solicitante | `pendiente` | `cancelada` |
+
+Cualquier otro cambio falla con `Cambio de estado no permitido`. Sin sesión
+(editor SQL, service role) no se restringe, para poder hacer mantenimiento.
+Las solicitudes no se borran: son el historial que alimentará la reputación.
+
+Un índice único parcial impide dos solicitudes **pendientes** del mismo taller
+para la misma máquina (código `23505`, que `solicitarMaquina` traduce a un
+mensaje claro).
+
+### Forma de los JSON
+
+- `especificaciones`: claves según el tipo de máquina, definidas en
+  `CAMPOS_POR_TIPO` (`src/lib/capacidad/tipos.ts`). Esa lista la usan tanto
+  el formulario como la validación zod del servidor (`esquemas.ts`), así que
+  no pueden desalinearse. Números como número, listas como array de texto.
+- `disponibilidad_horaria`: `{"lunes": ["08:00-12:00", "14:00-18:00"]}`. Un
+  día sin clave = no disponible. "Disponible hoy" se calcula con el día **en
+  Colombia** (`diaDeHoyEnColombia`), no en UTC: pasadas las 7 p. m. el
+  servidor ya está en el día siguiente.
+
+### Fotos de máquinas
+
+Bucket `maquinas`, privado como `sobrantes`, con la misma convención
+`{tenant_id}/{uuid}.ext`, rutas (no URLs) en `machines.fotos` y URLs firmadas
+al mostrar. Máximo 4 fotos por máquina, 5 MB, JPEG/PNG/WebP.
+
+Las fotos de máquinas **no dependen de `FOTOS_ACTIVAS`**: ese interruptor
+apaga las fotos de sobrantes, piezas y desperdicio porque en el taller las
+medidas se escriben a mano. En una máquina que se ofrece a otro taller, la
+foto es parte de la oferta.
+
+### Probar el RLS
+
+`scripts/probar-rls-capacidad.mjs` crea dos talleres de prueba, intenta cada
+acceso prohibido de esta sección y borra todo al terminar:
+
+```
+node --env-file=.env.local scripts/probar-rls-capacidad.mjs
+```

@@ -46,7 +46,7 @@ export function Sidebar() {
         </p>
       </aside>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t bg-card md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-6 border-t bg-card md:hidden">
         {NAV_ITEMS.map((item) => (
           <Link
             key={item.href}

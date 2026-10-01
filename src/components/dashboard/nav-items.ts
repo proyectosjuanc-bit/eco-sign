@@ -34,4 +34,11 @@ export const NAV_ITEMS: NavItem[] = [
     etiqueta: "Desperdicio",
     icono: "M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v6m4-6v6",
   },
+  {
+    href: "/capacidad",
+    etiqueta: "Capacidad",
+    // Una impresora: la sección es para compartir máquinas entre talleres.
+    icono:
+      "M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2M6 14h12v7H6v-7Z",
+  },
 ];
