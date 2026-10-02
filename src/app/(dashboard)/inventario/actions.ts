@@ -155,12 +155,17 @@ export async function marcarUsado(formData: FormData): Promise<void> {
 
   if (!item || item.usado) return;
 
-  const { error } = await supabase
+  // La condición usado=false va en el propio update (como en venderSobrante):
+  // si otra pestaña o un doble clic ya lo cerró, no se afecta ninguna fila y no
+  // se registra el ahorro por segunda vez.
+  const { data: filasActualizadas, error } = await supabase
     .from("inventory_items")
     .update({ usado: true })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("usado", false)
+    .select("id");
 
-  if (error) return;
+  if (error || !filasActualizadas?.length) return;
 
   const tenantId = await obtenerTenantId();
 

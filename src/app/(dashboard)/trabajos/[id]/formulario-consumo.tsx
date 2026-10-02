@@ -97,8 +97,8 @@ function CamposConsumo({
       <CardContent>
         <form action={accion} className="flex flex-col gap-4">
           <input type="hidden" name="job_id" value={jobId} />
-          <input type="hidden" name="consumo_teorico_m2" value={consumoTeorico} />
-          <input type="hidden" name="costo_m2" value={costoM2} />
+          {/* El consumo teórico y el costo por m² NO viajan: el servidor los
+              recalcula desde las piezas. Aquí sólo sirven para la vista previa. */}
           {/* La acción recibe siempre m², vengan de medidas o escritos. */}
           <input
             type="hidden"

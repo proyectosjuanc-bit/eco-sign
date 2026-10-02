@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { areaM2, formatearFecha, formatearMoneda, formatearNumero } from "@/lib/format";
+import { calcularConsumoTeorico } from "@/lib/consumo-teorico";
 import { createClient } from "@/lib/supabase/server";
 import { FOTOS_ACTIVAS } from "@/lib/funciones";
 import { firmarFotos } from "@/lib/supabase/subir-foto";
@@ -98,13 +99,13 @@ export default async function TrabajoPage({
   const esPorArea = (materialId: string) =>
     porMaterial.get(materialId)?.unidad !== "unidad";
 
-  // Consumo teórico: la suma del área de cada pieza por su cantidad.
-  const consumoTeorico = (piezas ?? [])
-    .filter((pieza) => esPorArea(pieza.material_id))
-    .reduce(
-      (total, pieza) => total + areaM2(pieza.ancho_cm, pieza.alto_cm) * pieza.cantidad,
-      0,
-    );
+  // Consumo y costo teóricos: los calcula la misma función que usa el servidor
+  // al registrar el ahorro (registrarConsumoReal), para que no puedan discrepar.
+  const {
+    consumoTeoricoM2: consumoTeorico,
+    costoTeorico,
+    costoM2,
+  } = calcularConsumoTeorico(piezas ?? [], materiales ?? []);
 
   // Separado por modo: lo que salió de bodega frente a lo que acabó en piezas.
   // La diferencia son los recortes que no se pueden aprovechar.
@@ -137,20 +138,6 @@ export default async function TrabajoPage({
 
   const aprovechadoM2 = aprovechadoEnPiezasM2 + aprovechadoEnInventarioM2;
 
-  const costoTeorico = (piezas ?? []).reduce((total, pieza) => {
-    const material = porMaterial.get(pieza.material_id);
-    if (!material) return total;
-    const area = areaM2(pieza.ancho_cm, pieza.alto_cm) * pieza.cantidad;
-    return (
-      total +
-      (material.unidad === "m2"
-        ? area * material.costo_unitario
-        : material.costo_unitario * pieza.cantidad)
-    );
-  }, 0);
-
-  // Costo medio por m², el precio al que se valora cada m² ahorrado.
-  const costoM2 = consumoTeorico > 0 ? costoTeorico / consumoTeorico : 0;
   const ahorroTotal = (ahorros ?? []).reduce((total, a) => total + a.monto, 0);
 
   const opciones: OpcionMaterial[] = (materiales ?? []).map((material) => ({

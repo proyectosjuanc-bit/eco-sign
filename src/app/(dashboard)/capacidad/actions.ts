@@ -17,6 +17,9 @@ import { subirFoto } from "@/lib/supabase/subir-foto";
 import { ERROR_SIN_TENANT } from "@/lib/supabase/tenant";
 import type { EstadoPublicacion } from "@/types/database";
 
+/** Solicitudes de máquina que un taller puede enviar en 24 horas. */
+const MAX_SOLICITUDES_DIARIAS = 5;
+
 /** Tope de fotos por máquina: suficientes para mostrarla, pocas para no llenar el bucket. */
 const MAX_FOTOS = 4;
 
@@ -212,6 +215,25 @@ export async function solicitarMaquina(
   }
   if (maquina.tenant_id === tenantId) {
     return { error: "No puedes pedir una máquina de tu propio taller.", ok: false };
+  }
+
+  // Tope diario por taller: cada solicitud envía un correo a otro taller, y sin
+  // límite una cuenta podría usarlo para llenarle la bandeja a alguien.
+  const desde = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count: enviadasHoy, error: errorConteo } = await supabase
+    .from("machine_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_solicitante", tenantId)
+    .gte("created_at", desde);
+
+  if (errorConteo) {
+    return { error: "No pudimos verificar tus solicitudes. Intenta de nuevo.", ok: false };
+  }
+  if ((enviadasHoy ?? 0) >= MAX_SOLICITUDES_DIARIAS) {
+    return {
+      error: "Has alcanzado el límite diario de solicitudes. Intenta mañana.",
+      ok: false,
+    };
   }
 
   const { data: solicitud, error } = await supabase

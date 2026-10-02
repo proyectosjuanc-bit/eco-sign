@@ -75,8 +75,9 @@ export async function iniciarSesion(
 
   revalidatePath("/", "layout");
   // Solo se aceptan rutas internas: un redirect abierto permitiría enviar al
-  // usuario a un dominio externo con un enlace manipulado.
-  const destino = redirigirA.startsWith("/") && !redirigirA.startsWith("//")
+  // usuario a un dominio externo con un enlace manipulado. Tras la "/" no puede
+  // venir otra "/" ni una "\": los navegadores tratan "/\evil.com" como "//evil.com".
+  const destino = /^\/[^/\\]/.test(redirigirA)
     ? redirigirA
     : "/dashboard";
   redirect(destino);

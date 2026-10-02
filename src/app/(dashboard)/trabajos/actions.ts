@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import type { EstadoForm } from "@/lib/form-state";
 import { createClient } from "@/lib/supabase/server";
 import { ERROR_SIN_TENANT, obtenerTenantId } from "@/lib/supabase/tenant";
+import { calcularConsumoTeorico } from "@/lib/consumo-teorico";
 import { areaM2 } from "@/lib/format";
 import { laminasEquivalentes } from "@/lib/lamina";
 import { subirFoto } from "@/lib/supabase/subir-foto";
@@ -95,17 +96,44 @@ export async function agregarPieza(
 
   const supabase = await createClient();
 
-  // Se cierra (o se descuenta) el sobrante origen ANTES de insertar la
-  // pieza: si dos personas usan el mismo sobrante a la vez, sólo una debe
-  // poder continuar.
+  const foto = await subirFoto(supabase, formData.get("foto"), tenantId, "pieza-");
+  if (foto.error) return { error: foto.error, ok: false };
+
+  // Primero se inserta la pieza y DESPUÉS se cierra el sobrante origen: si el
+  // insert falla, el sobrante queda intacto y disponible (antes quedaba marcado
+  // como usado sin ninguna pieza que lo justificara).
+  const { data: piezaCreada, error } = await supabase
+    .from("job_items")
+    .insert({
+      job_id: jobId,
+      material_id: materialId,
+      ancho_cm: ancho,
+      alto_cm: alto,
+      cantidad,
+      modo,
+      descripcion: descripcion || null,
+      foto_url: foto.ruta,
+    })
+    .select("id")
+    .single();
+
+  if (error || !piezaCreada) {
+    if (foto.ruta) await supabase.storage.from("sobrantes").remove([foto.ruta]);
+    return { error: error?.message ?? "No se pudo guardar la pieza.", ok: false };
+  }
+
   if (origenInventoryItemId) {
+    // La condición de disponibilidad va dentro de la propia operación (no en un
+    // select previo), así que si dos personas usan el mismo sobrante a la vez
+    // sólo una lo consigue; a la otra se le deshace la pieza.
+    let errorOrigen: string | null = null;
+
     if (origenSobranteCantidad !== null) {
-      // Sobrante "por unidad" (tornillos, luces LED…): se puede usar sólo
-      // una parte, ej. 5 de 8 disponibles. consumir_sobrante_unidad resta la
-      // cantidad de forma atómica en la base (no en dos pasos desde aquí,
-      // que dejaría una ventana de condición de carrera) y marca usado=true
-      // sólo si llega a cero. Devuelve null si no había suficiente.
-      const { data: cantidadRestante, error: errorOrigen } = await supabase.rpc(
+      // Sobrante "por unidad" (tornillos, luces LED…): se puede usar sólo una
+      // parte, ej. 5 de 8. consumir_sobrante_unidad resta de forma atómica en
+      // la base y marca usado=true sólo si llega a cero; devuelve null si no
+      // había suficiente.
+      const { data: cantidadRestante, error: fallo } = await supabase.rpc(
         "consumir_sobrante_unidad",
         {
           p_tenant_id: tenantId,
@@ -113,48 +141,39 @@ export async function agregarPieza(
           p_cantidad: origenSobranteCantidad,
         },
       );
-      if (errorOrigen) return { error: errorOrigen.message, ok: false };
-      if (cantidadRestante === null) {
-        return {
-          error: "No quedan suficientes unidades disponibles de ese sobrante.",
-          ok: false,
-        };
+      if (fallo) errorOrigen = fallo.message;
+      else if (cantidadRestante === null) {
+        errorOrigen = "No quedan suficientes unidades disponibles de ese sobrante.";
       }
     } else {
-      // Sobrante de lámina: se usa completo, no admite cantidad parcial. La
-      // condición usado=false va en el propio update (no en un select
-      // previo) para que el chequeo sea atómico — comprobado contra la base
-      // real: un update que no afecta filas devuelve un array vacío, no un
-      // error.
-      const { data: filasActualizadas, error: errorOrigen } = await supabase
+      // Sobrante de lámina: se usa completo. Un update que no afecta filas
+      // devuelve un array vacío, no un error.
+      const { data: filasActualizadas, error: fallo } = await supabase
         .from("inventory_items")
         .update({ usado: true })
         .eq("id", origenInventoryItemId)
         .eq("usado", false)
         .select("id");
-
-      if (errorOrigen) return { error: errorOrigen.message, ok: false };
-      if (!filasActualizadas?.length) {
-        return { error: "Este sobrante ya fue usado o vendido.", ok: false };
+      if (fallo) errorOrigen = fallo.message;
+      else if (!filasActualizadas?.length) {
+        errorOrigen = "Este sobrante ya fue usado o vendido.";
       }
     }
+
+    if (errorOrigen) {
+      // Se deshace la pieza para no dejar consumo registrado sin su origen.
+      const { error: errorDeshacer } = await supabase
+        .from("job_items")
+        .delete()
+        .eq("id", piezaCreada.id);
+      if (errorDeshacer) {
+        console.error("[trabajos] No se pudo deshacer la pieza", piezaCreada.id, errorDeshacer);
+      } else if (foto.ruta) {
+        await supabase.storage.from("sobrantes").remove([foto.ruta]);
+      }
+      return { error: errorOrigen, ok: false };
+    }
   }
-
-  const foto = await subirFoto(supabase, formData.get("foto"), tenantId, "pieza-");
-  if (foto.error) return { error: foto.error, ok: false };
-
-  const { error } = await supabase.from("job_items").insert({
-    job_id: jobId,
-    material_id: materialId,
-    ancho_cm: ancho,
-    alto_cm: alto,
-    cantidad,
-    modo,
-    descripcion: descripcion || null,
-    foto_url: foto.ruta,
-  });
-
-  if (error) return { error: error.message, ok: false };
 
   // El stock de materials sólo se descuenta cuando el origen es una lámina
   // NUEVA de stock: un sobrante de inventory_items nunca estuvo ahí, así que
@@ -532,32 +551,123 @@ export async function registrarConsumoReal(
   formData: FormData,
 ): Promise<EstadoForm> {
   const jobId = texto(formData, "job_id");
+  // Lo ÚNICO que viene del cliente es lo que midió la persona. El consumo
+  // teórico y el costo por m² se recalculan abajo desde la base: antes llegaban
+  // en campos ocultos y se podían alterar para inflar el ahorro.
   const consumoReal = numero(formData, "consumo_real_m2");
-  const teorico = numero(formData, "consumo_teorico_m2") ?? 0;
-  const costoM2 = numero(formData, "costo_m2") ?? 0;
 
   if (!jobId) return { error: "Falta el trabajo.", ok: false };
   if (consumoReal === null || consumoReal < 0) {
     return { error: "Escribe el consumo real en m².", ok: false };
   }
 
-  const diferencia = teorico - consumoReal;
   const tenantId = await obtenerTenantId();
+  if (!tenantId) return { error: ERROR_SIN_TENANT, ok: false };
+
   const supabase = await createClient();
 
-  if (tenantId && diferencia > 0 && costoM2 > 0) {
-    const monto = diferencia * costoM2;
-    await supabase.from("savings").insert({
-      tenant_id: tenantId,
-      job_id: jobId,
-      // Menos consumo del previsto es optimización del corte.
-      tipo: "optimizacion",
-      monto,
-      descripcion: `Consumo real ${consumoReal} m² frente a ${teorico} m² teóricos`,
-    });
-    revalidatePath("/dashboard");
+  // Con RLS, un trabajo de otro taller devuelve cero piezas.
+  const { data: piezas, error: errorPiezas } = await supabase
+    .from("job_items")
+    .select("material_id, ancho_cm, alto_cm, cantidad")
+    .eq("job_id", jobId);
+  if (errorPiezas) return { error: errorPiezas.message, ok: false };
+  if (!piezas?.length) {
+    return { error: "Este trabajo no tiene piezas registradas.", ok: false };
   }
 
+  const materialIds = [...new Set(piezas.map((p) => p.material_id))];
+  const { data: materiales, error: errorMateriales } = await supabase
+    .from("materials")
+    .select("id, costo_unitario, unidad")
+    .in("id", materialIds);
+  if (errorMateriales) return { error: errorMateriales.message, ok: false };
+
+  const { consumoTeoricoM2, costoM2 } = calcularConsumoTeorico(piezas, materiales ?? []);
+
+  const diferencia = consumoTeoricoM2 - consumoReal;
+  const monto = diferencia > 0 && costoM2 > 0 ? Number((diferencia * costoM2).toFixed(2)) : 0;
+  const descripcion = `Consumo real ${consumoReal} m² frente a ${Number(consumoTeoricoM2.toFixed(4))} m² teóricos`;
+
+  // A lo sumo un ahorro por trabajo y tipo (restricción UNIQUE(job_id, tipo)):
+  // registrar de nuevo corrige el monto en vez de sumar otro.
+  const { data: existente, error: errorBusqueda } = await supabase
+    .from("savings")
+    .select("id")
+    .eq("job_id", jobId)
+    .eq("tipo", "optimizacion")
+    .maybeSingle();
+  if (errorBusqueda) return { error: errorBusqueda.message, ok: false };
+
+  if (monto > 0) {
+    const errorGuardar = existente
+      ? await actualizarAhorro(supabase, existente.id, monto, descripcion)
+      : await insertarAhorro(supabase, tenantId, jobId, monto, descripcion);
+    if (errorGuardar) return { error: errorGuardar, ok: false };
+  } else if (existente) {
+    // El consumo corregido ya no deja ahorro: se retira el registro anterior
+    // para que el dashboard no siga contando uno que ya no es cierto.
+    const { error: errorBorrar } = await supabase
+      .from("savings")
+      .delete()
+      .eq("id", existente.id);
+    if (errorBorrar) return { error: errorBorrar.message, ok: false };
+  }
+
+  revalidatePath("/dashboard");
   revalidatePath(`/trabajos/${jobId}`);
   return { error: null, ok: true, marca: Date.now() };
+}
+
+type ClienteSupabase = Awaited<ReturnType<typeof createClient>>;
+
+/** Actualiza un ahorro existente. Devuelve el mensaje de error, o null si salió bien. */
+async function actualizarAhorro(
+  supabase: ClienteSupabase,
+  id: string,
+  monto: number,
+  descripcion: string,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("savings")
+    .update({ monto, descripcion })
+    .eq("id", id)
+    .select("id");
+  if (error) return error.message;
+  // Un update que no toca filas no es un error de Postgres: sin esto el
+  // usuario creería que se corrigió el ahorro y no.
+  if (!data?.length) return "No se pudo actualizar el ahorro de este trabajo.";
+  return null;
+}
+
+/**
+ * Inserta el ahorro del trabajo. Si dos envíos simultáneos llegan a la vez,
+ * el segundo choca con UNIQUE(job_id, tipo) (23505): en ese caso se corrige el
+ * que ya creó el primero.
+ */
+async function insertarAhorro(
+  supabase: ClienteSupabase,
+  tenantId: string,
+  jobId: string,
+  monto: number,
+  descripcion: string,
+): Promise<string | null> {
+  const { error } = await supabase.from("savings").insert({
+    tenant_id: tenantId,
+    job_id: jobId,
+    // Menos consumo del previsto es optimización del corte.
+    tipo: "optimizacion",
+    monto,
+    descripcion,
+  });
+  if (!error) return null;
+  if (error.code !== "23505") return error.message;
+
+  const { data: ya } = await supabase
+    .from("savings")
+    .select("id")
+    .eq("job_id", jobId)
+    .eq("tipo", "optimizacion")
+    .maybeSingle();
+  return ya ? actualizarAhorro(supabase, ya.id, monto, descripcion) : error.message;
 }
