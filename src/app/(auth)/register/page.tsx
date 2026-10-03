@@ -102,6 +102,26 @@ export default function RegisterPage() {
             <p className="text-xs text-muted-foreground">Mínimo 6 caracteres.</p>
           </div>
 
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="acepta_terminos"
+              className="mt-1 accent-emerald-600"
+              required
+            />
+            <span>
+              Acepto los{" "}
+              <Link href="/terminos" target="_blank" className="font-medium underline">
+                Términos y Condiciones
+              </Link>{" "}
+              y autorizo el tratamiento de mis datos según la{" "}
+              <Link href="/privacidad" target="_blank" className="font-medium underline">
+                Política de Privacidad
+              </Link>
+              .
+            </span>
+          </label>
+
           {estado.error ? (
             <p
               aria-live="polite"

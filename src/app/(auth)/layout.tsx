@@ -14,6 +14,10 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         </span>
       </Link>
       <div className="w-full max-w-sm">{children}</div>
+      <nav className="flex gap-4 text-xs text-muted-foreground">
+        <Link href="/terminos" className="hover:text-foreground">Términos</Link>
+        <Link href="/privacidad" className="hover:text-foreground">Privacidad</Link>
+      </nav>
     </div>
   );
 }

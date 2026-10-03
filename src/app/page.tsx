@@ -58,6 +58,11 @@ export default async function Home({
       <p className="text-sm text-muted-foreground">
         Suscripción fija de {formatearMoneda(SUSCRIPCION_MENSUAL)} al mes.
       </p>
+
+      <nav className="flex gap-4 text-xs text-muted-foreground">
+        <Link href="/terminos" className="hover:text-foreground">Términos y Condiciones</Link>
+        <Link href="/privacidad" className="hover:text-foreground">Política de Privacidad</Link>
+      </nav>
     </main>
   );
 }

@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import type { EstadoAuth } from "@/lib/form-state";
 import { mensajeInvitacionInvalida } from "@/lib/invitaciones";
+import { VERSION_TERMINOS } from "@/lib/legal";
 import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -98,6 +99,11 @@ export async function registrarse(
   if (!email || !password || !nombre || !empresa) {
     return { error: "Completa todos los campos." };
   }
+  // Autorización de tratamiento de datos (Ley 1581): la casilla también se
+  // exige aquí, porque el navegador se puede saltar.
+  if (textoDe(formData, "acepta_terminos") !== "on") {
+    return { error: "Debes aceptar los Términos y Condiciones y la Política de Privacidad." };
+  }
   if (password.length < 6) {
     return { error: "La contraseña debe tener al menos 6 caracteres." };
   }
@@ -109,7 +115,13 @@ export async function registrarse(
     options: {
       // El trigger handle_new_user lee esta metadata para crear el tenant con
       // el nombre de la empresa y el profile del usuario.
-      data: { nombre, empresa },
+      data: {
+        nombre,
+        empresa,
+        // Constancia de qué texto aceptó y cuándo (Ley 1581).
+        acepto_terminos_en: new Date().toISOString(),
+        acepto_terminos_version: VERSION_TERMINOS,
+      },
       // El enlace del correo vuelve a /auth/confirmar, que inicia la sesión y
       // envía la bienvenida. Debe estar en Redirect URLs de Supabase (Auth >
       // URL Configuration); si no, Supabase usa la Site URL.
@@ -227,6 +239,7 @@ export async function aceptarInvitacion(input: {
     // Constancia de la aceptación de términos (Ley 1581): queda en la
     // metadata del usuario con su fecha.
     acepto_terminos_en: new Date().toISOString(),
+    acepto_terminos_version: VERSION_TERMINOS,
   };
 
   const admin = crearClienteAdmin();
