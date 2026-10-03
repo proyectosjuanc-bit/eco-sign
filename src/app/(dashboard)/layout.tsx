@@ -77,6 +77,15 @@ export default async function DashboardLayout({
           <BotonLogout />
         </header>
 
+        {/* La base ya impide que un usuario de solo lectura cree, edite o
+            borre; el aviso evita que piense que los botones están rotos. */}
+        {perfil?.rol === "lectura" ? (
+          <p className="border-b bg-amber-50 px-4 py-2 text-sm text-amber-900 md:px-8">
+            Tienes acceso de <strong>solo lectura</strong>: puedes ver toda la
+            información del taller, pero no crear, editar ni borrar nada.
+          </p>
+        ) : null}
+
         {/* pb-20 deja sitio a la barra de navegación inferior en móvil. */}
         <main className="flex-1 p-4 pb-20 md:p-8">{children}</main>
       </div>
