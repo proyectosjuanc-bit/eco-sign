@@ -59,7 +59,15 @@ export function FormularioLogin() {
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="password">Contraseña</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="password">Contraseña</Label>
+              <Link
+                href="/recuperar"
+                className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </div>
             <PasswordInput
               id="password"
               name="password"

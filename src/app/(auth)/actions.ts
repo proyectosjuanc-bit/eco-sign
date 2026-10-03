@@ -393,3 +393,100 @@ const MENSAJE_CUENTA_EXISTENTE =
   "Este correo ya tiene una cuenta. Intenta iniciar sesión o recuperar tu contraseña.";
 
 const MENSAJE_OTRO_TALLER = "Ese correo ya está registrado en otro taller.";
+
+// ---------------------------------------------------------------------------
+// Recuperar la contraseña
+// ---------------------------------------------------------------------------
+
+const MENSAJE_RECUPERACION_ENVIADA =
+  "Si ese correo tiene una cuenta en ECO-SIGN, te enviamos un enlace para crear una nueva contraseña. Revisa también la carpeta de spam. El enlace vence en 1 hora.";
+
+/**
+ * Envía el correo para crear una nueva contraseña (lo manda Supabase, con la
+ * plantilla supabase/plantillas/recuperar-clave.html).
+ *
+ * Siempre responde lo mismo, exista o no la cuenta: si dijera "ese correo no
+ * está registrado", la pantalla serviría para averiguar quién usa ECO-SIGN.
+ * Supabase limita cuántos correos se pueden pedir para la misma dirección.
+ */
+export async function solicitarRecuperacion(
+  _estadoPrevio: EstadoAuth,
+  formData: FormData,
+): Promise<EstadoAuth> {
+  const validacion = z
+    .email({ error: "Escribe un correo válido." })
+    .safeParse(textoDe(formData, "email").toLowerCase());
+  if (!validacion.success) {
+    return { error: validacion.error.issues[0]?.message ?? "Escribe un correo válido." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(validacion.data, {
+    redirectTo: `${await origenDeLaApp()}/auth/confirmar`,
+  });
+
+  if (error) {
+    // No se le muestra: revelaría si el correo existe. Sí queda en el registro.
+    console.error("[auth] No se pudo enviar el correo de recuperación", error.message);
+  }
+
+  return { error: null, mensaje: MENSAJE_RECUPERACION_ENVIADA };
+}
+
+const esquemaNuevaClave = z
+  .object({
+    password: z
+      .string()
+      .min(10, { error: "La contraseña debe tener al menos 10 caracteres." })
+      .max(72, { error: "La contraseña es demasiado larga (máximo 72 caracteres)." }),
+    confirmacion: z.string(),
+  })
+  .refine((datos) => datos.password === datos.confirmacion, {
+    error: "Las contraseñas no coinciden.",
+  });
+
+/**
+ * Guarda la nueva contraseña de quien llegó por el enlace del correo.
+ *
+ * /auth/confirmar ya inició la sesión al validar el enlace; aquí sólo se cambia
+ * la contraseña. Después se cierran las demás sesiones de esa cuenta (si
+ * alguien más conocía la contraseña vieja, queda fuera) y se entra al panel.
+ */
+export async function guardarNuevaClave(
+  _estadoPrevio: EstadoAuth,
+  formData: FormData,
+): Promise<EstadoAuth> {
+  const validacion = esquemaNuevaClave.safeParse({
+    password: formData.get("password"),
+    confirmacion: formData.get("confirmacion"),
+  });
+  if (!validacion.success) {
+    return { error: validacion.error.issues[0]?.message ?? "Revisa la contraseña." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return {
+      error: "El enlace venció o ya se usó. Pide uno nuevo desde «¿Olvidaste tu contraseña?».",
+    };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: validacion.data.password });
+  if (error) {
+    const m = error.message.toLowerCase();
+    if (m.includes("different from the old")) {
+      return { error: "La nueva contraseña debe ser distinta de la anterior." };
+    }
+    console.error("[auth] No se pudo guardar la nueva contraseña", error.message);
+    return { error: traducirError(error.message) };
+  }
+
+  // Cierra la sesión en los demás navegadores y celulares; ésta sigue abierta.
+  await supabase.auth.signOut({ scope: "others" });
+
+  revalidatePath("/", "layout");
+  redirect("/dashboard");
+}

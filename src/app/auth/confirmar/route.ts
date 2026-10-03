@@ -13,6 +13,9 @@ import { createClient } from "@/lib/supabase/server";
  * registrarse, llegaba junto al de confirmación y su botón "Entrar al panel"
  * llevaba a un login que todavía no dejaba entrar.
  *
+ * También recibe el enlace de "olvidé mi contraseña" (`type=recovery`, plantilla
+ * supabase/plantillas/recuperar-clave.html): ése lleva a /auth/nueva-clave.
+ *
  * Acepta las dos formas de enlace que puede mandar Supabase:
  * - `?token_hash=…&type=signup`: la de la plantilla de correo personalizada
  *   (ver supabase/ESQUEMA.md). Funciona aunque el correo se abra en otro
@@ -40,6 +43,14 @@ export async function GET(request: NextRequest) {
   } else if (codigo) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(codigo);
     if (!error) usuario = data.user;
+  }
+
+  // Enlace de "olvidé mi contraseña": con la sesión ya iniciada por verifyOtp,
+  // la persona va a elegir su nueva contraseña (no al panel ni a la bienvenida).
+  if (tipo === "recovery") {
+    return NextResponse.redirect(
+      new URL(usuario ? "/auth/nueva-clave" : "/recuperar?enlace=invalido", origin),
+    );
   }
 
   if (!usuario) {
