@@ -98,9 +98,10 @@ export function GraficoAhorro({ puntos }: { puntos: PuntoAhorro[] }) {
               stroke="var(--card)"
               strokeWidth={2}
             >
-              <title>
-                {c.punto.etiqueta}: {formatearMoneda(c.punto.acumulado)} acumulado
-              </title>
+              {/* Un solo texto, no varios pedazos: React 19 exige que <title>
+                  tenga un único string. Con varios, el servidor lo enviaba
+                  vacío y el navegador lleno, y React avisaba del desajuste. */}
+              <title>{`${c.punto.etiqueta}: ${formatearMoneda(c.punto.acumulado)} acumulado`}</title>
             </circle>
             <text
               x={c.x}
