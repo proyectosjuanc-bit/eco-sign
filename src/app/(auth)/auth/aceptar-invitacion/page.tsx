@@ -1,19 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
-import { FormularioAceptarInvitacion } from "@/components/auth/formulario-aceptar-invitacion";
-import { buttonVariants } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  FormularioAceptarInvitacion,
+  type DatosInvitacion,
+} from "@/components/auth/formulario-aceptar-invitacion";
 import { ocultarCorreo } from "@/lib/format";
 import { mensajeInvitacionInvalida } from "@/lib/invitaciones";
 import { createClient } from "@/lib/supabase/server";
-import { cn } from "@/lib/utils";
 import type { Rol } from "@/types/database";
 
 export const metadata: Metadata = {
@@ -28,6 +21,13 @@ export const metadata: Metadata = {
  * La persona todavía no tiene cuenta ni sesión, así que la invitación se
  * consulta con obtener_invitacion_por_token (pública por diseño, devuelve sólo
  * lo necesario). El correo completo no llega al navegador: se muestra oculto.
+ *
+ * Siempre se dibuja el MISMO componente, sea la invitación válida o no. Al
+ * crear la cuenta, Supabase escribe una cookie y Next vuelve a renderizar esta
+ * página: para entonces la invitación ya figura como usada. Si aquí se
+ * devolviera otro componente, React descartaría el aviso de éxito y mostraría
+ * "ya fue usada" a quien acaba de registrarse. Con el mismo componente en el
+ * mismo sitio, su estado ("cuenta creada") sobrevive a ese re-render.
  */
 export default async function AceptarInvitacionPage({
   searchParams,
@@ -35,9 +35,14 @@ export default async function AceptarInvitacionPage({
   searchParams: Promise<{ token?: string }>;
 }) {
   const { token } = await searchParams;
+  const datos = await leerInvitacion(token);
 
+  return <FormularioAceptarInvitacion token={token ?? ""} datos={datos} />;
+}
+
+async function leerInvitacion(token: string | undefined): Promise<DatosInvitacion> {
   if (!token) {
-    return <Aviso mensaje={mensajeInvitacionInvalida("Token vacío")} />;
+    return { valida: false, mensaje: mensajeInvitacionInvalida("Token vacío") };
   }
 
   const supabase = await createClient();
@@ -48,40 +53,21 @@ export default async function AceptarInvitacionPage({
 
   if (error || !invitacion) {
     console.error("[auth] No se pudo consultar la invitación", error);
-    return <Aviso mensaje="No pudimos verificar la invitación. Intenta de nuevo en un momento." />;
+    return {
+      valida: false,
+      mensaje: "No pudimos verificar la invitación. Intenta de nuevo en un momento.",
+    };
   }
 
   if (!invitacion.valida || !invitacion.email) {
-    return <Aviso mensaje={mensajeInvitacionInvalida(invitacion.mensaje_error)} />;
+    return { valida: false, mensaje: mensajeInvitacionInvalida(invitacion.mensaje_error) };
   }
 
-  return (
-    <FormularioAceptarInvitacion
-      token={token}
-      correoOculto={ocultarCorreo(invitacion.email)}
-      taller={invitacion.nombre_taller ?? "un taller"}
-      invitador={invitacion.nombre_invitador ?? "Un administrador"}
-      rol={invitacion.rol as Rol}
-    />
-  );
-}
-
-/** Invitación inválida, usada o vencida: se explica y se ofrece salida. */
-function Aviso({ mensaje }: { mensaje: string }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>No pudimos abrir la invitación</CardTitle>
-        <CardDescription>{mensaje}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        <Link href="/login" className={cn(buttonVariants(), "w-full")}>
-          Ir al login
-        </Link>
-        <Link href="/" className={cn(buttonVariants({ variant: "outline" }), "w-full")}>
-          Ir al inicio
-        </Link>
-      </CardContent>
-    </Card>
-  );
+  return {
+    valida: true,
+    correoOculto: ocultarCorreo(invitacion.email),
+    taller: invitacion.nombre_taller ?? "un taller",
+    invitador: invitacion.nombre_invitador ?? "Un administrador",
+    rol: invitacion.rol as Rol,
+  };
 }

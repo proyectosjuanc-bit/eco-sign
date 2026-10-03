@@ -22,25 +22,35 @@ import type { Rol } from "@/types/database";
 
 const MIN_PASSWORD = 10;
 
+/** Lo que la página sabe de la invitación al dibujarse. */
+export type DatosInvitacion =
+  | {
+      valida: true;
+      /** Ya enmascarado en el servidor, por ejemplo "j***@gmail.com". */
+      correoOculto: string;
+      taller: string;
+      invitador: string;
+      rol: Rol;
+    }
+  | { valida: false; mensaje: string };
+
 /**
- * Formulario de la persona invitada: nombre, contraseña y aceptación de términos.
+ * Pantalla completa de la invitación: el formulario, el aviso de invitación
+ * inválida y los avisos de éxito.
+ *
+ * Todo vive en este único componente a propósito (ver la página): al crear la
+ * cuenta, Next vuelve a renderizar la página y `datos` pasa a "ya usada", pero
+ * el estado `creada` de aquí se conserva y sigue mostrando el éxito.
  *
  * Valida en el navegador para dar respuesta inmediata; el servidor repite las
  * mismas reglas (el navegador se puede saltar).
  */
 export function FormularioAceptarInvitacion({
   token,
-  correoOculto,
-  taller,
-  invitador,
-  rol,
+  datos,
 }: {
   token: string;
-  /** Ya enmascarado en el servidor, por ejemplo "j***@gmail.com". */
-  correoOculto: string;
-  taller: string;
-  invitador: string;
-  rol: Rol;
+  datos: DatosInvitacion;
 }) {
   const router = useRouter();
   const [enviando, iniciar] = useTransition();
@@ -49,7 +59,9 @@ export function FormularioAceptarInvitacion({
   const [confirmacion, setConfirmacion] = useState("");
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [creada, setCreada] = useState(false);
+  // Al crear la cuenta se guarda lo que muestra el aviso de éxito, porque
+  // después `datos` llega como "invitación ya usada" y ya no los trae.
+  const [creada, setCreada] = useState<{ taller: string; correoOculto: string } | null>(null);
   const [yaExistia, setYaExistia] = useState(false);
   // Candado síncrono contra el doble envío: `enviando` (useTransition) sólo
   // cambia después del siguiente render, y dos clics rápidos o Enter + clic
@@ -107,7 +119,11 @@ export function FormularioAceptarInvitacion({
         router.refresh();
         return;
       }
-      setCreada(true);
+      if (datos.valida) {
+        setCreada({ taller: datos.taller, correoOculto: datos.correoOculto });
+      } else {
+        setCreada({ taller: "tu taller", correoOculto: "tu correo" });
+      }
     });
   }
 
@@ -136,9 +152,9 @@ export function FormularioAceptarInvitacion({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>¡Bienvenido a {taller}!</CardTitle>
+          <CardTitle>¡Bienvenido a {creada.taller}!</CardTitle>
           <CardDescription>
-            Tu cuenta fue creada. Revisa tu correo ({correoOculto}) y toca el enlace
+            Tu cuenta fue creada. Revisa tu correo ({creada.correoOculto}) y toca el enlace
             de confirmación para activarla. Si no lo ves, revisa la carpeta de spam.
           </CardDescription>
         </CardHeader>
@@ -150,6 +166,27 @@ export function FormularioAceptarInvitacion({
       </Card>
     );
   }
+
+  if (!datos.valida) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>No pudimos abrir la invitación</CardTitle>
+          <CardDescription>{datos.mensaje}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          <Link href="/login" className={cn(buttonVariants(), "w-full")}>
+            Ir al login
+          </Link>
+          <Link href="/" className={cn(buttonVariants({ variant: "outline" }), "w-full")}>
+            Ir al inicio
+          </Link>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const { taller, invitador, rol, correoOculto } = datos;
 
   return (
     <Card>
