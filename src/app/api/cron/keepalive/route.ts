@@ -12,9 +12,12 @@ import type { Database } from "@/types/database";
  * Vercel Cron llama a esta ruta una vez al día (ver `vercel.json`) y hace una
  * consulta mínima a Postgres, que cuenta como actividad.
  *
- * Se usa la anon key sin sesión: RLS devuelve cero filas, pero la consulta
- * igual llega a la base, que es lo único que importa aquí. Así esta ruta no
- * necesita la service role key.
+ * Se usa la anon key sin sesión y una función pública y de solo lectura
+ * (obtener_invitacion_por_token con un token que no existe): llega a la base,
+ * que es lo único que importa aquí, y no necesita la service role key.
+ *
+ * Antes consultaba la tabla `tenants`, pero desde que current_tenant_id() dejó
+ * de ser ejecutable por `anon` esa consulta falla con "permission denied".
  *
  * Protección: Vercel envía `Authorization: Bearer <CRON_SECRET>` cuando la
  * variable `CRON_SECRET` existe en el proyecto. Sin esa variable la ruta queda
@@ -49,7 +52,9 @@ export async function GET(request: Request) {
     { auth: { persistSession: false } },
   );
 
-  const { error } = await supabase.from("tenants").select("id").limit(1);
+  const { error } = await supabase.rpc("obtener_invitacion_por_token", {
+    p_token: "keepalive",
+  });
 
   if (error) {
     // 502: el fallo viene de Supabase (p. ej. el proyecto ya está pausado).
