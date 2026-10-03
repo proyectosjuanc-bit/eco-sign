@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
@@ -70,9 +71,14 @@ export default async function DashboardLayout({
             <p className="truncate text-sm font-semibold">
               {tenant?.nombre ?? "Mi empresa"}
             </p>
-            <p className="truncate text-xs text-muted-foreground">
+            {/* El nombre lleva a Mi perfil (nombre, contraseña, soporte). */}
+            <Link
+              href="/perfil"
+              title="Mi perfil"
+              className="block truncate text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
               {perfil?.nombre ?? user.email}
-            </p>
+            </Link>
           </div>
           <BotonLogout />
         </header>

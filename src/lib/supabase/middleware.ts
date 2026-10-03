@@ -14,6 +14,7 @@ const RUTAS_PROTEGIDAS = [
   "/capacidad",
   "/taller",
   "/configuracion",
+  "/perfil",
 ];
 
 /** Rutas de auth: quien ya tiene sesión no debería verlas. */

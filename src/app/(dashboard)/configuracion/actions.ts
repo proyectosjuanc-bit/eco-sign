@@ -356,3 +356,71 @@ export async function activarEmpleado(profileId: string): Promise<ResultadoEquip
 
   return actualizarMiembro(ctx, id.data, { activo: true });
 }
+
+// ---------------------------------------------------------------------------
+// Datos del taller
+// ---------------------------------------------------------------------------
+
+/** Texto opcional: vacío se guarda como null. */
+function opcional(max: number, mensaje: string) {
+  return z
+    .string()
+    .trim()
+    .max(max, { error: mensaje })
+    .transform((valor) => valor || null);
+}
+
+const esquemaTaller = z.object({
+  nombre: z
+    .string()
+    .trim()
+    .min(2, { error: "Escribe el nombre del taller (mínimo 2 caracteres)." })
+    .max(120, { error: "El nombre es demasiado largo (máximo 120 caracteres)." }),
+  nit: opcional(30, "El NIT es demasiado largo.").refine(
+    (valor) => valor === null || /^[\d.\-\s]+$/.test(valor),
+    { error: "El NIT sólo puede tener números, puntos y guiones (ej. 900.123.456-7)." },
+  ),
+  telefono: opcional(20, "El teléfono es demasiado largo.").refine(
+    (valor) => valor === null || /^\+?[\d\s()-]{7,20}$/.test(valor),
+    { error: "Escribe un teléfono válido (sólo números, espacios, + o -)." },
+  ),
+  ciudad: opcional(80, "La ciudad es demasiado larga."),
+  direccion: opcional(200, "La dirección es demasiado larga."),
+});
+
+/**
+ * Guarda los datos de la empresa. Sólo admins: lo comprueba aquí es_admin() y,
+ * en la base, la política tenants_update_own.
+ */
+export async function actualizarTaller(
+  _previo: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const ctx = await contextoAdmin();
+  if (!ctx) return { error: "Solo un administrador puede editar los datos del taller.", ok: false };
+
+  const validacion = esquemaTaller.safeParse({
+    nombre: texto(formData, "nombre"),
+    nit: texto(formData, "nit"),
+    telefono: texto(formData, "telefono"),
+    ciudad: texto(formData, "ciudad"),
+    direccion: texto(formData, "direccion"),
+  });
+  if (!validacion.success) return { error: primerError(validacion.error), ok: false };
+
+  const { data, error } = await ctx.supabase
+    .from("tenants")
+    .update(validacion.data)
+    .eq("id", ctx.tenantId)
+    .select("id");
+
+  if (error) {
+    console.error("[configuracion] No se pudo guardar el taller", error);
+    return { error: ERROR_GENERICO, ok: false };
+  }
+  if (!data?.length) return { error: ERROR_GENERICO, ok: false };
+
+  // El nombre del taller sale en la cabecera de todas las páginas del panel.
+  revalidatePath("/", "layout");
+  return { error: null, ok: true, marca: Date.now() };
+}

@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { Fragment } from "react";
 import { usePathname } from "next/navigation";
 
 import { NAV_ITEMS } from "./nav-items";
+import { enlaceWhatsApp } from "@/lib/soporte";
 import { cn } from "@/lib/utils";
 
 /**
@@ -34,25 +36,38 @@ export function Sidebar({ esAdmin = false }: { esAdmin?: boolean }) {
           </Link>
         </div>
         <nav className="flex flex-1 flex-col gap-1 p-3">
-          {items.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                esActivo(item.href)
-                  ? "bg-emerald-600 text-white"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              <Icono d={item.icono} />
-              {item.etiqueta}
-            </Link>
+          {items.map((item, i) => (
+            <Fragment key={item.href}>
+              {/* Una línea separa los ítems de administración del uso diario. */}
+              {item.soloAdmin && !items[i - 1]?.soloAdmin ? (
+                <div role="separator" className="my-2 border-t" />
+              ) : null}
+              <Link
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  esActivo(item.href)
+                    ? "bg-emerald-600 text-white"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                <Icono d={item.icono} />
+                {item.etiqueta}
+              </Link>
+            </Fragment>
           ))}
         </nav>
-        <p className="border-t p-4 text-xs text-muted-foreground">
+        <div className="border-t p-4 text-xs text-muted-foreground">
+          <a
+            href={enlaceWhatsApp()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mb-2 block font-medium text-emerald-700 hover:underline"
+          >
+            ¿Necesitas ayuda? Escríbenos
+          </a>
           Tu desperdicio paga el software.
-        </p>
+        </div>
       </aside>
 
       {/* Con los ítems de admin hay 8 entradas: no caben en 360 px, así que la
