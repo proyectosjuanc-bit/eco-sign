@@ -38,6 +38,26 @@ export type Tenant = {
   ciudad: string | null;
   direccion: string | null;
   updated_at: string;
+  /** Un taller suspendido (desde /admin) deja de ver y escribir datos. */
+  estado: "activo" | "suspendido";
+  suspendido_en: string | null;
+};
+
+/** Quién es superadmin de la plataforma (tabla superadmins). */
+export type Superadmin = {
+  user_id: string;
+  agregado_por: string | null;
+  created_at: string;
+};
+
+/** Registro de acciones de superadmin (tabla superadmin_log). */
+export type SuperadminLog = {
+  id: string;
+  actor: string | null;
+  actor_email: string | null;
+  accion: string;
+  detalle: Record<string, unknown>;
+  created_at: string;
 };
 
 export type Profile = {
@@ -325,9 +345,21 @@ type Requerido<T, K extends keyof T> = Omit<T, K> & Required<Pick<T, K>>;
 export interface Database {
   public: {
     Tables: {
+      superadmins: {
+        Row: Superadmin;
+        Insert: Insertable<Superadmin>;
+        Update: Partial<Superadmin>;
+        Relationships: [];
+      };
+      superadmin_log: {
+        Row: SuperadminLog;
+        Insert: Insertable<SuperadminLog, "detalle">;
+        Update: Partial<SuperadminLog>;
+        Relationships: [];
+      };
       tenants: {
         Row: Tenant;
-        Insert: Insertable<Tenant>;
+        Insert: Insertable<Tenant, "estado" | "updated_at">;
         Update: Partial<Tenant>;
         Relationships: [];
       };
@@ -457,6 +489,14 @@ export interface Database {
           valida: boolean;
           mensaje_error: string | null;
         }[];
+      };
+      es_superadmin: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      mi_acceso: {
+        Args: Record<string, never>;
+        Returns: { perfil_activo: boolean; taller_estado: string; taller_nombre: string }[];
       };
       valor_sobrantes_disponibles: {
         Args: Record<string, never>;

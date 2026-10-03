@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { BotonLogout } from "@/components/dashboard/boton-logout";
 import { Sidebar } from "@/components/dashboard/sidebar";
+import { enlaceWhatsApp } from "@/lib/soporte";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -27,11 +28,17 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const { data: perfil } = await supabase
-    .from("profiles")
-    .select("nombre, email, tenant_id, rol, activo")
-    .eq("id", user.id)
-    .maybeSingle();
+  const [{ data: perfil }, { data: acceso }, { data: esSuperadmin }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("nombre, email, tenant_id, rol, activo")
+      .eq("id", user.id)
+      .maybeSingle(),
+    // Por qué podría no ver datos: cuenta desactivada o taller suspendido.
+    supabase.rpc("mi_acceso"),
+    supabase.rpc("es_superadmin"),
+  ]);
+  const tallerSuspendido = acceso?.[0]?.taller_estado === "suspendido";
 
   const { data: tenant } = perfil?.tenant_id
     ? await supabase
@@ -52,6 +59,34 @@ export default async function DashboardLayout({
           Un administrador de tu taller desactivó tu acceso. Si crees que es un
           error, habla con él para que te vuelva a activar.
         </p>
+        <BotonLogout />
+      </div>
+    );
+  }
+
+  // Un superadmin suspendió el taller: sus datos siguen guardados, pero nadie
+  // del taller los ve hasta que lo reactiven.
+  if (tallerSuspendido) {
+    return (
+      <div className="flex min-h-svh flex-col items-center justify-center gap-4 bg-muted/30 p-6 text-center">
+        <h1 className="text-xl font-semibold">El acceso de tu taller está suspendido</h1>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          Los datos de {acceso?.[0]?.taller_nombre ?? "tu taller"} siguen guardados y
+          no se ha borrado nada. Para reactivarlo, escríbenos.
+        </p>
+        <a
+          href={enlaceWhatsApp("Hola, el acceso de mi taller en ECO-SIGN está suspendido y quiero reactivarlo.")}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+        >
+          Escribir a soporte por WhatsApp
+        </a>
+        {esSuperadmin ? (
+          <Link href="/admin" className="text-sm underline underline-offset-4">
+            Ir al panel de superadmin
+          </Link>
+        ) : null}
         <BotonLogout />
       </div>
     );
@@ -80,7 +115,17 @@ export default async function DashboardLayout({
               {perfil?.nombre ?? user.email}
             </Link>
           </div>
-          <BotonLogout />
+          <div className="flex shrink-0 items-center gap-2">
+            {esSuperadmin ? (
+              <Link
+                href="/admin"
+                className="rounded-md bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white hover:bg-slate-700"
+              >
+                Superadmin
+              </Link>
+            ) : null}
+            <BotonLogout />
+          </div>
         </header>
 
         {/* La base ya impide que un usuario de solo lectura cree, edite o
