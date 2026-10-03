@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import type { EstadoAuth } from "@/lib/form-state";
 import { mensajeInvitacionInvalida } from "@/lib/invitaciones";
+import { crearClienteAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 /** Estado que `useActionState` devuelve a los formularios de auth. */
@@ -174,18 +175,35 @@ const esquemaAceptarInvitacion = z.object({
  *
  * Si el proyecto exige confirmar el correo (hoy sí), no hay sesión todavía: se
  * devuelve ok sin `sesionIniciada` y el formulario pide revisar el correo.
+ *
+ * Es idempotente: si la cuenta de esa invitación ya existe en el taller correcto
+ * (doble clic, reenvío del navegador, volver a abrir el enlace) devuelve
+ * `yaExistia` en vez de un error, y la persona sólo tiene que iniciar sesión.
  */
 export async function aceptarInvitacion(input: {
   token: string;
   nombre: string;
   password: string;
   aceptaTerminos: boolean;
-}): Promise<{ ok: boolean; error?: string; sesionIniciada?: boolean }> {
+}): Promise<{
+  ok: boolean;
+  error?: string;
+  sesionIniciada?: boolean;
+  /** La cuenta ya estaba creada en el taller de la invitación. */
+  yaExistia?: boolean;
+}> {
   const validacion = esquemaAceptarInvitacion.safeParse(input);
   if (!validacion.success) {
     return { ok: false, error: validacion.error.issues[0]?.message ?? "Revisa los datos." };
   }
   const { token, nombre, password } = validacion.data;
+
+  // ¿La cuenta de esta invitación ya existe? Se mira ANTES de validar la
+  // invitación porque, tras un primer envío correcto, la invitación queda
+  // aceptada y la validación diría "ya usada" a quien sólo reenvió el formulario.
+  const previa = await cuentaDeLaInvitacion(token);
+  if (previa === "mismo_taller") return { ok: true, yaExistia: true };
+  if (previa === "otro_taller") return { ok: false, error: MENSAJE_OTRO_TALLER };
 
   const supabase = await createClient();
 
@@ -221,7 +239,7 @@ export async function aceptarInvitacion(input: {
   if (error) {
     const m = error.message.toLowerCase();
     if (m.includes("already registered") || m.includes("already been registered")) {
-      return { ok: false, error: MENSAJE_CUENTA_EXISTENTE };
+      return resolverCuentaExistente(token);
     }
     // Si el trigger rechaza la invitación, Supabase lo devuelve como un error
     // genérico de base de datos (no deja pasar el texto de la excepción).
@@ -242,12 +260,76 @@ export async function aceptarInvitacion(input: {
   // usuario sin identidades y no envía nada. Se detecta aquí; si no, la persona
   // esperaría un correo que nunca llega.
   if (data.user && data.user.identities?.length === 0) {
-    return { ok: false, error: MENSAJE_CUENTA_EXISTENTE };
+    return resolverCuentaExistente(token);
   }
 
-  revalidatePath("/", "layout");
+  // OJO: aquí NO se llama a revalidatePath. La invitación ya quedó aceptada
+  // (la marcó el trigger al crear la cuenta); revalidar volvería a renderizar la
+  // página /auth/aceptar-invitacion, que consulta la invitación, la ve usada y
+  // reemplazaría el aviso de éxito por "No pudimos abrir la invitación". Si hay
+  // sesión, el formulario navega al panel y refresca por su cuenta.
   return { ok: true, sesionIniciada: Boolean(data.session) };
 }
 
+/**
+ * Cuando el signUp dice que el correo ya tiene cuenta, se distingue el caso
+ * inofensivo (la cuenta es de ESTA invitación, p. ej. un doble envío) del real
+ * (el correo ya está en uso en otro lugar).
+ */
+async function resolverCuentaExistente(
+  token: string,
+): Promise<{ ok: boolean; error?: string; yaExistia?: boolean }> {
+  const estado = await cuentaDeLaInvitacion(token);
+  if (estado === "mismo_taller") return { ok: true, yaExistia: true };
+  if (estado === "otro_taller") return { ok: false, error: MENSAJE_OTRO_TALLER };
+  return { ok: false, error: MENSAJE_CUENTA_EXISTENTE };
+}
+
+/**
+ * ¿Ya existe una cuenta con el correo de esta invitación, y de qué taller?
+ *
+ * Usa el cliente admin porque quien llama no tiene sesión y la invitación y
+ * los perfiles están protegidos por RLS. Sólo devuelve un estado, nunca datos.
+ * Si no hay clave de servicio configurada devuelve "desconocido" y el flujo
+ * sigue como si no existiera (el signUp igualmente rechaza un correo repetido).
+ */
+async function cuentaDeLaInvitacion(
+  token: string,
+): Promise<"no_existe" | "mismo_taller" | "otro_taller" | "desconocido"> {
+  const admin = crearClienteAdmin();
+  if (!admin) {
+    console.error("[auth] Falta SUPABASE_SERVICE_ROLE_KEY: no se puede verificar la cuenta previa");
+    return "desconocido";
+  }
+
+  const { data: invitacion, error: errorInvitacion } = await admin
+    .from("invitaciones")
+    .select("email, tenant_id")
+    .eq("token", token)
+    .maybeSingle();
+  if (errorInvitacion) {
+    console.error("[auth] No se pudo leer la invitación", errorInvitacion);
+    return "desconocido";
+  }
+  // Sin invitación no hay de qué cuenta hablar: que decida la validación normal.
+  if (!invitacion) return "no_existe";
+
+  const { data: perfil, error: errorPerfil } = await admin
+    .from("profiles")
+    .select("tenant_id")
+    .eq("email", invitacion.email.toLowerCase())
+    .limit(1)
+    .maybeSingle();
+  if (errorPerfil) {
+    console.error("[auth] No se pudo buscar el perfil", errorPerfil);
+    return "desconocido";
+  }
+  if (!perfil) return "no_existe";
+
+  return perfil.tenant_id === invitacion.tenant_id ? "mismo_taller" : "otro_taller";
+}
+
 const MENSAJE_CUENTA_EXISTENTE =
-  "Ya existe una cuenta con este correo. Si eres tú, inicia sesión. Si no, pide al administrador que use otro correo.";
+  "Este correo ya tiene una cuenta. Intenta iniciar sesión o recuperar tu contraseña.";
+
+const MENSAJE_OTRO_TALLER = "Ese correo ya está registrado en otro taller.";

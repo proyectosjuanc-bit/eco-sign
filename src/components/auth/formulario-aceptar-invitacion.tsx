@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 
 import { aceptarInvitacion } from "@/app/(auth)/actions";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -50,6 +50,11 @@ export function FormularioAceptarInvitacion({
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [creada, setCreada] = useState(false);
+  const [yaExistia, setYaExistia] = useState(false);
+  // Candado síncrono contra el doble envío: `enviando` (useTransition) sólo
+  // cambia después del siguiente render, y dos clics rápidos o Enter + clic
+  // caben dentro de ese margen. El ref cambia al instante.
+  const enviadoRef = useRef(false);
 
   const nombreLimpio = nombre.trim();
   const coinciden = password === confirmacion;
@@ -68,12 +73,14 @@ export function FormularioAceptarInvitacion({
 
   function enviar(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
+    if (enviadoRef.current) return;
     const problema = validar();
     if (problema) {
       setError(problema);
       return;
     }
     setError(null);
+    enviadoRef.current = true;
 
     iniciar(async () => {
       const resultado = await aceptarInvitacion({
@@ -84,7 +91,14 @@ export function FormularioAceptarInvitacion({
       });
 
       if (!resultado.ok) {
+        // Falló: se libera el candado para que pueda corregir y reintentar.
+        enviadoRef.current = false;
         setError(resultado.error ?? "No pudimos crear tu cuenta. Intenta de nuevo.");
+        return;
+      }
+      // La cuenta ya estaba creada (p. ej. un envío anterior sí funcionó).
+      if (resultado.yaExistia) {
+        setYaExistia(true);
         return;
       }
       // Sin confirmación de correo ya hay sesión: directo al panel.
@@ -95,6 +109,25 @@ export function FormularioAceptarInvitacion({
       }
       setCreada(true);
     });
+  }
+
+  if (yaExistia) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Tu cuenta ya está lista</CardTitle>
+          <CardDescription>
+            Esta cuenta ya existía. Inicia sesión con tu correo y contraseña para
+            entrar a tu taller.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Link href="/login" className={cn(buttonVariants(), "w-full")}>
+            Ir al login
+          </Link>
+        </CardContent>
+      </Card>
+    );
   }
 
   // Con la confirmación de correo activada no hay sesión todavía: se muestra el
@@ -208,7 +241,7 @@ export function FormularioAceptarInvitacion({
             </p>
           ) : null}
 
-          <Button type="submit" disabled={enviando}>
+          <Button type="submit" disabled={enviando} aria-busy={enviando}>
             {enviando ? "Creando cuenta…" : "Crear cuenta y unirme"}
           </Button>
         </form>
