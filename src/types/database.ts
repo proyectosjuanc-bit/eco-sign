@@ -443,6 +443,19 @@ export interface Database {
         Args: Record<string, never>;
         Returns: boolean;
       };
+      obtener_invitacion_por_token: {
+        Args: { p_token: string };
+        /** Siempre una fila; si `valida` es false, el resto viene nulo salvo el motivo. */
+        Returns: {
+          email: string | null;
+          rol: string | null;
+          nombre_taller: string | null;
+          nombre_invitador: string | null;
+          expira_en: string | null;
+          valida: boolean;
+          mensaje_error: string | null;
+        }[];
+      };
       nombres_talleres: {
         Args: { p_ids: string[] };
         Returns: { id: string; nombre: string }[];

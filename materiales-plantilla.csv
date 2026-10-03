@@ -1,0 +1,3 @@
+tipo,color,unidad,ancho_cm,alto_cm,costo_lamina,costo_unitario,stock_laminas,grosor_mm
+Acrílico,Blanco,m2,120,180,250000,,5,3
+Luces LED,,unidad,,,,3500,100,

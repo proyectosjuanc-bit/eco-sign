@@ -55,3 +55,10 @@ export function formatearMomento(
     ...(conHora ? { hour: "2-digit", minute: "2-digit" } : {}),
   }).format(fecha);
 }
+
+/** "juan.perez@gmail.com" → "j***@gmail.com": se reconoce sin exponerlo entero. */
+export function ocultarCorreo(correo: string): string {
+  const arroba = correo.lastIndexOf("@");
+  if (arroba < 1) return "***";
+  return `${correo[0]}***${correo.slice(arroba)}`;
+}
