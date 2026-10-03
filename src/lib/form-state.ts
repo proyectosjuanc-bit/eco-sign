@@ -11,6 +11,8 @@ export interface EstadoForm {
   ok: boolean;
   /** Cambia en cada envío correcto para remontar el formulario limpio. */
   marca?: number;
+  /** Éxito con una salvedad que conviene decirle a la persona (p. ej. el correo no salió). */
+  aviso?: string;
 }
 
 export const ESTADO_FORM_INICIAL: EstadoForm = { error: null, ok: false };

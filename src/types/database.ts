@@ -11,7 +11,8 @@
  * con `current_tenant_id()` como valor por defecto de columna.
  */
 
-export type Rol = "admin" | "operador";
+/** admin: dueño/gerente · operario: registra pero no gestiona · lectura: sólo ve. */
+export type Rol = "admin" | "operario" | "lectura";
 
 /** Valores que admite el CHECK de jobs.estado; el default es "pendiente". */
 export type EstadoTrabajo = "pendiente" | "en_proceso" | "terminado";
@@ -32,6 +33,11 @@ export type Tenant = {
   id: string;
   nombre: string;
   created_at: string;
+  nit: string | null;
+  telefono: string | null;
+  ciudad: string | null;
+  direccion: string | null;
+  updated_at: string;
 };
 
 export type Profile = {
@@ -40,6 +46,23 @@ export type Profile = {
   email: string;
   nombre: string | null;
   rol: Rol;
+  activo: boolean;
+  ultimo_acceso: string | null;
+  updated_at: string;
+};
+
+/** Invitación para sumar a una persona a un taller (tabla `invitaciones`). */
+export type Invitacion = {
+  id: string;
+  tenant_id: string;
+  email: string;
+  rol: Rol;
+  token: string;
+  invitado_por: string;
+  expira_en: string;
+  aceptada: boolean;
+  aceptada_en: string | null;
+  created_at: string;
 };
 
 export type Material = {
@@ -312,6 +335,13 @@ export interface Database {
         Update: Partial<Profile>;
         Relationships: [];
       };
+      invitaciones: {
+        Row: Invitacion;
+        Insert: Insertable<Invitacion, "expira_en" | "aceptada">;
+        /** Un admin sólo puede reenviar o corregir el rol (permiso por columna). */
+        Update: Pick<Partial<Invitacion>, "rol" | "token" | "expira_en">;
+        Relationships: [];
+      };
       materials: {
         Row: Material;
         Insert: Insertable<Material, "stock_laminas">;
@@ -400,6 +430,18 @@ export interface Database {
           p_cantidad: number;
         };
         Returns: number | null;
+      };
+      es_admin: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      puede_escribir: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      es_lectura: {
+        Args: Record<string, never>;
+        Returns: boolean;
       };
       nombres_talleres: {
         Args: { p_ids: string[] };

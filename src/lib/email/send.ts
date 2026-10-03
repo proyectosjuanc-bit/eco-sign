@@ -1,9 +1,12 @@
 import "server-only";
 
 import { REMITENTE, resend } from "./client";
+import { DIAS_VIGENCIA_INVITACION } from "@/lib/roles";
+import type { Rol } from "@/types/database";
 import {
   alertaSobranteDisponible,
   bienvenida,
+  invitacionEmpleado,
   respuestaSolicitud,
   resumenMensual,
   solicitudMaquinaRecibida,
@@ -121,4 +124,47 @@ export function sendRespuestaSolicitud(
   datos: Parameters<typeof respuestaSolicitud>[0],
 ): Promise<ResultadoEnvio> {
   return enviar(para, respuestaSolicitud(datos));
+}
+
+/**
+ * Dominio desde el que se abre el enlace de la invitación. Por defecto el de
+ * producción; para probar en local se puede fijar NEXT_PUBLIC_APP_URL
+ * (por ejemplo http://localhost:3000) y el enlace del correo apunta ahí.
+ */
+const URL_APP = process.env.NEXT_PUBLIC_APP_URL ?? "https://reutilizando.online";
+
+const FORMATO_FECHA_LARGA = new Intl.DateTimeFormat("es-CO", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "America/Bogota",
+});
+
+/**
+ * Invitación a un empleado para unirse al taller. El enlace lleva el token y
+ * caduca a los 7 días (la misma vigencia que se guarda en `invitaciones`).
+ * Si el correo falla no lanza: el admin puede reenviar desde la pantalla de equipo.
+ */
+export function sendInvitacionEmpleado(
+  email: string,
+  nombreInvitado: string,
+  nombreTaller: string,
+  nombreInvitador: string,
+  rol: Rol,
+  token: string,
+): Promise<ResultadoEnvio> {
+  const expira = new Date(Date.now() + DIAS_VIGENCIA_INVITACION * 24 * 60 * 60 * 1000);
+  const enlace = `${URL_APP}/auth/aceptar-invitacion?token=${encodeURIComponent(token)}`;
+
+  return enviar(
+    email,
+    invitacionEmpleado({
+      nombreInvitado,
+      nombreTaller,
+      nombreInvitador,
+      rol,
+      enlace,
+      expiraEn: FORMATO_FECHA_LARGA.format(expira),
+    }),
+  );
 }

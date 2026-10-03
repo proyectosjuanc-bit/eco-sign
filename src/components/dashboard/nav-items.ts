@@ -4,6 +4,8 @@ export interface NavItem {
   etiqueta: string;
   /** Path de un icono de 24x24 dibujado con stroke. */
   icono: string;
+  /** Sólo se muestra a los administradores del taller. */
+  soloAdmin?: boolean;
 }
 
 export const NAV_ITEMS: NavItem[] = [
@@ -40,5 +42,20 @@ export const NAV_ITEMS: NavItem[] = [
     // Una impresora: la sección es para compartir máquinas entre talleres.
     icono:
       "M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2M6 14h12v7H6v-7Z",
+  },
+  {
+    href: "/configuracion/equipo",
+    etiqueta: "Equipo",
+    // Dos personas.
+    icono:
+      "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
+    soloAdmin: true,
+  },
+  {
+    href: "/configuracion",
+    etiqueta: "Configuración",
+    // Controles deslizantes.
+    icono: "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6",
+    soloAdmin: true,
   },
 ];

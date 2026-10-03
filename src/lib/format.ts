@@ -35,3 +35,23 @@ export function formatearFecha(fecha: string | null | undefined): string {
 export function areaM2(anchoCm: number, altoCm: number): number {
   return (anchoCm * altoCm) / 10_000;
 }
+
+/**
+ * Momento (timestamptz) en hora de Colombia, para mostrar al usuario.
+ * Devuelve "—" si no hay valor. Con `conHora` añade la hora.
+ */
+export function formatearMomento(
+  iso: string | null | undefined,
+  conHora = false,
+): string {
+  if (!iso) return "—";
+  const fecha = new Date(iso);
+  if (Number.isNaN(fecha.getTime())) return "—";
+  return new Intl.DateTimeFormat("es-CO", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "America/Bogota",
+    ...(conHora ? { hour: "2-digit", minute: "2-digit" } : {}),
+  }).format(fecha);
+}

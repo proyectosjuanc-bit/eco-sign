@@ -1,4 +1,6 @@
 import { formatearMoneda, formatearNumero } from "@/lib/format";
+import { ETIQUETA_ROL } from "@/lib/roles";
+import type { Rol } from "@/types/database";
 
 /**
  * Plantillas del correo transaccional de ECO-SIGN.
@@ -414,6 +416,77 @@ Puedes buscar otra máquina parecida en la red de talleres.`;
 ${cuerpoTexto}
 
 Ver mis solicitudes: ${URL_ENVIADAS}
+
+${PIE}`,
+  };
+}
+
+/** Qué podrá hacer la persona invitada, según el rol que se le asigna. */
+const DESCRIPCION_ROL_CORREO: Record<Rol, string> = {
+  admin:
+    "Como administrador podrás gestionar todo, incluyendo el equipo y la configuración del taller.",
+  operario:
+    "Como operario podrás registrar materiales, sobrantes, trabajos y desperdicios, pero no gestionar el equipo.",
+  lectura:
+    "Como usuario de solo lectura podrás ver toda la información sin poder modificar nada.",
+};
+
+/**
+ * Invitación a unirse a un taller que ya usa ECO-SIGN.
+ *
+ * El enlace lleva el token de la invitación (ver `sendInvitacionEmpleado`).
+ */
+export function invitacionEmpleado({
+  nombreInvitado,
+  nombreTaller,
+  nombreInvitador,
+  rol,
+  enlace,
+  expiraEn,
+}: {
+  /** Puede venir vacío: el admin no está obligado a escribirlo. */
+  nombreInvitado: string;
+  nombreTaller: string;
+  nombreInvitador: string;
+  rol: Rol;
+  /** URL completa, con el token. */
+  enlace: string;
+  /** Ya formateada para leer, por ejemplo "9 oct 2026". */
+  expiraEn: string;
+}): Plantilla {
+  const invitado = nombreInvitado.trim();
+  const saludoHtml = invitado ? `Hola ${escapar(invitado)}` : "Hola";
+  const saludoTexto = invitado ? `Hola ${invitado}` : "Hola";
+  const taller = escapar(nombreTaller);
+  const invitador = escapar(nombreInvitador);
+  const etiquetaRol = ETIQUETA_ROL[rol].toLowerCase();
+  const descripcionRol = DESCRIPCION_ROL_CORREO[rol];
+
+  const presentacion =
+    "ECO-SIGN es la plataforma para gestionar materiales, sobrantes, trabajos y capacidad compartida entre talleres.";
+
+  return {
+    subject: `${nombreTaller} te invitó a ECO-SIGN`,
+    html: envolver(
+      titulo(`${saludoHtml},`) +
+        parrafo(
+          `<strong>${invitador}</strong> te invitó a unirte al taller <strong>${taller}</strong> en ECO-SIGN con el rol de <strong>${escapar(etiquetaRol)}</strong>. ${presentacion}`,
+        ) +
+        parrafo(descripcionRol) +
+        boton(escapar(enlace), "Aceptar invitación") +
+        parrafo(
+          `<span style="font-size:13px;color:${GRIS};">Este enlace expira el ${escapar(expiraEn)}.</span>`,
+        ),
+    ),
+    text: `${saludoTexto},
+
+${nombreInvitador} te invitó a unirte al taller ${nombreTaller} en ECO-SIGN con el rol de ${etiquetaRol}. ${presentacion}
+
+${descripcionRol}
+
+Aceptar invitación: ${enlace}
+
+Este enlace expira el ${expiraEn}.
 
 ${PIE}`,
   };

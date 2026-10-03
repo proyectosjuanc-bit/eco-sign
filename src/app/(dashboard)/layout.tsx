@@ -28,7 +28,7 @@ export default async function DashboardLayout({
 
   const { data: perfil } = await supabase
     .from("profiles")
-    .select("nombre, email, tenant_id")
+    .select("nombre, email, tenant_id, rol, activo")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -40,9 +40,29 @@ export default async function DashboardLayout({
         .maybeSingle()
     : { data: null };
 
+  // Un admin desactivó esta cuenta: la base ya no le devuelve datos del taller
+  // (RLS), y aquí se le explica en vez de mostrarle un panel vacío. No se
+  // redirige a /login porque el proxy devuelve al panel a quien tiene sesión.
+  if (perfil && !perfil.activo) {
+    return (
+      <div className="flex min-h-svh flex-col items-center justify-center gap-4 bg-muted/30 p-6 text-center">
+        <h1 className="text-xl font-semibold">Tu cuenta está desactivada</h1>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          Un administrador de tu taller desactivó tu acceso. Si crees que es un
+          error, habla con él para que te vuelva a activar.
+        </p>
+        <BotonLogout />
+      </div>
+    );
+  }
+
+  // Equivale a es_admin() de la base (rol admin y activo); se aprovecha el
+  // perfil ya cargado en vez de otra consulta.
+  const esAdmin = perfil?.rol === "admin";
+
   return (
     <div className="flex min-h-svh bg-muted/30">
-      <Sidebar />
+      <Sidebar esAdmin={esAdmin} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-16 items-center justify-between gap-4 border-b bg-card px-4 md:px-8">
