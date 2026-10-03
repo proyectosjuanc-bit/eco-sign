@@ -6,6 +6,8 @@ export interface NavItem {
   icono: string;
   /** Sólo se muestra a los administradores del taller. */
   soloAdmin?: boolean;
+  /** Va en el bloque de administración, separado del uso diario por una línea. */
+  gestion?: boolean;
 }
 
 export const NAV_ITEMS: NavItem[] = [
@@ -13,6 +15,8 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/dashboard",
     etiqueta: "Dashboard",
     icono: "M3 13h8V3H3v10Zm0 8h8v-6H3v6Zm10 0h8V11h-8v10Zm0-18v6h8V3h-8Z",
+    // Las cifras de dinero del taller (ahorro, ROI) son para quien lo dirige.
+    soloAdmin: true,
   },
   {
     href: "/materiales",
@@ -50,6 +54,7 @@ export const NAV_ITEMS: NavItem[] = [
     icono:
       "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
     soloAdmin: true,
+    gestion: true,
   },
   {
     href: "/configuracion",
@@ -57,5 +62,6 @@ export const NAV_ITEMS: NavItem[] = [
     // Controles deslizantes.
     icono: "M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6",
     soloAdmin: true,
+    gestion: true,
   },
 ];

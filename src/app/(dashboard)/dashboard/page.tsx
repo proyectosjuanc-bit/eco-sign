@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { GraficoAhorro, type PuntoAhorro } from "@/components/dashboard/grafico-ahorro";
 import { EncabezadoPagina } from "@/components/dashboard/encabezado-pagina";
@@ -15,6 +16,13 @@ const MESES_HISTORIA = 6;
 
 export default async function DashboardPage() {
   const supabase = await createClient();
+
+  // El Dashboard (ahorro, ROI, costos del taller) es sólo para administradores.
+  // Muchas entradas llevan aquí (login, confirmación, invitación, la app
+  // instalada): a operarios y usuarios de solo lectura se les envía a
+  // Trabajos, que es su pantalla del día a día.
+  const { data: esAdmin } = await supabase.rpc("es_admin");
+  if (!esAdmin) redirect("/trabajos");
   const hoy = new Date();
   const { inicio, fin } = rangoMesActual(hoy);
 

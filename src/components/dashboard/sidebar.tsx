@@ -31,7 +31,7 @@ export function Sidebar({ esAdmin = false }: { esAdmin?: boolean }) {
     <>
       <aside className="hidden w-60 shrink-0 border-r bg-card md:flex md:flex-col">
         <div className="flex h-16 items-center border-b px-6">
-          <Link href="/dashboard" className="text-lg font-bold tracking-tight">
+          <Link href={esAdmin ? "/dashboard" : "/trabajos"} className="text-lg font-bold tracking-tight">
             ECO<span className="text-emerald-600">·</span>SIGN
           </Link>
         </div>
@@ -39,7 +39,7 @@ export function Sidebar({ esAdmin = false }: { esAdmin?: boolean }) {
           {items.map((item, i) => (
             <Fragment key={item.href}>
               {/* Una línea separa los ítems de administración del uso diario. */}
-              {item.soloAdmin && !items[i - 1]?.soloAdmin ? (
+              {item.gestion && !items[i - 1]?.gestion ? (
                 <div role="separator" className="my-2 border-t" />
               ) : null}
               <Link
