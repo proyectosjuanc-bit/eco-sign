@@ -221,17 +221,85 @@ export async function aceptarInvitacion(input: {
     return { ok: false, error: mensajeInvitacionInvalida(invitacion.mensaje_error) };
   }
 
-  const { data, error } = await supabase.auth.signUp({
+  const metadata = {
+    invitacion_token: token,
+    nombre,
+    // Constancia de la aceptación de términos (Ley 1581): queda en la
+    // metadata del usuario con su fecha.
+    acepto_terminos_en: new Date().toISOString(),
+  };
+
+  const admin = crearClienteAdmin();
+  if (!admin) {
+    // Sin la clave de servicio no se puede crear la cuenta ya confirmada: se
+    // usa el registro normal, que pide confirmar el correo (dos correos).
+    console.error("[auth] Falta SUPABASE_SERVICE_ROLE_KEY: alta por invitación con confirmación de correo");
+    return registrarConConfirmacion(supabase, invitacion.email, password, metadata, token);
+  }
+
+  // La cuenta se crea YA CONFIRMADA: si la persona abrió el enlace de la
+  // invitación, ya demostró que el correo es suyo (el enlace sólo llegó a ese
+  // buzón). Así no hace falta un segundo correo de confirmación. El trigger
+  // handle_new_user la une al taller con el rol de la invitación.
+  const { error } = await admin.auth.admin.createUser({
     email: invitacion.email,
     password,
+    email_confirm: true,
+    user_metadata: metadata,
+  });
+
+  if (error) {
+    const m = error.message.toLowerCase();
+    if (error.code === "email_exists" || m.includes("already been registered") || m.includes("already registered")) {
+      return resolverCuentaExistente(token);
+    }
+    // Si el trigger rechaza la invitación, Supabase lo devuelve como un error
+    // genérico de base de datos (no deja pasar el texto de la excepción).
+    if (m.includes("database error")) {
+      console.error("[auth] El alta por invitación fue rechazada", error.message);
+      return {
+        ok: false,
+        error:
+          "No pudimos crear tu cuenta. Es posible que la invitación ya no sea válida: pide una nueva al administrador de tu taller.",
+      };
+    }
+    console.error("[auth] No se pudo crear la cuenta por invitación", error.message);
+    return { ok: false, error: "No pudimos crear tu cuenta. Intenta de nuevo en un momento." };
+  }
+
+  // Entra de una vez. Si en este navegador había otra sesión abierta (otro
+  // usuario del taller, un admin probando), queda reemplazada por la nueva.
+  const { error: errorLogin } = await supabase.auth.signInWithPassword({
+    email: invitacion.email,
+    password,
+  });
+  if (errorLogin) {
+    // La cuenta sí quedó creada: que entre por el login normal.
+    console.error("[auth] Cuenta creada pero no se pudo iniciar sesión", errorLogin.message);
+    return { ok: true, yaExistia: true };
+  }
+
+  // OJO: aquí NO se llama a revalidatePath (ver formulario-aceptar-invitacion):
+  // el formulario navega al panel por su cuenta.
+  return { ok: true, sesionIniciada: true };
+}
+
+/**
+ * Alta por invitación SIN clave de servicio: registro normal de Supabase, que
+ * envía un correo de confirmación. Sólo se usa si falta SUPABASE_SERVICE_ROLE_KEY.
+ */
+async function registrarConConfirmacion(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  email: string,
+  password: string,
+  metadata: Record<string, string>,
+  token: string,
+): Promise<{ ok: boolean; error?: string; sesionIniciada?: boolean; yaExistia?: boolean }> {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
     options: {
-      data: {
-        invitacion_token: token,
-        nombre,
-        // Constancia de la aceptación de términos (Ley 1581): queda en la
-        // metadata del usuario con su fecha.
-        acepto_terminos_en: new Date().toISOString(),
-      },
+      data: metadata,
       emailRedirectTo: `${await origenDeLaApp()}/auth/confirmar`,
     },
   });
@@ -241,8 +309,6 @@ export async function aceptarInvitacion(input: {
     if (m.includes("already registered") || m.includes("already been registered")) {
       return resolverCuentaExistente(token);
     }
-    // Si el trigger rechaza la invitación, Supabase lo devuelve como un error
-    // genérico de base de datos (no deja pasar el texto de la excepción).
     if (m.includes("database error")) {
       console.error("[auth] El alta por invitación fue rechazada", error.message);
       return {
@@ -257,17 +323,11 @@ export async function aceptarInvitacion(input: {
 
   // Con la confirmación de correo activada, si el correo ya tiene cuenta
   // Supabase no da error (para no revelar qué correos existen): devuelve un
-  // usuario sin identidades y no envía nada. Se detecta aquí; si no, la persona
-  // esperaría un correo que nunca llega.
+  // usuario sin identidades y no envía nada.
   if (data.user && data.user.identities?.length === 0) {
     return resolverCuentaExistente(token);
   }
 
-  // OJO: aquí NO se llama a revalidatePath. La invitación ya quedó aceptada
-  // (la marcó el trigger al crear la cuenta); revalidar volvería a renderizar la
-  // página /auth/aceptar-invitacion, que consulta la invitación, la ve usada y
-  // reemplazaría el aviso de éxito por "No pudimos abrir la invitación". Si hay
-  // sesión, el formulario navega al panel y refresca por su cuenta.
   return { ok: true, sesionIniciada: Boolean(data.session) };
 }
 

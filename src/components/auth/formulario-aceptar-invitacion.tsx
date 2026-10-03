@@ -31,6 +31,8 @@ export type DatosInvitacion =
       taller: string;
       invitador: string;
       rol: Rol;
+      /** Correo (oculto) de otra cuenta con sesión abierta en este navegador. */
+      sesionAbierta?: string;
     }
   | { valida: false; mensaje: string };
 
@@ -63,6 +65,9 @@ export function FormularioAceptarInvitacion({
   // después `datos` llega como "invitación ya usada" y ya no los trae.
   const [creada, setCreada] = useState<{ taller: string; correoOculto: string } | null>(null);
   const [yaExistia, setYaExistia] = useState(false);
+  // Cuenta creada y sesión iniciada: mientras navega al panel se muestra un
+  // aviso, para que el re-render de la página (invitación ya usada) no asome.
+  const [entrando, setEntrando] = useState(false);
   // Candado síncrono contra el doble envío: `enviando` (useTransition) sólo
   // cambia después del siguiente render, y dos clics rápidos o Enter + clic
   // caben dentro de ese margen. El ref cambia al instante.
@@ -113,9 +118,10 @@ export function FormularioAceptarInvitacion({
         setYaExistia(true);
         return;
       }
-      // Sin confirmación de correo ya hay sesión: directo al panel.
+      // Cuenta creada y sesión iniciada: directo al panel.
       if (resultado.sesionIniciada) {
-        router.push("/dashboard");
+        setEntrando(true);
+        router.replace("/dashboard");
         router.refresh();
         return;
       }
@@ -127,14 +133,25 @@ export function FormularioAceptarInvitacion({
     });
   }
 
+  if (entrando) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>¡Listo! Entrando a tu taller…</CardTitle>
+          <CardDescription>Tu cuenta quedó creada. En un momento verás el panel.</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
   if (yaExistia) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Tu cuenta ya está lista</CardTitle>
           <CardDescription>
-            Esta cuenta ya existía. Inicia sesión con tu correo y contraseña para
-            entrar a tu taller.
+            Inicia sesión con tu correo y la contraseña que elegiste para entrar a
+            tu taller.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -186,7 +203,7 @@ export function FormularioAceptarInvitacion({
     );
   }
 
-  const { taller, invitador, rol, correoOculto } = datos;
+  const { taller, invitador, rol, correoOculto, sesionAbierta } = datos;
 
   return (
     <Card>
@@ -198,7 +215,16 @@ export function FormularioAceptarInvitacion({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={enviar} className="flex flex-col gap-4" noValidate>
+        {sesionAbierta ? (
+          <p className="mb-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            En este navegador hay una sesión abierta con otra cuenta ({sesionAbierta}).
+            Al crear tu cuenta se cerrará y entrarás con la nueva.
+          </p>
+        ) : null}
+        {/* method="post": si el JavaScript no llegara a cargar, el navegador
+            enviaría el formulario por su cuenta; con GET la contraseña
+            acabaría en la URL (historial, registros del servidor). */}
+        <form onSubmit={enviar} method="post" className="flex flex-col gap-4" noValidate>
           <div className="grid gap-2">
             <Label htmlFor="nombre">Nombre completo</Label>
             <Input

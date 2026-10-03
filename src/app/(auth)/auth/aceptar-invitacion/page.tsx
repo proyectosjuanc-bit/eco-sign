@@ -63,8 +63,19 @@ async function leerInvitacion(token: string | undefined): Promise<DatosInvitacio
     return { valida: false, mensaje: mensajeInvitacionInvalida(invitacion.mensaje_error) };
   }
 
+  // ¿Hay otra cuenta con sesión abierta en este navegador? (p. ej. el admin
+  // probando, o un computador compartido del taller). Se avisa en el formulario.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const sesionAbierta =
+    user?.email && user.email.toLowerCase() !== invitacion.email.toLowerCase()
+      ? ocultarCorreo(user.email)
+      : undefined;
+
   return {
     valida: true,
+    sesionAbierta,
     correoOculto: ocultarCorreo(invitacion.email),
     taller: invitacion.nombre_taller ?? "un taller",
     invitador: invitacion.nombre_invitador ?? "Un administrador",
