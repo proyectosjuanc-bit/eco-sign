@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checklist del taller · ECO-SIGN</title>
+<meta name="description" content="Paso a paso para que un taller use todo ECO-SIGN, desde el registro hasta la rutina mensual.">
+<style>
+  :root {
+    --fondo: #f6f7f6;
+    --tarjeta: #ffffff;
+    --texto: #111827;
+    --suave: #6b7280;
+    --borde: #e5e7eb;
+    --verde: #059669;
+    --verde-suave: #ecfdf5;
+    --ambar: #92400e;
+    --ambar-suave: #fffbeb;
+    --azul: #1e40af;
+    --azul-suave: #eff6ff;
+    --violeta: #5b21b6;
+    --violeta-suave: #f5f3ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fondo: #0b0f0e;
+      --tarjeta: #151a19;
+      --texto: #e5e7eb;
+      --suave: #9ca3af;
+      --borde: #2a3130;
+      --verde: #34d399;
+      --verde-suave: #0f2a22;
+      --ambar: #fbbf24;
+      --ambar-suave: #2a2210;
+      --azul: #93c5fd;
+      --azul-suave: #13203a;
+      --violeta: #c4b5fd;
+      --violeta-suave: #1f1838;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--fondo);
+    color: var(--texto);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .contenedor { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+  header.portada { margin-bottom: 24px; }
+  .marca { font-weight: 800; font-size: 20px; letter-spacing: -0.01em; }
+  .marca span { color: var(--verde); }
+  h1 { font-size: 28px; line-height: 1.2; margin: 12px 0 8px; }
+  .intro { color: var(--suave); margin: 0 0 16px; }
+  .barra-progreso {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--fondo); padding: 12px 0;
+    border-bottom: 1px solid var(--borde);
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .medidor { flex: 1 1 220px; height: 10px; background: var(--borde); border-radius: 99px; overflow: hidden; }
+  .medidor > div { height: 100%; width: 0; background: var(--verde); transition: width .25s; }
+  .contador { font-weight: 600; font-variant-numeric: tabular-nums; min-width: 9ch; }
+  .acciones button {
+    font: inherit; font-size: 14px; padding: 6px 12px; border-radius: 8px;
+    border: 1px solid var(--borde); background: var(--tarjeta); color: var(--texto); cursor: pointer;
+  }
+  .acciones button:hover { border-color: var(--verde); }
+  .leyenda { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; font-size: 13px; color: var(--suave); align-items: center; }
+  .etiqueta {
+    display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px;
+    white-space: nowrap; vertical-align: middle;
+  }
+  .e-admin { background: var(--violeta-suave); color: var(--violeta); }
+  .e-operario { background: var(--azul-suave); color: var(--azul); }
+  .e-todos { background: var(--verde-suave); color: var(--verde); }
+  .e-opcional { background: var(--ambar-suave); color: var(--ambar); }
+
+  section.fase {
+    background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 12px;
+    padding: 20px; margin-top: 20px;
+  }
+  .fase-cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .fase h2 { margin: 0; font-size: 20px; display: flex; gap: 10px; align-items: baseline; }
+  .numero {
+    display: inline-flex; align-items: center; justify-content: center; flex: none;
+    width: 30px; height: 30px; border-radius: 99px; background: var(--verde); color: #fff; font-size: 15px;
+  }
+  .fase-progreso { font-size: 13px; color: var(--suave); font-variant-numeric: tabular-nums; }
+  .fase > p.para { color: var(--suave); margin: 8px 0 4px; font-size: 15px; }
+
+  ul.lista { list-style: none; margin: 12px 0 0; padding: 0; }
+  ul.lista li { border-top: 1px solid var(--borde); }
+  ul.lista li:first-child { border-top: none; }
+  label.item { display: flex; gap: 12px; padding: 12px 4px; cursor: pointer; align-items: flex-start; }
+  label.item input { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--verde); flex: none; cursor: pointer; }
+  .item-cuerpo { flex: 1; min-width: 0; }
+  .item-titulo { font-weight: 600; }
+  .item-detalle { color: var(--suave); font-size: 15px; margin-top: 2px; }
+  .ruta { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; background: var(--fondo); border: 1px solid var(--borde); border-radius: 6px; padding: 1px 6px; color: var(--texto); }
+  input:checked + .item-cuerpo .item-titulo { text-decoration: line-through; color: var(--suave); }
+
+  .nota {
+    margin-top: 12px; padding: 10px 14px; border-radius: 8px; font-size: 14px;
+    background: var(--ambar-suave); color: var(--texto); border-left: 4px solid var(--ambar);
+  }
+  .nota.verde { background: var(--verde-suave); border-left-color: var(--verde); }
+  table.roles { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+  table.roles th, table.roles td { text-align: left; padding: 8px; border-top: 1px solid var(--borde); vertical-align: top; }
+  table.roles th { color: var(--suave); font-weight: 600; }
+  .tabla-scroll { overflow-x: auto; }
+  .rutina { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
+  .rutina div { border: 1px solid var(--borde); border-radius: 10px; padding: 12px; }
+  .rutina h3 { margin: 0 0 6px; font-size: 15px; }
+  .rutina ul { margin: 0; padding-left: 18px; font-size: 14px; color: var(--suave); }
+  .soporte a { color: var(--verde); font-weight: 600; }
+  footer { margin-top: 32px; font-size: 13px; color: var(--suave); text-align: center; }
+
+  @media print {
+    body { background: #fff; color: #000; font-size: 12px; }
+    .barra-progreso, .acciones { display: none !important; }
+    section.fase { break-inside: avoid; border-color: #ccc; }
+    .numero { background: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="contenedor">
+
+<header class="portada">
+  <div class="marca">ECO<span>·</span>SIGN</div>
+  <h1>Checklist del taller: de cero a usar todo ECO-SIGN</h1>
+  <p class="intro">
+    Sigue las fases en orden. Marca cada paso cuando lo termines: las marcas se
+    guardan en este navegador, así que puedes cerrar el archivo y seguir después.
+    La plataforma está en <strong>reutilizando.online</strong>.
+  </p>
+  <div class="leyenda">
+    Quién lo hace:
+    <span class="etiqueta e-admin">Administrador</span>
+    <span class="etiqueta e-operario">Operario</span>
+    <span class="etiqueta e-todos">Todos</span>
+    <span class="etiqueta e-opcional">Opcional</span>
+  </div>
+</header>
+
+<div class="barra-progreso" role="status" aria-live="polite">
+  <div class="contador" id="contador">0 de 0</div>
+  <div class="medidor" aria-hidden="true"><div id="medidor"></div></div>
+  <div class="acciones">
+    <button type="button" id="imprimir">Imprimir</button>
+    <button type="button" id="reiniciar">Desmarcar todo</button>
+  </div>
+</div>
+
+<!-- ======================================================= FASE 1 -->
+<section class="fase" data-fase>
+  <div class="fase-cabecera">
+    <h2><span class="numero">1</span>Crea la cuenta del taller</h2>
+    <span class="fase-progreso"></span>
+  </div>
+  <p class="para">Lo hace una sola vez el dueño o gerente. Esa persona queda como administrador.</p>
+  <ul class="lista">
+    <li><label class="item"><input type="checkbox" data-id="f1-registro"><div class="item-cuerpo">
+      <div class="item-titulo">Regístrate <span class="etiqueta e-admin">Administrador</span></div>
+      <div class="item-detalle">En <span class="ruta">reutilizando.online → Crear cuenta</span> escribe el nombre de la empresa, tu nombre, tu correo y una contraseña. Marca la casilla de Términos y Política de Privacidad (puedes leerlos desde los enlaces).</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f1-confirmar"><div class="item-cuerpo">
+      <div class="item-titulo">Confirma tu correo <span class="etiqueta e-admin">Administrador</span></div>
+      <div class="item-detalle">Abre el correo «Confirma tu cuenta» y toca el botón. Entras directo al panel. Si no llega en unos minutos, revisa la carpeta de spam.</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f1-celular"><div class="item-cuerpo">
+      <div class="item-titulo">Instala la app en el celular <span class="etiqueta e-opcional">Opcional</span></div>
+      <div class="item-detalle">En el celular abre reutilizando.online y usa «Agregar a la pantalla de inicio» del navegador. Queda como una app más, útil para registrar en el taller.</div>
+    </div></label></li>
+  </ul>
+</section>
+
+<!-- ======================================================= FASE 2 -->
+<section class="fase" data-fase>
+  <div class="fase-cabecera">
+    <h2><span class="numero">2</span>Configura tu taller</h2>
+    <span class="fase-progreso"></span>
+  </div>
+  <ul class="lista">
+    <li><label class="item"><input type="checkbox" data-id="f2-datos"><div class="item-cuerpo">
+      <div class="item-titulo">Completa los datos de la empresa <span class="etiqueta e-admin">Administrador</span></div>
+      <div class="item-detalle"><span class="ruta">Configuración → Datos del taller</span>: nombre, NIT, teléfono, ciudad y dirección. Pulsa «Guardar cambios». El nombre aparece arriba en el panel, en los correos de invitación y en la red de talleres.</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f2-perfil"><div class="item-cuerpo">
+      <div class="item-titulo">Revisa tu perfil <span class="etiqueta e-todos">Todos</span></div>
+      <div class="item-detalle">Toca tu nombre arriba (debajo del nombre del taller) para abrir <span class="ruta">Mi perfil</span>: puedes corregir tu nombre y cambiar tu contraseña.</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f2-guia"><div class="item-cuerpo">
+      <div class="item-titulo">Lee la guía corta <span class="etiqueta e-todos">Todos</span></div>
+      <div class="item-detalle">En <span class="ruta">Dashboard → Cómo funciona</span> (o reutilizando.online/guia) está la idea completa: qué es un sobrante, qué es desperdicio y cómo se calcula el ahorro.</div>
+    </div></label></li>
+  </ul>
+</section>
+
+<!-- ======================================================= FASE 3 -->
+<section class="fase" data-fase>
+  <div class="fase-cabecera">
+    <h2><span class="numero">3</span>Arma tu equipo</h2>
+    <span class="fase-progreso"></span>
+  </div>
+  <p class="para">Cada persona del taller debe tener su propia cuenta. No compartan contraseñas.</p>
+  <div class="tabla-scroll">
+    <table class="roles">
+      <thead><tr><th>Rol</th><th>Puede</th><th>No puede</th></tr></thead>
+      <tbody>
+        <tr><td><span class="etiqueta e-admin">Administrador</span></td><td>Todo: registrar, ver el Dashboard, gestionar el equipo y los datos del taller.</td><td>—</td></tr>
+        <tr><td><span class="etiqueta e-operario">Operario</span></td><td>Registrar materiales, trabajos, sobrantes, desperdicio y usar Capacidad.</td><td>Ver el Dashboard, gestionar el equipo o los datos del taller.</td></tr>
+        <tr><td><span class="etiqueta e-opcional">Solo lectura</span></td><td>Ver la información del taller.</td><td>Crear, editar o borrar nada.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <ul class="lista">
+    <li><label class="item"><input type="checkbox" data-id="f3-invitar"><div class="item-cuerpo">
+      <div class="item-titulo">Invita a cada empleado <span class="etiqueta e-admin">Administrador</span></div>
+      <div class="item-detalle"><span class="ruta">Equipo → Invitar empleado</span>: escribe su correo, elige el rol y pulsa «Enviar invitación». La invitación vale 7 días.</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f3-aceptar"><div class="item-cuerpo">
+      <div class="item-titulo">Cada empleado acepta su invitación <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle">Le llega <strong>un solo correo</strong>. Toca «Aceptar invitación», escribe su nombre y una contraseña de al menos 10 caracteres, marca la casilla y pulsa «Crear cuenta y unirme». Entra directo al taller.</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f3-verificar"><div class="item-cuerpo">
+      <div class="item-titulo">Comprueba que todos quedaron <span class="etiqueta e-admin">Administrador</span></div>
+      <div class="item-detalle">En <span class="ruta">Equipo</span> deben aparecer en «Miembros del taller» y ya no en «Invitaciones pendientes». Si a alguien no le llegó, usa «Reenviar».</div>
+    </div></label></li>
+  </ul>
+  <div class="nota">Cuando alguien deje de trabajar en el taller, desactívalo en <span class="ruta">Equipo → Desactivar</span>. Pierde el acceso al instante y no se borra nada de lo que registró.</div>
+</section>
+
+<!-- ======================================================= FASE 4 -->
+<section class="fase" data-fase>
+  <div class="fase-cabecera">
+    <h2><span class="numero">4</span>Carga tus materiales</h2>
+    <span class="fase-progreso"></span>
+  </div>
+  <p class="para">Es la base de todo: con el precio de cada material se valoran los sobrantes, los trabajos y el desperdicio.</p>
+  <ul class="lista">
+    <li><label class="item"><input type="checkbox" data-id="f4-lista"><div class="item-cuerpo">
+      <div class="item-titulo">Haz la lista de lo que compras <span class="etiqueta e-admin">Administrador</span></div>
+      <div class="item-detalle">Para cada material anota: tipo (acrílico, vinilo, PVC…), color, grosor, cómo se mide y su precio. Se mide por <strong>Lámina (m²)</strong> (con ancho, alto y precio por lámina), por <strong>Unidad</strong> (tornillos, luces LED) o por <strong>Metro lineal</strong>.</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f4-cargar"><div class="item-cuerpo">
+      <div class="item-titulo">Cárgalos en la plataforma <span class="etiqueta e-admin">Administrador</span> <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle">
+        <strong>Pocos:</strong> <span class="ruta">Materiales → Nuevo material</span>, uno por uno.<br>
+        <strong>Muchos:</strong> <span class="ruta">Materiales → Cargar varios materiales → Descargar plantilla de Excel</span>, llénala (tiene instrucciones y ejemplos) y súbela con «Importar materiales». Si alguna fila tiene un error, te dice cuál.
+      </div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f4-existencias"><div class="item-cuerpo">
+      <div class="item-titulo">Registra cuántas láminas tienes <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle">En <span class="ruta">Materiales</span>, los botones − y + de «Existencias» ajustan las láminas en bodega. Al registrar cortes desde una «Lámina de stock», se descuentan solas.</div>
+    </div></label></li>
+  </ul>
+  <div class="nota verde">Si un material ya no se usa, pulsa «Eliminar». Si tiene historial (sobrantes, trabajos o desperdicio), no se borra: se archiva y conservas todo. Lo puedes restaurar desde «Archivados».</div>
+</section>
+
+<!-- ======================================================= FASE 5 -->
+<section class="fase" data-fase>
+  <div class="fase-cabecera">
+    <h2><span class="numero">5</span>Registra cada trabajo</h2>
+    <span class="fase-progreso"></span>
+  </div>
+  <p class="para">Es el día a día del taller. Lo ideal es registrar al momento de cortar.</p>
+  <ul class="lista">
+    <li><label class="item"><input type="checkbox" data-id="f5-crear"><div class="item-cuerpo">
+      <div class="item-titulo">Crea el trabajo <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle"><span class="ruta">Trabajos → Nuevo trabajo</span>: nombre (por ejemplo «Aviso fachada Panadería X»), cliente y fecha.</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f5-consumo"><div class="item-cuerpo">
+      <div class="item-titulo">Registra lo que consumes <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle">Abre el trabajo y usa <span class="ruta">Añadir consumo</span>. Primero el <strong>Origen del material</strong>: «A mano», «Lámina de stock» (descuenta existencias) o «Sobrante» (usa uno del inventario). Luego el <strong>Modo de registro</strong>: «Lámina» para la plancha que sacaste de bodega y «Pieza» para cada corte que entregas. Escribe ancho, alto y cantidad; la foto es opcional.</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f5-aprovechable"><div class="item-cuerpo">
+      <div class="item-titulo">Guarda lo que se puede reutilizar <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle">Si una pieza es un recorte que sirve para otro trabajo, marca «Esta pieza es un recorte aprovechable» o usa «Sobrante de este corte». Pasa a Inventario con su código.</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f5-estado"><div class="item-cuerpo">
+      <div class="item-titulo">Actualiza el estado <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle">Cambia el trabajo entre Pendiente, En proceso y Terminado para que todos sepan cómo va.</div>
+    </div></label></li>
+  </ul>
+</section>
+
+<!-- ======================================================= FASE 6 -->
+<section class="fase" data-fase>
+  <div class="fase-cabecera">
+    <h2><span class="numero">6</span>Cierra cada trabajo y mide el ahorro</h2>
+    <span class="fase-progreso"></span>
+  </div>
+  <ul class="lista">
+    <li><label class="item"><input type="checkbox" data-id="f6-recortes"><div class="item-cuerpo">
+      <div class="item-titulo">Calcula los recortes que se pierden <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle">En el trabajo, la tarjeta «Recortes no aprovechables» resta lo aprovechado (piezas y sobrantes) del material consumido (láminas). Pulsa «Registrar recortes» y queda como desperdicio, sin medir pedacito por pedacito. Si corriges algo, usa «Recalcular recortes».</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f6-real"><div class="item-cuerpo">
+      <div class="item-titulo">Registra el consumo real <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle">En la tarjeta «Consumo real», escribe lo que de verdad gastaste (por medidas o en m²) y pulsa «Registrar consumo». Si gastaste menos que el consumo teórico, la diferencia queda como ahorro.</div>
+    </div></label></li>
+  </ul>
+</section>
+
+<!-- ======================================================= FASE 7 -->
+<section class="fase" data-fase>
+  <div class="fase-cabecera">
+    <h2><span class="numero">7</span>Lleva el inventario de sobrantes</h2>
+    <span class="fase-progreso"></span>
+  </div>
+  <p class="para">Cada retal guardado es material que no hay que volver a comprar.</p>
+  <ul class="lista">
+    <li><label class="item"><input type="checkbox" data-id="f7-registrar"><div class="item-cuerpo">
+      <div class="item-titulo">Registra cada sobrante <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle"><span class="ruta">Inventario → Registrar sobrante</span>: material, ancho y alto (o cuántas unidades sobraron), color, una foto de referencia y, si sabes, «¿De qué trabajo salió?».</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f7-codigo"><div class="item-cuerpo">
+      <div class="item-titulo">Marca el código en el retal <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle">Cada sobrante recibe un código como <strong>SOB-014</strong>. Escríbelo con marcador sobre el material: así cualquiera lo encuentra en la bodega y lo pide por su nombre.</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f7-usar"><div class="item-cuerpo">
+      <div class="item-titulo">Úsalo antes de cortar material nuevo <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle">Antes de sacar una lámina nueva, revisa la pestaña «Disponibles». Con «Usar en un trabajo» eliges el trabajo y queda como origen del corte. «Reutilizar» lo marca como usado y suma su valor al ahorro. «Vender» registra un ingreso si lo vendiste tal cual.</div>
+    </div></label></li>
+  </ul>
+</section>
+
+<!-- ======================================================= FASE 8 -->
+<section class="fase" data-fase>
+  <div class="fase-cabecera">
+    <h2><span class="numero">8</span>Registra el desperdicio</h2>
+    <span class="fase-progreso"></span>
+  </div>
+  <ul class="lista">
+    <li><label class="item"><input type="checkbox" data-id="f8-desperdicio"><div class="item-cuerpo">
+      <div class="item-titulo">Anota lo que se pierde <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle"><span class="ruta">Desperdicio → Registrar desperdicio</span>: material, medidas (o cantidad directa) y el motivo, por ejemplo «error de corte» o «impresión defectuosa». Sin medir lo que se pierde no se puede mostrar cuánto se mejora.</div>
+    </div></label></li>
+  </ul>
+</section>
+
+<!-- ======================================================= FASE 9 -->
+<section class="fase" data-fase>
+  <div class="fase-cabecera">
+    <h2><span class="numero">9</span>Comparte capacidad con otros talleres <span class="etiqueta e-opcional">Opcional</span></h2>
+    <span class="fase-progreso"></span>
+  </div>
+  <p class="para">Si tienes máquinas paradas en ciertos horarios, otros talleres pueden pedírtelas. El precio, el pago y la entrega se acuerdan directamente entre talleres.</p>
+  <ul class="lista">
+    <li><label class="item"><input type="checkbox" data-id="f9-publicar"><div class="item-cuerpo">
+      <div class="item-titulo">Publica tus máquinas <span class="etiqueta e-admin">Administrador</span> <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle"><span class="ruta">Capacidad → Mis máquinas → Publicar máquina</span>: tipo, especificaciones, ciudad, precio, horarios, teléfono de contacto y hasta 4 fotos. Puedes «Guardar borrador» y publicar después. El teléfono que pongas lo verán los demás talleres.</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f9-buscar"><div class="item-cuerpo">
+      <div class="item-titulo">Busca máquinas de otros talleres <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle"><span class="ruta">Capacidad → Red de talleres</span>: filtra por tipo, ciudad o precio y usa «Solicitar disponibilidad» con la fecha y lo que necesitas.</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f9-responder"><div class="item-cuerpo">
+      <div class="item-titulo">Responde las solicitudes <span class="etiqueta e-admin">Administrador</span> <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle">En <span class="ruta">Capacidad → Recibidas</span> usa «Aceptar» o «Rechazar». Al terminar el trabajo, «Marcar como completada». Tus pedidos a otros talleres los sigues en «Enviadas».</div>
+    </div></label></li>
+  </ul>
+</section>
+
+<!-- ======================================================= FASE 10 -->
+<section class="fase" data-fase>
+  <div class="fase-cabecera">
+    <h2><span class="numero">10</span>Revisa los resultados</h2>
+    <span class="fase-progreso"></span>
+  </div>
+  <ul class="lista">
+    <li><label class="item"><input type="checkbox" data-id="f10-dashboard"><div class="item-cuerpo">
+      <div class="item-titulo">Mira el Dashboard <span class="etiqueta e-admin">Administrador</span></div>
+      <div class="item-detalle">Muestra el <strong>ahorro del mes</strong>, cuánto cubre de la suscripción (ROI Circular), el valor de los sobrantes disponibles y el costo del desperdicio acumulado. Solo lo ven los administradores; los operarios entran directo a Trabajos.</div>
+    </div></label></li>
+  </ul>
+</section>
+
+<!-- ======================================================= RUTINA -->
+<section class="fase" data-fase>
+  <div class="fase-cabecera">
+    <h2><span class="numero">11</span>Convierte esto en rutina</h2>
+    <span class="fase-progreso"></span>
+  </div>
+  <div class="rutina">
+    <div>
+      <h3>Cada día</h3>
+      <ul>
+        <li>Registrar consumo al cortar.</li>
+        <li>Guardar y marcar con código los sobrantes.</li>
+        <li>Revisar «Disponibles» antes de sacar lámina nueva.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Cada semana</h3>
+      <ul>
+        <li>Cerrar los trabajos terminados: recortes y consumo real.</li>
+        <li>Revisar el desperdicio y sus motivos.</li>
+        <li>Responder solicitudes de Capacidad.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Cada mes</h3>
+      <ul>
+        <li>Revisar el Dashboard y el ahorro del mes.</li>
+        <li>Actualizar precios de materiales y archivar los que no se usan.</li>
+        <li>Revisar el equipo: desactivar a quien ya no esté.</li>
+      </ul>
+    </div>
+  </div>
+  <ul class="lista">
+    <li><label class="item"><input type="checkbox" data-id="f11-rutina"><div class="item-cuerpo">
+      <div class="item-titulo">Acordar con el equipo quién hace cada cosa <span class="etiqueta e-admin">Administrador</span></div>
+      <div class="item-detalle">Definan quién registra los cortes, quién marca los sobrantes y quién revisa el inventario cada semana.</div>
+    </div></label></li>
+  </ul>
+</section>
+
+<!-- ======================================================= SEGURIDAD -->
+<section class="fase" data-fase>
+  <div class="fase-cabecera">
+    <h2><span class="numero">12</span>Cuida el acceso</h2>
+    <span class="fase-progreso"></span>
+  </div>
+  <ul class="lista">
+    <li><label class="item"><input type="checkbox" data-id="f12-clave"><div class="item-cuerpo">
+      <div class="item-titulo">Usa una contraseña propia y segura <span class="etiqueta e-todos">Todos</span></div>
+      <div class="item-detalle">Desde <span class="ruta">Mi perfil → Cambiar contraseña</span> (te pide la actual). Al cambiarla se cierra tu sesión en los demás celulares y computadores.</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f12-sesiones"><div class="item-cuerpo">
+      <div class="item-titulo">Cierra sesiones que ya no uses <span class="etiqueta e-todos">Todos</span></div>
+      <div class="item-detalle">Si entraste desde un computador ajeno o perdiste el celular: <span class="ruta">Mi perfil → Cerrar sesión en los demás dispositivos</span>.</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f12-olvido"><div class="item-cuerpo">
+      <div class="item-titulo">Sabe cómo recuperar la contraseña <span class="etiqueta e-todos">Todos</span></div>
+      <div class="item-detalle">En la pantalla de entrar, «¿Olvidaste tu contraseña?» envía un enlace al correo que vale 1 hora.</div>
+    </div></label></li>
+  </ul>
+</section>
+
+<section class="fase soporte">
+  <h2 style="margin:0">¿Necesitas ayuda?</h2>
+  <p class="para">
+    Escríbenos por WhatsApp al <a href="https://wa.me/573217542131?text=Hola%2C%20tengo%20una%20duda%20con%20ECO-SIGN%20sobre%E2%80%A6">321 754 2131</a>
+    o al correo <a href="mailto:proyectosjuanc@gmail.com?subject=Soporte%20ECO-SIGN">proyectosjuanc@gmail.com</a>.
+    Dentro de la plataforma también está el botón de ayuda en <span class="ruta">Mi perfil</span>.
+  </p>
+</section>
+
+<footer>ECO-SIGN — Convierte desperdicio en valor · reutilizando.online</footer>
+</div>
+
+<script>
+  (function () {
+    var CLAVE = "ecosign-checklist-taller-v1";
+    var casillas = Array.prototype.slice.call(document.querySelectorAll('input[type="checkbox"][data-id]'));
+
+    function leer() {
+      try { return JSON.parse(localStorage.getItem(CLAVE) || "{}") || {}; } catch (e) { return {}; }
+    }
+    function guardar(estado) {
+      try { localStorage.setItem(CLAVE, JSON.stringify(estado)); } catch (e) { /* sin almacenamiento: sigue funcionando sin recordar */ }
+    }
+
+    var estado = leer();
+    casillas.forEach(function (c) { c.checked = Boolean(estado[c.dataset.id]); });
+
+    function actualizar() {
+      var hechas = casillas.filter(function (c) { return c.checked; }).length;
+      document.getElementById("contador").textContent = hechas + " de " + casillas.length;
+      document.getElementById("medidor").style.width = (casillas.length ? (hechas / casillas.length) * 100 : 0) + "%";
+      document.querySelectorAll("[data-fase]").forEach(function (fase) {
+        var propias = fase.querySelectorAll('input[type="checkbox"][data-id]');
+        var listas = Array.prototype.filter.call(propias, function (c) { return c.checked; }).length;
+        var marca = fase.querySelector(".fase-progreso");
+        if (marca && propias.length) marca.textContent = listas === propias.length ? "✓ Completa" : listas + " de " + propias.length;
+      });
+    }
+
+    casillas.forEach(function (c) {
+      c.addEventListener("change", function () {
+        estado[c.dataset.id] = c.checked;
+        guardar(estado);
+        actualizar();
+      });
+    });
+
+    document.getElementById("reiniciar").addEventListener("click", function () {
+      if (!confirm("¿Desmarcar todos los pasos?")) return;
+      estado = {};
+      guardar(estado);
+      casillas.forEach(function (c) { c.checked = false; });
+      actualizar();
+    });
+    document.getElementById("imprimir").addEventListener("click", function () { window.print(); });
+
+    actualizar();
+  })();
+</script>
+</body>
+</html>
