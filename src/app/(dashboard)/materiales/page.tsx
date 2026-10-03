@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
-import { ajustarStock, eliminarMaterial } from "./actions";
+import { ajustarStock } from "./actions";
+import { BotonEliminarMaterial, BotonRestaurarMaterial } from "./botones-material";
 import { FormularioMaterial } from "./formulario-material";
 import { FormularioImportar } from "./formulario-importar";
 import { EncabezadoPagina } from "@/components/dashboard/encabezado-pagina";
@@ -29,10 +30,15 @@ const ETIQUETA_UNIDAD: Record<string, string> = {
 /** Catálogo de materiales del tenant: listado y alta. */
 export default async function MaterialesPage() {
   const supabase = await createClient();
-  const { data: materiales, error } = await supabase
+  const { data: todos, error } = await supabase
     .from("materials")
     .select("*")
     .order("tipo");
+
+  // Los archivados no se ofrecen al registrar, pero se listan aparte para
+  // poder restaurarlos.
+  const materiales = (todos ?? []).filter((m) => !m.archivado);
+  const archivados = (todos ?? []).filter((m) => m.archivado);
 
   return (
     <>
@@ -42,13 +48,14 @@ export default async function MaterialesPage() {
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+        <div className="flex min-w-0 flex-col gap-6">
         <Card>
           <CardContent className="p-0">
             {error ? (
               <p className="p-6 text-sm text-destructive">
                 No se pudieron cargar los materiales: {error.message}
               </p>
-            ) : !materiales?.length ? (
+            ) : !materiales.length ? (
               <p className="p-6 text-sm text-muted-foreground">
                 Todavía no hay materiales. Crea el primero en el formulario.
               </p>
@@ -135,18 +142,10 @@ export default async function MaterialesPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {/* Server Action directa: borra sin JavaScript en cliente. */}
-                        <form action={eliminarMaterial}>
-                          <input type="hidden" name="id" value={material.id} />
-                          <Button
-                            type="submit"
-                            variant="ghost"
-                            size="sm"
-                            className="text-muted-foreground hover:text-destructive"
-                          >
-                            Eliminar
-                          </Button>
-                        </form>
+                        <BotonEliminarMaterial
+                          id={material.id}
+                          nombre={material.color ? `${material.tipo} · ${material.color}` : material.tipo}
+                        />
                       </TableCell>
                     </TableRow>
                     );
@@ -156,6 +155,34 @@ export default async function MaterialesPage() {
             )}
           </CardContent>
         </Card>
+
+        {archivados.length ? (
+          <Card>
+            <CardContent>
+              <details>
+                <summary className="cursor-pointer text-sm font-medium">
+                  Archivados ({archivados.length})
+                </summary>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  No aparecen al registrar sobrantes, piezas ni desperdicio, pero
+                  su historial y sus costos se conservan.
+                </p>
+                <ul className="mt-3 flex flex-col divide-y">
+                  {archivados.map((m) => (
+                    <li key={m.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                      <span>
+                        {m.tipo}
+                        {m.color ? <span className="text-muted-foreground"> · {m.color}</span> : null}
+                      </span>
+                      <BotonRestaurarMaterial id={m.id} />
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            </CardContent>
+          </Card>
+        ) : null}
+        </div>
 
         <div className="flex flex-col gap-6">
           <FormularioMaterial />

@@ -16,17 +16,42 @@ import { firmarFotos } from "@/lib/supabase/subir-foto";
 
 export const metadata: Metadata = { title: "Inventario · ECO-SIGN" };
 
-export default async function InventarioPage() {
+/**
+ * Sobrantes por página. Antes se mostraban todos (usados y disponibles) con su
+ * foto en cada visita: con meses de uso eran cientos de fotos por carga, y ese
+ * tráfico es lo primero que agota el plan gratuito de Supabase.
+ */
+const POR_PAGINA = 24;
+
+export default async function InventarioPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ver?: string; pagina?: string }>;
+}) {
+  const { ver, pagina } = await searchParams;
+  // Por defecto, los disponibles: es lo que se busca al ir a cortar.
+  const verUsados = ver === "usados";
+  const paginaActual = Math.max(1, Number.parseInt(pagina ?? "1", 10) || 1);
+  const desde = (paginaActual - 1) * POR_PAGINA;
+
   const supabase = await createClient();
 
-  const [{ data: sobrantes }, { data: materiales }, { data: trabajos }] =
-    await Promise.all([
+  const [
+    { data: sobrantes, count: totalPestana },
+    { data: materiales },
+    { data: trabajos },
+    { count: totalDisponibles },
+    { count: totalUsados },
+    { data: valorRpc, error: errorValor },
+  ] = await Promise.all([
       supabase
         .from("inventory_items")
-        .select("*")
-        .order("usado")
-        .order("costo_estimado", { ascending: false }),
-      supabase.from("materials").select("id, tipo, color, unidad").order("tipo"),
+        .select("*", { count: "exact" })
+        .eq("usado", verUsados)
+        // Disponibles: los más valiosos primero. Usados: los más recientes.
+        .order(verUsados ? "created_at" : "costo_estimado", { ascending: false })
+        .range(desde, desde + POR_PAGINA - 1),
+      supabase.from("materials").select("id, tipo, color, unidad, archivado").order("tipo"),
       // Los más recientes: si un taller acumula cientos de trabajos, no hace
       // falta que todos quepan en el selector.
       supabase
@@ -34,7 +59,26 @@ export default async function InventarioPage() {
         .select("id, nombre")
         .order("fecha", { ascending: false })
         .limit(30),
+      supabase.from("inventory_items").select("id", { count: "exact", head: true }).eq("usado", false),
+      supabase.from("inventory_items").select("id", { count: "exact", head: true }).eq("usado", true),
+      // Sumado en la base: con paginación ya no se tienen todas las filas aquí.
+      supabase.rpc("valor_sobrantes_disponibles"),
     ]);
+
+  if (errorValor) console.error("[inventario] No se pudo sumar el valor disponible", errorValor);
+  const valorDisponible = Number(valorRpc ?? 0);
+  const totalPaginas = Math.max(1, Math.ceil((totalPestana ?? 0) / POR_PAGINA));
+
+  /** Enlace a otra pestaña o página, conservando lo demás. */
+  const enlace = (cambios: { ver?: "usados" | null; pagina?: number }) => {
+    const params = new URLSearchParams();
+    const usados = cambios.ver === undefined ? verUsados : cambios.ver === "usados";
+    if (usados) params.set("ver", "usados");
+    const p = cambios.pagina ?? 1;
+    if (p > 1) params.set("pagina", String(p));
+    const q = params.toString();
+    return q ? `/inventario?${q}` : "/inventario";
+  };
 
   // Firmar cuesta una llamada a Storage por lote; sin fotos que mostrar no
   // tiene sentido pedirlas.
@@ -44,19 +88,15 @@ export default async function InventarioPage() {
 
   const porMaterial = new Map((materiales ?? []).map((m) => [m.id, m]));
 
-  const opciones: OpcionMaterial[] = (materiales ?? []).map((material) => ({
+  // Los archivados siguen sirviendo para nombrar y valorar el historial, pero
+  // no se ofrecen para registrar nada nuevo.
+  const opciones: OpcionMaterial[] = (materiales ?? []).filter((m) => !m.archivado).map((material) => ({
     id: material.id,
     etiqueta: material.color
       ? `${material.tipo} · ${material.color}`
       : material.tipo,
     unidad: material.unidad,
   }));
-
-  const disponibles = (sobrantes ?? []).filter((item) => !item.usado);
-  const valorDisponible = disponibles.reduce(
-    (total, item) => total + (item.costo_estimado ?? 0),
-    0,
-  );
 
   return (
     <>
@@ -73,6 +113,32 @@ export default async function InventarioPage() {
       </EncabezadoPagina>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+        <div className="flex min-w-0 flex-col gap-4">
+        <nav aria-label="Ver sobrantes" className="flex gap-2">
+          <Link
+            href={enlace({ ver: null })}
+            aria-current={!verUsados ? "page" : undefined}
+            className={
+              !verUsados
+                ? "rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white"
+                : "rounded-md border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+            }
+          >
+            Disponibles ({totalDisponibles ?? 0})
+          </Link>
+          <Link
+            href={enlace({ ver: "usados" })}
+            aria-current={verUsados ? "page" : undefined}
+            className={
+              verUsados
+                ? "rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white"
+                : "rounded-md border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+            }
+          >
+            Usados ({totalUsados ?? 0})
+          </Link>
+        </nav>
+
         {/* Sin la franja de foto la tarjeta es mucho más baja; a tres
             columnas quedaba tan estrecha que la fila de botones se
             recortaba. Con fotos activas se recupera la tercera columna. */}
@@ -86,7 +152,11 @@ export default async function InventarioPage() {
           {!sobrantes?.length ? (
             <Card className={FOTOS_ACTIVAS ? "sm:col-span-2 xl:col-span-3" : "sm:col-span-2"}>
               <CardContent className="p-6 text-sm text-muted-foreground">
-                Todavía no hay sobrantes registrados.
+                {verUsados
+                  ? "Todavía no hay sobrantes usados ni vendidos."
+                  : (totalUsados ?? 0) > 0
+                    ? "No hay sobrantes disponibles ahora. Los que ya usaste están en «Usados»."
+                    : "Todavía no hay sobrantes registrados. Registra el primero en el formulario."}
               </CardContent>
             </Card>
           ) : (
@@ -104,6 +174,8 @@ export default async function InventarioPage() {
                     firma ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
+                        loading="lazy"
+                        decoding="async"
                         src={firma}
                         alt={
                           porUnidad
@@ -215,6 +287,29 @@ export default async function InventarioPage() {
               );
             })
           )}
+        </div>
+
+        {totalPaginas > 1 ? (
+          <nav aria-label="Páginas" className="flex items-center justify-between gap-2 text-sm">
+            {paginaActual > 1 ? (
+              <Link href={enlace({ pagina: paginaActual - 1 })} className="rounded-md border bg-card px-3 py-1.5 hover:bg-muted">
+                ← Anterior
+              </Link>
+            ) : (
+              <span />
+            )}
+            <span className="text-muted-foreground">
+              Página {paginaActual} de {totalPaginas}
+            </span>
+            {paginaActual < totalPaginas ? (
+              <Link href={enlace({ pagina: paginaActual + 1 })} className="rounded-md border bg-card px-3 py-1.5 hover:bg-muted">
+                Siguiente →
+              </Link>
+            ) : (
+              <span />
+            )}
+          </nav>
+        ) : null}
         </div>
 
         <FormularioSobrante materiales={opciones} trabajos={trabajos ?? []} />

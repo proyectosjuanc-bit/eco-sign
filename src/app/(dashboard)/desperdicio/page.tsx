@@ -24,7 +24,7 @@ export default async function DesperdicioPage() {
 
   const [{ data: registros }, { data: materiales }] = await Promise.all([
     supabase.from("waste_logs").select("*"),
-    supabase.from("materials").select("id, tipo, color").order("tipo"),
+    supabase.from("materials").select("id, tipo, color, archivado").order("tipo"),
   ]);
 
   const porMaterial = new Map((materiales ?? []).map((m) => [m.id, m]));
@@ -33,7 +33,9 @@ export default async function DesperdicioPage() {
     0,
   );
 
-  const opciones: OpcionMaterial[] = (materiales ?? []).map((material) => ({
+  // Los archivados siguen sirviendo para nombrar y valorar el historial, pero
+  // no se ofrecen para registrar nada nuevo.
+  const opciones: OpcionMaterial[] = (materiales ?? []).filter((m) => !m.archivado).map((material) => ({
     id: material.id,
     etiqueta: material.color
       ? `${material.tipo} · ${material.color}`

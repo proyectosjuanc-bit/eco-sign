@@ -62,6 +62,8 @@ export function TarjetaMaquina({
       {fotoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          loading="lazy"
+          decoding="async"
           src={fotoUrl}
           alt={`Foto de ${maquina.nombre}`}
           className="h-40 w-full object-cover"

@@ -81,6 +81,8 @@ export type Material = {
   costo_lamina: number | null;
   /** Láminas disponibles; se descuenta al consumir material en un trabajo. */
   stock_laminas: number;
+  /** Ya no se ofrece al registrar, pero su historial se conserva. */
+  archivado: boolean;
 };
 
 export type InventoryItem = {
@@ -344,7 +346,7 @@ export interface Database {
       };
       materials: {
         Row: Material;
-        Insert: Insertable<Material, "stock_laminas">;
+        Insert: Insertable<Material, "stock_laminas" | "archivado">;
         Update: Partial<Material>;
         Relationships: [];
       };
@@ -455,6 +457,10 @@ export interface Database {
           valida: boolean;
           mensaje_error: string | null;
         }[];
+      };
+      valor_sobrantes_disponibles: {
+        Args: Record<string, never>;
+        Returns: number;
       };
       nombres_talleres: {
         Args: { p_ids: string[] };

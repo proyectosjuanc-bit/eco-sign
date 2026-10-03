@@ -7,11 +7,18 @@
  * mucho más rápida.
  */
 
-/** Lado mayor de la imagen resultante, en píxeles. */
-const LADO_MAXIMO = 1600;
+/**
+ * Lado mayor de la imagen resultante, en píxeles.
+ *
+ * La foto es sólo una vista de referencia del retal (las medidas se escriben a
+ * mano), no un archivo de alta resolución: 900 px se ven bien en el celular y
+ * dejan cada foto en unos 40-80 KB. Cada visita a Inventario descarga varias, y
+ * ese tráfico es lo primero que agota el plan gratuito de Supabase.
+ */
+const LADO_MAXIMO = 900;
 
-/** Calidad JPEG: 0,8 conserva bien el detalle sin disparar el peso. */
-const CALIDAD = 0.8;
+/** Calidad JPEG: 0,72 basta para reconocer el material y su forma. */
+const CALIDAD = 0.72;
 
 /**
  * Reduce y recomprime una imagen a JPEG.

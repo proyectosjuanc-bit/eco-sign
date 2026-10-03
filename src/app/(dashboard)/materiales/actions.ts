@@ -210,13 +210,77 @@ export async function importarMateriales(
   return { error: null, creadas, fallidas, marca: Date.now() };
 }
 
-export async function eliminarMaterial(formData: FormData): Promise<void> {
-  const id = texto(formData, "id");
-  if (!id) return;
+/** Resultado de eliminar o restaurar un material, para el aviso en pantalla. */
+export interface ResultadoArchivo {
+  ok: boolean;
+  /** Qué pasó, en palabras del taller. */
+  mensaje: string;
+}
+
+const ERROR_MATERIAL = "No pudimos completar la acción. Intenta de nuevo.";
+
+/**
+ * Elimina un material. Si ya tiene historial (sobrantes, desperdicio o piezas
+ * de trabajos), la base se niega a borrarlo (claves foráneas RESTRICT) y en su
+ * lugar se ARCHIVA: deja de ofrecerse al registrar, pero su historial y sus
+ * costos se conservan. Así un clic de más nunca borra meses de datos.
+ */
+export async function eliminarMaterial(id: string): Promise<ResultadoArchivo> {
+  if (!id) return { ok: false, mensaje: ERROR_MATERIAL };
 
   const supabase = await createClient();
-  await supabase.from("materials").delete().eq("id", id);
+  const { data: borrados, error } = await supabase
+    .from("materials")
+    .delete()
+    .eq("id", id)
+    .select("id");
+
+  if (!error && borrados?.length) {
+    revalidatePath("/materiales");
+    return { ok: true, mensaje: "Material eliminado." };
+  }
+
+  // 23503: lo usan sobrantes, desperdicios o piezas. Se archiva.
+  if (error?.code === "23503") {
+    const { data: archivados, error: errorArchivo } = await supabase
+      .from("materials")
+      .update({ archivado: true })
+      .eq("id", id)
+      .select("id");
+    if (!errorArchivo && archivados?.length) {
+      revalidatePath("/materiales");
+      return {
+        ok: true,
+        mensaje:
+          "Este material tiene historial, así que se archivó en vez de borrarse. Ya no aparecerá al registrar; puedes restaurarlo desde «Archivados».",
+      };
+    }
+    console.error("[materiales] No se pudo archivar", errorArchivo);
+    return { ok: false, mensaje: ERROR_MATERIAL };
+  }
+
+  // Sin error y sin filas: no existe o el rol no puede borrar (RLS).
+  if (error) console.error("[materiales] No se pudo eliminar", error);
+  return { ok: false, mensaje: "No tienes permiso para eliminar materiales, o ya no existe." };
+}
+
+/** Devuelve un material archivado a la lista de materiales para registrar. */
+export async function restaurarMaterial(id: string): Promise<ResultadoArchivo> {
+  if (!id) return { ok: false, mensaje: ERROR_MATERIAL };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("materials")
+    .update({ archivado: false })
+    .eq("id", id)
+    .select("id");
+
+  if (error || !data?.length) {
+    if (error) console.error("[materiales] No se pudo restaurar", error);
+    return { ok: false, mensaje: "No pudimos restaurar el material." };
+  }
   revalidatePath("/materiales");
+  return { ok: true, mensaje: "Material restaurado." };
 }
 
 /**

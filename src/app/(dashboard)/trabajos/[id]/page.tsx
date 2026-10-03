@@ -62,7 +62,7 @@ export default async function TrabajoPage({
     supabase
       .from("materials")
       .select(
-        "id, tipo, color, costo_unitario, unidad, ancho_cm, alto_cm, costo_lamina, stock_laminas",
+        "id, tipo, color, costo_unitario, unidad, ancho_cm, alto_cm, costo_lamina, stock_laminas, archivado",
       ),
     supabase.from("savings").select("monto, tipo, descripcion").eq("job_id", id),
     supabase
@@ -140,7 +140,9 @@ export default async function TrabajoPage({
 
   const ahorroTotal = (ahorros ?? []).reduce((total, a) => total + a.monto, 0);
 
-  const opciones: OpcionMaterial[] = (materiales ?? []).map((material) => ({
+  // Los archivados siguen sirviendo para nombrar y valorar el historial, pero
+  // no se ofrecen para registrar nada nuevo.
+  const opciones: OpcionMaterial[] = (materiales ?? []).filter((m) => !m.archivado).map((material) => ({
     id: material.id,
     etiqueta: material.color
       ? `${material.tipo} · ${material.color}`
@@ -153,6 +155,7 @@ export default async function TrabajoPage({
   const laminasDisponibles: OpcionLamina[] = (materiales ?? [])
     .filter(
       (material) =>
+        !material.archivado &&
         (material.stock_laminas ?? 0) > 0 &&
         material.ancho_cm != null &&
         material.alto_cm != null,
@@ -266,6 +269,8 @@ export default async function TrabajoPage({
                             {firma ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
+                                loading="lazy"
+                                decoding="async"
                                 src={firma}
                                 alt={pieza.descripcion ?? "Foto de la pieza"}
                                 className="size-10 rounded object-cover"
