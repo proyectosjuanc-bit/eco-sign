@@ -62,7 +62,7 @@ export default async function TrabajosPage({
     ? (
         await supabase
           .from("inventory_items")
-          .select("codigo")
+          .select("codigo, clase")
           .eq("id", origenSobranteId)
           .maybeSingle()
       ).data
@@ -81,10 +81,15 @@ export default async function TrabajosPage({
 
       {sobranteOrigen ? (
         <div className="mb-6 rounded-md border border-emerald-600/30 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          Vas a usar el sobrante{" "}
-          <strong className="font-mono">{sobranteOrigen.codigo ?? "sin código"}</strong>
-          . Abre o crea el trabajo donde lo vas a cortar: quedará elegido como
-          origen del material.
+          Vas a usar{" "}
+          {sobranteOrigen.codigo ? (
+            <>
+              el retal <strong className="font-mono">{sobranteOrigen.codigo}</strong>
+            </>
+          ) : (
+            "material del inventario"
+          )}
+          . Abre o crea el trabajo donde lo vas a usar: quedará elegido en «Sacar del inventario».
         </div>
       ) : null}
 
@@ -98,7 +103,7 @@ export default async function TrabajosPage({
             ) : !trabajos?.length ? (
               <p className="p-6 text-sm text-muted-foreground">
                 Todavía no hay trabajos registrados. Crea el primero y luego
-                ábrelo desde esta lista para añadirle piezas.
+                ábrelo desde esta lista para sacar material del inventario.
               </p>
             ) : (
               <Table>
@@ -108,7 +113,7 @@ export default async function TrabajosPage({
                     <TableHead>Cliente</TableHead>
                     <TableHead>Fecha</TableHead>
                     <TableHead>Estado</TableHead>
-                    <TableHead className="text-right">Piezas</TableHead>
+                    <TableHead className="text-right" />
                     <TableHead className="w-0" />
                   </TableRow>
                 </TableHeader>
@@ -146,9 +151,7 @@ export default async function TrabajosPage({
                             <Link href={`/trabajos/${trabajo.id}${sufijoOrigen}`} />
                           }
                         >
-                          {piezasPorTrabajo.get(trabajo.id)
-                            ? `Ver ${piezasPorTrabajo.get(trabajo.id)} piezas`
-                            : "Añadir piezas"}
+                          {piezasPorTrabajo.get(trabajo.id) ? "Abrir" : "Empezar"}
                         </Button>
                       </TableCell>
                       <TableCell>

@@ -234,53 +234,45 @@
 <!-- ======================================================= FASE 4 -->
 <section class="fase" data-fase>
   <div class="fase-cabecera">
-    <h2><span class="numero">4</span>Carga tus materiales</h2>
+    <h2><span class="numero">4</span>Arma el catálogo de precios</h2>
     <span class="fase-progreso"></span>
   </div>
-  <p class="para">Es la base de todo: con el precio de cada material se valoran los sobrantes, los trabajos y el desperdicio.</p>
+  <p class="para">En Materiales sólo van los <strong>precios</strong>. Lo que tienes físicamente va en el Inventario (fase 5).</p>
   <ul class="lista">
     <li><label class="item"><input type="checkbox" data-id="f4-lista"><div class="item-cuerpo">
       <div class="item-titulo">Haz la lista de lo que compras <span class="etiqueta e-admin">Administrador</span></div>
-      <div class="item-detalle">Para cada material anota: tipo (acrílico, vinilo, PVC…), color, grosor, cómo se mide y su precio. Se mide por <strong>Lámina (m²)</strong> (con ancho, alto y precio por lámina), por <strong>Unidad</strong> (tornillos, luces LED) o por <strong>Metro lineal</strong>.</div>
+      <div class="item-detalle">Para cada material anota tipo, color, grosor y cómo se mide: <strong>Lámina (m²)</strong> con su tamaño y precio por lámina (acrílico, PVC, vinilo), <strong>Metro lineal</strong> con el precio del metro (neón, cable) o <strong>Unidad</strong> con el precio de cada una (tornillos, LED).</div>
     </div></label></li>
     <li><label class="item"><input type="checkbox" data-id="f4-cargar"><div class="item-cuerpo">
       <div class="item-titulo">Cárgalos en la plataforma <span class="etiqueta e-admin">Administrador</span> <span class="etiqueta e-operario">Operario</span></div>
       <div class="item-detalle">
         <strong>Pocos:</strong> <span class="ruta">Materiales → Nuevo material</span>, uno por uno.<br>
-        <strong>Muchos:</strong> <span class="ruta">Materiales → Cargar varios materiales → Descargar plantilla de Excel</span>, llénala (tiene instrucciones y ejemplos) y súbela con «Importar materiales». Si alguna fila tiene un error, te dice cuál.
+        <strong>Muchos:</strong> <span class="ruta">Materiales → Cargar varios materiales → Descargar plantilla de Excel</span>, llénala y súbela con «Importar materiales». Si en «Existencias» escribes cuánto tienes, eso entra solo al Inventario.
       </div>
     </div></label></li>
-    <li><label class="item"><input type="checkbox" data-id="f4-existencias"><div class="item-cuerpo">
-      <div class="item-titulo">Registra cuántas láminas tienes <span class="etiqueta e-operario">Operario</span></div>
-      <div class="item-detalle">En <span class="ruta">Materiales</span>, los botones − y + de «Existencias» ajustan las láminas en bodega. Al registrar cortes desde una «Lámina de stock», se descuentan solas.</div>
-    </div></label></li>
   </ul>
-  <div class="nota verde">Si un material ya no se usa, pulsa «Eliminar». Si tiene historial (sobrantes, trabajos o desperdicio), no se borra: se archiva y conservas todo. Lo puedes restaurar desde «Archivados».</div>
+  <div class="nota verde">Si un material ya no se usa, pulsa «Eliminar». Si tiene historial, no se borra: se archiva y conservas todo. Lo puedes restaurar desde «Archivados».</div>
 </section>
 
 <!-- ======================================================= FASE 5 -->
 <section class="fase" data-fase>
   <div class="fase-cabecera">
-    <h2><span class="numero">5</span>Registra cada trabajo</h2>
+    <h2><span class="numero">5</span>Registra todo lo que tienes en el Inventario</h2>
     <span class="fase-progreso"></span>
   </div>
-  <p class="para">Es el día a día del taller. Lo ideal es registrar al momento de cortar.</p>
+  <p class="para">El Inventario es tu bodega: láminas completas, retales, rollos por metro y unidades. Los trabajos sacan de aquí.</p>
   <ul class="lista">
-    <li><label class="item"><input type="checkbox" data-id="f5-crear"><div class="item-cuerpo">
-      <div class="item-titulo">Crea el trabajo <span class="etiqueta e-operario">Operario</span></div>
-      <div class="item-detalle"><span class="ruta">Trabajos → Nuevo trabajo</span>: nombre (por ejemplo «Aviso fachada Panadería X»), cliente y fecha.</div>
+    <li><label class="item"><input type="checkbox" data-id="f5-entrada"><div class="item-cuerpo">
+      <div class="item-titulo">Registra lo que hay en bodega <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle"><span class="ruta">Inventario → Entrada de material</span>: por ejemplo «Acrílico negro 3 mm: 5 láminas», «Neón rojo: 50 m», «Tornillo 1/2": 200 unidades». Úsalo también cada vez que compres.</div>
     </div></label></li>
-    <li><label class="item"><input type="checkbox" data-id="f5-consumo"><div class="item-cuerpo">
-      <div class="item-titulo">Registra lo que consumes <span class="etiqueta e-operario">Operario</span></div>
-      <div class="item-detalle">Abre el trabajo y usa <span class="ruta">Añadir consumo</span>. Primero el <strong>Origen del material</strong>: «A mano», «Lámina de stock» (descuenta existencias) o «Sobrante» (usa uno del inventario). Luego el <strong>Modo de registro</strong>: «Lámina» para la plancha que sacaste de bodega y «Pieza» para cada corte que entregas. Escribe ancho, alto y cantidad; la foto es opcional.</div>
+    <li><label class="item"><input type="checkbox" data-id="f5-retales"><div class="item-cuerpo">
+      <div class="item-titulo">Registra los retales que ya tenías <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle"><span class="ruta">Inventario → Registrar retal</span>: material, ancho, alto y una foto. Recibe un código como <strong>SOB-014</strong>: escríbelo con marcador sobre el material.</div>
     </div></label></li>
-    <li><label class="item"><input type="checkbox" data-id="f5-aprovechable"><div class="item-cuerpo">
-      <div class="item-titulo">Guarda lo que se puede reutilizar <span class="etiqueta e-operario">Operario</span></div>
-      <div class="item-detalle">Si una pieza es un recorte que sirve para otro trabajo, marca «Esta pieza es un recorte aprovechable» o usa «Sobrante de este corte». Pasa a Inventario con su código.</div>
-    </div></label></li>
-    <li><label class="item"><input type="checkbox" data-id="f5-estado"><div class="item-cuerpo">
-      <div class="item-titulo">Actualiza el estado <span class="etiqueta e-operario">Operario</span></div>
-      <div class="item-detalle">Cambia el trabajo entre Pendiente, En proceso y Terminado para que todos sepan cómo va.</div>
+    <li><label class="item"><input type="checkbox" data-id="f5-corregir"><div class="item-cuerpo">
+      <div class="item-titulo">Cuadra la bodega cuando la cuentes <span class="etiqueta e-admin">Administrador</span></div>
+      <div class="item-detalle">Si el conteo físico no coincide, usa «Corregir» en esa existencia y escribe la cantidad real.</div>
     </div></label></li>
   </ul>
 </section>
@@ -288,40 +280,49 @@
 <!-- ======================================================= FASE 6 -->
 <section class="fase" data-fase>
   <div class="fase-cabecera">
-    <h2><span class="numero">6</span>Cierra cada trabajo y mide el ahorro</h2>
+    <h2><span class="numero">6</span>Haz cada trabajo sacando del inventario</h2>
     <span class="fase-progreso"></span>
   </div>
+  <p class="para">Ejemplo: un aviso con acrílico de 50 × 50, 10 m de neón y 10 m de cable dúplex. Lo ideal es registrar al momento de cortar.</p>
   <ul class="lista">
-    <li><label class="item"><input type="checkbox" data-id="f6-recortes"><div class="item-cuerpo">
-      <div class="item-titulo">Calcula los recortes que se pierden <span class="etiqueta e-operario">Operario</span></div>
-      <div class="item-detalle">En el trabajo, la tarjeta «Recortes no aprovechables» resta lo aprovechado (piezas y sobrantes) del material consumido (láminas). Pulsa «Registrar recortes» y queda como desperdicio, sin medir pedacito por pedacito. Si corriges algo, usa «Recalcular recortes».</div>
+    <li><label class="item"><input type="checkbox" data-id="f6-crear"><div class="item-cuerpo">
+      <div class="item-titulo">Crea el trabajo <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle"><span class="ruta">Trabajos → Nuevo trabajo</span>: nombre, cliente y fecha. Luego ábrelo.</div>
     </div></label></li>
-    <li><label class="item"><input type="checkbox" data-id="f6-real"><div class="item-cuerpo">
-      <div class="item-titulo">Registra el consumo real <span class="etiqueta e-operario">Operario</span></div>
-      <div class="item-detalle">En la tarjeta «Consumo real», escribe lo que de verdad gastaste (por medidas o en m²) y pulsa «Registrar consumo». Si gastaste menos que el consumo teórico, la diferencia queda como ahorro.</div>
+    <li><label class="item"><input type="checkbox" data-id="f6-sacar"><div class="item-cuerpo">
+      <div class="item-titulo">1. Saca del inventario lo que usas <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle">Escribe la medida que necesitas (50 × 50) y la app te muestra primero los <strong>retales que alcanzan</strong>: úsalo antes de abrir una lámina nueva (eso es ahorro). Para el neón y el cable, elige el rollo y escribe los metros.</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f6-piezas"><div class="item-cuerpo">
+      <div class="item-titulo">2. Registra las piezas que entregas <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle">Las medidas de lo que se lleva el cliente (la pieza de 50 × 50). En formas irregulares, el rectángulo que las contiene.</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f6-devolver"><div class="item-cuerpo">
+      <div class="item-titulo">3. Devuelve lo que sobró <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle">Lo que sirve vuelve al inventario como retal con su código SOB. Márcalo sobre el material.</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f6-recortes"><div class="item-cuerpo">
+      <div class="item-titulo">4. Registra los recortes que se pierden <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle">La tarjeta «Recortes que se pierden» resta las piezas y lo devuelto a lo que sacaste. Pulsa «Registrar recortes» y queda en Desperdicio.</div>
+    </div></label></li>
+    <li><label class="item"><input type="checkbox" data-id="f6-estado"><div class="item-cuerpo">
+      <div class="item-titulo">Actualiza el estado <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle">Pendiente, En proceso o Terminado, para que todos sepan cómo va.</div>
     </div></label></li>
   </ul>
+  <div class="nota">¿Sacaste algo por error? Pulsa «Devolver» en esa línea y vuelve al inventario. Si borras el trabajo, también vuelve todo lo que sacó.</div>
 </section>
 
 <!-- ======================================================= FASE 7 -->
 <section class="fase" data-fase>
   <div class="fase-cabecera">
-    <h2><span class="numero">7</span>Lleva el inventario de sobrantes</h2>
+    <h2><span class="numero">7</span>Aprovecha los retales</h2>
     <span class="fase-progreso"></span>
   </div>
-  <p class="para">Cada retal guardado es material que no hay que volver a comprar.</p>
   <ul class="lista">
-    <li><label class="item"><input type="checkbox" data-id="f7-registrar"><div class="item-cuerpo">
-      <div class="item-titulo">Registra cada sobrante <span class="etiqueta e-operario">Operario</span></div>
-      <div class="item-detalle"><span class="ruta">Inventario → Registrar sobrante</span>: material, ancho y alto (o cuántas unidades sobraron), color, una foto de referencia y, si sabes, «¿De qué trabajo salió?».</div>
-    </div></label></li>
-    <li><label class="item"><input type="checkbox" data-id="f7-codigo"><div class="item-cuerpo">
-      <div class="item-titulo">Marca el código en el retal <span class="etiqueta e-operario">Operario</span></div>
-      <div class="item-detalle">Cada sobrante recibe un código como <strong>SOB-014</strong>. Escríbelo con marcador sobre el material: así cualquiera lo encuentra en la bodega y lo pide por su nombre.</div>
-    </div></label></li>
     <li><label class="item"><input type="checkbox" data-id="f7-usar"><div class="item-cuerpo">
-      <div class="item-titulo">Úsalo antes de cortar material nuevo <span class="etiqueta e-operario">Operario</span></div>
-      <div class="item-detalle">Antes de sacar una lámina nueva, revisa la pestaña «Disponibles». Con «Usar en un trabajo» eliges el trabajo y queda como origen del corte. «Reutilizar» lo marca como usado y suma su valor al ahorro. «Vender» registra un ingreso si lo vendiste tal cual.</div>
+      <div class="item-titulo">Revisa los retales antes de cortar <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle">En <span class="ruta">Inventario → Retales disponibles</span>, «Usar en un trabajo» te lleva al trabajo con ese retal ya elegido. «Vender» registra un ingreso si lo vendes tal cual.</div>
     </div></label></li>
   </ul>
 </section>
@@ -372,7 +373,7 @@
   <ul class="lista">
     <li><label class="item"><input type="checkbox" data-id="f10-dashboard"><div class="item-cuerpo">
       <div class="item-titulo">Mira el Dashboard <span class="etiqueta e-admin">Administrador</span></div>
-      <div class="item-detalle">Muestra el <strong>ahorro del mes</strong>, cuánto cubre de la suscripción (ROI Circular), el valor de los sobrantes disponibles y el costo del desperdicio acumulado. Solo lo ven los administradores; los operarios entran directo a Trabajos.</div>
+      <div class="item-detalle">Muestra el <strong>ahorro del mes</strong> (lo que ahorras usando retales), cuánto cubre de la suscripción (ROI Circular), el valor de tu inventario y el costo del desperdicio. Solo lo ven los administradores; los operarios entran directo a Trabajos.</div>
     </div></label></li>
   </ul>
 </section>
@@ -387,15 +388,15 @@
     <div>
       <h3>Cada día</h3>
       <ul>
-        <li>Registrar consumo al cortar.</li>
-        <li>Guardar y marcar con código los sobrantes.</li>
-        <li>Revisar «Disponibles» antes de sacar lámina nueva.</li>
+        <li>Sacar del inventario al cortar (mirando primero los retales).</li>
+        <li>Devolver y marcar con código lo que sobra.</li>
+        <li>Registrar las compras en «Entrada de material».</li>
       </ul>
     </div>
     <div>
       <h3>Cada semana</h3>
       <ul>
-        <li>Cerrar los trabajos terminados: recortes y consumo real.</li>
+        <li>Cerrar los trabajos terminados: piezas y recortes.</li>
         <li>Revisar el desperdicio y sus motivos.</li>
         <li>Responder solicitudes de Capacidad.</li>
       </ul>
@@ -404,7 +405,7 @@
       <h3>Cada mes</h3>
       <ul>
         <li>Revisar el Dashboard y el ahorro del mes.</li>
-        <li>Actualizar precios de materiales y archivar los que no se usan.</li>
+        <li>Contar la bodega, corregir el inventario y actualizar precios.</li>
         <li>Revisar el equipo: desactivar a quien ya no esté.</li>
       </ul>
     </div>
@@ -453,7 +454,7 @@
 
 <script>
   (function () {
-    var CLAVE = "ecosign-checklist-taller-v1";
+    var CLAVE = "ecosign-checklist-taller-v2";
     var casillas = Array.prototype.slice.call(document.querySelectorAll('input[type="checkbox"][data-id]'));
 
     function leer() {

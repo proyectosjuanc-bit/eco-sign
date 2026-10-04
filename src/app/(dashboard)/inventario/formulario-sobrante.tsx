@@ -105,11 +105,11 @@ function CamposSobrante({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Registrar sobrante</CardTitle>
+        <CardTitle>Registrar retal</CardTitle>
         <CardDescription>
           {FOTOS_ACTIVAS && MEDICION_AUTOMATICA_ACTIVA
             ? "Toma la foto del retal. Con una hoja A4 junto a él, el sistema sugiere las medidas y el color."
-            : "Anota las medidas del retal. Al guardarlo recibe un código para marcarlo sobre el material."}
+            : "Para un pedazo que ya tenías en el taller. Los sobrantes de un trabajo se devuelven desde el propio trabajo."}
         </CardDescription>
       </CardHeader>
       <CardContent>

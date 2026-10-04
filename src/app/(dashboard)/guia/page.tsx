@@ -44,153 +44,93 @@ export default function GuiaPage() {
           </CardContent>
         </Card>
 
-        <Paso
-          numero={1}
-          titulo="Materiales: el catálogo y tus existencias"
-          enlace="/materiales"
-        >
+        <Paso numero={1} titulo="Materiales: el catálogo de precios" enlace="/materiales">
           <p>
-            Aquí registras <strong>lo que compras</strong>. Para una lámina,
-            escribe su tamaño y el precio por lámina, y el costo por m² se
-            calcula solo. En &laquo;Láminas que tienes&raquo; pon cuántas hay en
-            bodega.
-          </p>
-          <Ejemplo>
-            Acrílico rojo 3 mm, lámina de 120 × 180 cm a $250.000, tengo 5. El
-            sistema calcula 2,16 m² por lámina y $115.741 el m².
-          </Ejemplo>
-          <p className="text-muted-foreground">
-            Si el material no viene en láminas, como pintura o tornillería, deja
-            las medidas vacías y escribe el costo por m² o por unidad.
-          </p>
-        </Paso>
-
-        <Paso
-          numero={2}
-          titulo="Trabajos: lo que consumes en cada obra"
-          enlace="/trabajos"
-        >
-          <p>
-            Crea el trabajo y ábrelo desde la lista para añadirle el material
-            que gastó. Hay dos formas de anotarlo:
+            Aquí defines <strong>qué materiales usas y cuánto cuestan</strong>.
+            No es la bodega: lo que tienes físicamente va en Inventario.
           </p>
           <ul className="ml-4 list-disc space-y-1">
-            <li>
-              <strong>Pieza</strong>: un corte concreto, con su cantidad. Por
-              ejemplo tres placas de 40 × 30 cm.
-            </li>
-            <li>
-              <strong>Lámina</strong>: la plancha entera que gastaste. Úsala
-              cuando aprovechaste una lámina completa para varios cortes.
-            </li>
+            <li><strong>Lámina (m²)</strong>: acrílico, PVC, vinilo… Escribe el tamaño de la lámina y su precio; el costo por m² se calcula solo.</li>
+            <li><strong>Metro lineal</strong>: neón, cable, perfiles… Escribe el precio del metro.</li>
+            <li><strong>Unidad</strong>: tornillos, luces LED, fuentes… Escribe el precio de cada una.</li>
           </ul>
-          <p className="text-muted-foreground">
-            Al guardar, las láminas se descuentan solas de tus existencias.
-          </p>
-          <p>
-            <strong>¿Cortaste una forma irregular, como un triángulo?</strong>{" "}
-            Anota el ancho y alto del rectángulo que la contiene, porque es el
-            material que de verdad ocupaste para sacarla. Si de esa forma
-            sobra una punta que todavía se puede usar, marca la casilla{" "}
-            <strong>&laquo;Esta pieza es un recorte aprovechable&raquo;</strong>{" "}
-            al añadirla: queda guardada en Inventario y no se cuenta como
-            desperdicio.
-          </p>
-        </Paso>
-
-        <Paso
-          numero={3}
-          titulo="Inventario: los retazos que puedes reutilizar"
-          enlace="/inventario"
-        >
-          <p>
-            Aquí <strong>no</strong> van las láminas nuevas que compraste: esas
-            están en Materiales. Inventario es solo para los{" "}
-            <strong>pedazos sueltos</strong> que quedaron de un corte y todavía
-            sirven.
-          </p>
           <Ejemplo>
-            De la lámina de acrílico rojo sobró un pedazo de 60 × 40 cm. Le tomas
-            foto, anotas las medidas y eliges el material. El sistema lo valora
-            en $27.778, que es lo que costaría comprarlo.
+            Acrílico negro 3 mm, lámina de 120 × 180 cm a $250.000: el sistema
+            calcula 2,16 m² por lámina y $115.741 el m².
           </Ejemplo>
+        </Paso>
+
+        <Paso numero={2} titulo="Inventario: todo lo que tienes" enlace="/inventario">
           <p>
-            No hace falta haber creado un trabajo antes. Si tienes retazos
-            acumulados de trabajos viejos, regístralos hoy mismo.
+            Aquí vive <strong>todo lo físico</strong> del taller, en cuatro clases:
+            láminas completas, retales (pedazos con medidas y código SOB), rollos
+            por metro y unidades.
           </p>
+          <ul className="ml-4 list-disc space-y-1">
+            <li>Cuando compras, usa <strong>Entrada de material</strong>: por ejemplo «Acrílico negro: 5 láminas» o «Neón rojo: 50 m».</li>
+            <li>Si cuentas la bodega y algo no cuadra, usa <strong>Corregir</strong> en esa existencia.</li>
+            <li>Los retales viejos que ya tenías, regístralos con <strong>Registrar retal</strong>. Marca su código con marcador sobre el material.</li>
+          </ul>
+        </Paso>
+
+        <Paso numero={3} titulo="Trabajos: todo sale del inventario" enlace="/trabajos">
+          <p>Crea el trabajo, ábrelo y sigue cuatro pasos:</p>
+          <ol className="ml-4 list-decimal space-y-1">
+            <li>
+              <strong>Sacar del inventario</strong>: elige lo que usas. Si
+              escribes la medida que necesitas, te muestra primero los{" "}
+              <strong>retales que alcanzan</strong>. Usar un retal en vez de una
+              lámina nueva es ahorro.
+            </li>
+            <li><strong>Piezas que entregas</strong>: las medidas de lo que se lleva el cliente.</li>
+            <li><strong>Devolver sobrante</strong>: lo que te sobró y sirve vuelve al inventario como retal con código.</li>
+            <li><strong>Recortes que se pierden</strong>: el sistema resta y anota en Desperdicio lo que no se aprovechó.</li>
+          </ol>
+          <Ejemplo>
+            Aviso con acrílico de 50 × 50, 10 m de neón y 10 m de cable dúplex.
+            Escribes 50 × 50 y aparece el retal SOB-014 (60 × 70): lo sacas (eso
+            es ahorro). Sacas 10 m de neón y 10 m de cable de sus rollos.
+            Registras la pieza de 50 × 50 y devuelves la franja de 60 × 20 que
+            sobró. El resto del retal queda como recorte perdido.
+          </Ejemplo>
           <p className="text-muted-foreground">
-            Cuando uses uno de esos retazos en otra obra, pulsa
-            &laquo;Reutilizar&raquo;. Ese es el momento en que nace el ahorro:
-            su valor pasa al panel principal.
+            ¿Te equivocaste? Con «Devolver» en la línea, el material vuelve al
+            inventario. Si borras el trabajo, también vuelve todo lo que sacó.
           </p>
           <p>
-            Si un sobrante grande viene de un trabajo puntual —por ejemplo la
-            franja que sobra al acomodar varias piezas en una lámina— elige ese
-            trabajo en &laquo;¿De qué trabajo salió?&raquo; al registrarlo. Deja
-            de contarse como desperdicio en ese trabajo, sin tener que anotarlo
-            como una pieza más.
+            <strong>¿Forma irregular, como una letra corpórea?</strong> Anota como
+            pieza el ancho y alto del rectángulo que la contiene.
           </p>
         </Paso>
 
-        <Paso
-          numero={4}
-          titulo="Desperdicio: lo que se perdió"
-          enlace="/desperdicio"
-        >
-          <p>
-            Lo registras tú, el sistema no lo adivina. La diferencia con un
-            sobrante es simple:
-          </p>
+        <Paso numero={4} titulo="Desperdicio: lo que se perdió" enlace="/desperdicio">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-md border border-emerald-600/30 bg-emerald-50/50 p-3">
               <p className="text-sm font-medium text-emerald-900">Sobrante</p>
               <p className="mt-1 text-xs text-emerald-800">
-                Sirve. Lo guardas y lo vas a usar. Va a Inventario.
+                Sirve. Vuelve al inventario como retal y lo vas a usar.
               </p>
             </div>
             <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
               <p className="text-sm font-medium text-destructive">Desperdicio</p>
               <p className="mt-1 text-xs text-destructive/80">
-                No sirve. Corte errado, impresión mala, material rayado. Va a
-                Desperdicio.
+                No sirve. Corte errado, impresión mala, material rayado.
               </p>
             </div>
           </div>
           <p>
-            Si lo puedes medir, escribe el ancho y el alto en cm y el sistema
-            calcula los m² y el costo.
-          </p>
-          <Ejemplo>
-            Una mala impresión echó a perder 150 × 500 cm de vinilo. Escribes
-            esas dos medidas y el sistema anota 7,5 m² con su costo.
-          </Ejemplo>
-          <p>
-            <strong>¿Y los recortes que no se pueden medir?</strong> De una
-            lámina quedan decenas de pedacitos inservibles y nadie va a medirlos
-            uno a uno. Para eso, dentro del trabajo hay un botón{" "}
-            <strong>Registrar recortes</strong>: resta lo que aprovechaste al
-            material que gastaste, y la diferencia la anota sola.
-          </p>
-          <p className="text-muted-foreground">
-            Para que esa resta funcione, la lámina va en modo Lámina y los cortes
-            aprovechados en modo Pieza.
+            Los recortes de cada trabajo se calculan solos (paso 4 del trabajo).
+            Lo demás —una impresión dañada, una lámina rayada— lo registras en
+            Desperdicio con sus medidas y el motivo.
           </p>
         </Paso>
 
         <Paso numero={5} titulo="Dashboard: el resultado" enlace="/dashboard">
-          <p>El ahorro del mes se alimenta de dos fuentes:</p>
-          <ul className="ml-4 list-disc space-y-1">
-            <li>
-              Cada sobrante que marcas como reutilizado, por su valor en pesos.
-            </li>
-            <li>
-              Cada trabajo donde el consumo real fue menor que el previsto, por
-              la diferencia.
-            </li>
-          </ul>
-          <p className="text-muted-foreground">
-            Ese consumo real lo registras al cerrar el trabajo, en el formulario
-            que hay bajo la lista de piezas.
+          <p>
+            El <strong>ahorro del mes</strong> sale de cada retal que un trabajo
+            usa en vez de material nuevo, por su valor en pesos. También muestra
+            el valor de tu inventario y el costo del desperdicio. Solo lo ven los
+            administradores.
           </p>
         </Paso>
 
@@ -200,18 +140,11 @@ export default function GuiaPage() {
           </CardHeader>
           <CardContent className="text-sm">
             <ol className="ml-4 list-decimal space-y-2">
-              <li>Llega material nuevo: súmalo en Materiales.</li>
-              <li>Empieza una obra: créala en Trabajos y anota lo que gasta.</li>
-              <li>
-                Sobra un pedazo aprovechable: foto y a Inventario, ahí mismo en
-                el taller.
-              </li>
+              <li>Llega material: regístralo en Inventario → Entrada de material.</li>
+              <li>Empieza una obra: créala en Trabajos.</li>
+              <li>Antes de cortar: escribe la medida en «Sacar del inventario» y usa un retal si alcanza.</li>
+              <li>Al terminar: registra las piezas, devuelve lo que sobró y registra los recortes.</li>
               <li>Se dañó algo: regístralo en Desperdicio.</li>
-              <li>
-                Vas a cortar algo nuevo: mira primero Inventario, y si usas un
-                retazo márcalo como reutilizado.
-              </li>
-              <li>Cierra el trabajo con el consumo real.</li>
             </ol>
           </CardContent>
         </Card>

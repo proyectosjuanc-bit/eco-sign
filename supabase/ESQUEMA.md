@@ -531,3 +531,36 @@ acceso prohibido de esta sección y borra todo al terminar:
 ```
 node --env-file=.env.local scripts/probar-rls-capacidad.mjs
 ```
+
+## Inventario único (desde el 4 de octubre de 2026)
+
+Migración `20261004_inventario_unico.sql`. Reemplaza el modelo anterior de
+«existencias en Materiales + retales en Inventario» y el origen
+«A mano / Lámina de stock / Sobrante» de los trabajos.
+
+- `materials` es **sólo el catálogo de precios**. `stock_laminas` queda
+  obsoleta y siempre en 0 (sus valores se pasaron al inventario).
+- `inventory_items.clase`: `lamina` (láminas completas; `cantidad` = nº),
+  `retal` (pedazo con medidas y código SOB), `metros` (rollos; `cantidad` =
+  metros) y `unidades`. `cantidad` es `numeric(12,2)` para admitir metros con
+  decimales. Las compras entran con «Entrada de material» y se suman a la
+  existencia que ya haya de ese material y clase.
+- `job_items.modo`: `salida` (material sacado del inventario, con
+  `inventory_item_id`) o `pieza` (lo que se entrega). El antiguo `lamina` se
+  migró a `salida`.
+- `sacar_inventario(item, cantidad)` / `reponer_inventario(item, cantidad)`:
+  security definer, atómicas, exigen `current_tenant_id()` y
+  `puede_escribir()`. Un retal sale entero (`usado = true`) y al reponerlo
+  vuelve a estar disponible.
+- **Ahorro** = usar un retal en un trabajo: `savings` tipo `reutilizacion`
+  con `job_item_id` (ON DELETE CASCADE): quitar la línea o borrar el trabajo
+  elimina el ahorro. Se quitó `UNIQUE(job_id, tipo)`; sólo `optimizacion`
+  sigue siendo única por trabajo (registros históricos).
+- **Recortes** = por material que se corta (m²): salidas − piezas − retales
+  devueltos ligados al trabajo (`inventory_items.job_id`).
+- `valor_inventario()` devuelve el valor por clase con los precios actuales;
+  `valor_sobrantes_disponibles()` ahora suma sólo retales.
+
+Verificado el 4 de octubre de 2026 en Chrome contra la base real (27
+comprobaciones con el ejemplo del aviso: acrílico 50 × 50, 10 m de neón y
+10 m de cable) y con `scripts/probar-roles.mjs`.

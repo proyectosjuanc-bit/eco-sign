@@ -2,17 +2,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { cambiarEstado, eliminarPieza } from "../actions";
-import { FormularioConsumo } from "./formulario-consumo";
 import { BotonRecortes } from "./boton-recortes";
 import {
-  FormularioPieza,
-  type OpcionLamina,
-  type OpcionSobrante,
-} from "./formulario-pieza";
-import type { OpcionMaterial } from "../../inventario/formulario-sobrante";
+  FormularioDevolver,
+  FormularioPiezaEntregada,
+  FormularioSalida,
+  type OpcionInventario,
+  type OpcionMaterialTrabajo,
+} from "./formularios-trabajo";
 import { EncabezadoPagina } from "@/components/dashboard/encabezado-pagina";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -22,12 +23,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { areaM2, formatearFecha, formatearMoneda, formatearNumero } from "@/lib/format";
-import { calcularConsumoTeorico } from "@/lib/consumo-teorico";
-import { createClient } from "@/lib/supabase/server";
 import { FOTOS_ACTIVAS } from "@/lib/funciones";
+import { describirCantidad, esPorArea, etiquetaMaterial, valorItem } from "@/lib/inventario";
+import { createClient } from "@/lib/supabase/server";
 import { firmarFotos } from "@/lib/supabase/subir-foto";
+import type { ClaseInventario } from "@/types/database";
 
-/** En Next 16 los params y searchParams de una ruta llegan como promesa. */
+/**
+ * Un trabajo con inventario único: se SACA material del inventario, se
+ * registran las PIEZAS que se entregan, se DEVUELVE lo que sobra y se calculan
+ * los RECORTES perdidos. Ver trabajos/actions.ts.
+ */
 export default async function TrabajoPage({
   params,
   searchParams,
@@ -36,161 +42,121 @@ export default async function TrabajoPage({
   searchParams: Promise<{ origen_sobrante?: string }>;
 }) {
   const { id } = await params;
-  const { origen_sobrante: origenSobranteId } = await searchParams;
+  const { origen_sobrante: preseleccion } = await searchParams;
   const supabase = await createClient();
 
-  const { data: trabajo } = await supabase
-    .from("jobs")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
-
-  // RLS ya limita al tenant, así que una fila ausente es un 404 legítimo.
+  const { data: trabajo } = await supabase.from("jobs").select("*").eq("id", id).maybeSingle();
+  // RLS ya limita al taller: una fila ausente es un 404 legítimo.
   if (!trabajo) notFound();
 
   const [
-    { data: piezas },
+    { data: lineas },
     { data: materiales },
     { data: ahorros },
     { data: recortes },
-    { data: sobrantesLigados },
-    { data: sobrantesDisponibles },
+    { data: devueltos },
+    { data: disponibles },
   ] = await Promise.all([
-    supabase.from("job_items").select("*").eq("job_id", id),
-    // ancho_cm/alto_cm/costo_lamina/stock_laminas hacen falta para el
-    // selector de "lámina nueva de stock" al añadir una pieza.
+    supabase.from("job_items").select("*").eq("job_id", id).order("created_at"),
     supabase
       .from("materials")
-      .select(
-        "id, tipo, color, costo_unitario, unidad, ancho_cm, alto_cm, costo_lamina, stock_laminas, archivado",
-      ),
-    supabase.from("savings").select("monto, tipo, descripcion").eq("job_id", id),
+      .select("id, tipo, color, grosor_mm, costo_unitario, costo_lamina, unidad, archivado"),
+    supabase.from("savings").select("monto").eq("job_id", id),
+    supabase.from("waste_logs").select("id").eq("job_id", id).eq("origen", "recortes"),
     supabase
-      .from("waste_logs")
-      .select("id, costo")
+      .from("inventory_items")
+      .select("id, codigo, material_id, ancho_cm, alto_cm, usado, costo_estimado")
       .eq("job_id", id)
-      .eq("origen", "recortes"),
-    // Sobrantes registrados directamente en Inventario y ligados a este
-    // trabajo (no vienen de la casilla al añadir una pieza, que ya cuenta
-    // en job_items): se muestran también como "aprovechado", para que este
-    // panel coincida con lo que de verdad calcula cerrarConRecortes.
+      .eq("clase", "retal")
+      .order("created_at"),
+    // Lo que se puede sacar: retales sin usar y existencias con cantidad.
     supabase
       .from("inventory_items")
-      .select("ancho_cm, alto_cm, material_id")
-      .eq("job_id", id),
-    // Sobrantes que se pueden elegir como origen de una pieza nueva: de
-    // lámina (se cortan) o por unidad (se consumen en parte o del todo).
-    supabase
-      .from("inventory_items")
-      .select("id, codigo, ancho_cm, alto_cm, material_id, color, cantidad")
-      .eq("usado", false)
+      .select("id, clase, material_id, codigo, ancho_cm, alto_cm, cantidad")
+      .or("and(clase.eq.retal,usado.eq.false),and(clase.neq.retal,cantidad.gt.0)")
       .order("codigo"),
   ]);
 
   const porMaterial = new Map((materiales ?? []).map((m) => [m.id, m]));
-  // Sin fotos que mostrar no hace falta pedir las URLs firmadas a Storage.
+  const salidas = (lineas ?? []).filter((l) => l.modo === "salida");
+  const piezas = (lineas ?? []).filter((l) => l.modo === "pieza");
+
+  // Clase y código de lo que salió (puede estar ya usado o agotado).
+  const idsSalida = salidas.map((s) => s.inventory_item_id).filter((v): v is string => Boolean(v));
+  const { data: itemsSalida } = idsSalida.length
+    ? await supabase.from("inventory_items").select("id, clase, codigo").in("id", idsSalida)
+    : { data: [] };
+  const claseDe = new Map((itemsSalida ?? []).map((i) => [i.id, i]));
+
   const firmas = FOTOS_ACTIVAS
-    ? await firmarFotos(supabase, (piezas ?? []).map((p) => p.foto_url))
+    ? await firmarFotos(supabase, piezas.map((p) => p.foto_url))
     : new Map<string, string>();
 
-  // Los materiales "por unidad" (tornillos, luces LED, estructuras…) no se
-  // cortan de una lámina: su consumo no se mide en m², así que quedan fuera
-  // de las cifras de área. Su costo sí se suma en costoTeorico más abajo.
-  const esPorArea = (materialId: string) =>
-    porMaterial.get(materialId)?.unidad !== "unidad";
-
-  // Consumo y costo teóricos: los calcula la misma función que usa el servidor
-  // al registrar el ahorro (registrarConsumoReal), para que no puedan discrepar.
-  const {
-    consumoTeoricoM2: consumoTeorico,
-    costoTeorico,
-    costoM2,
-  } = calcularConsumoTeorico(piezas ?? [], materiales ?? []);
-
-  // Separado por modo: lo que salió de bodega frente a lo que acabó en piezas.
-  // La diferencia son los recortes que no se pueden aprovechar.
-  const materialesConLamina = new Set(
-    (piezas ?? [])
-      .filter((pieza) => pieza.modo === "lamina")
-      .map((pieza) => pieza.material_id),
-  );
-
-  const consumidoM2 = (piezas ?? [])
-    .filter((pieza) => pieza.modo === "lamina" && esPorArea(pieza.material_id))
-    .reduce(
-      (total, p) => total + areaM2(p.ancho_cm, p.alto_cm) * p.cantidad,
-      0,
+  // --- Cifras -----------------------------------------------------------------
+  const valorSalida = (s: (typeof salidas)[number]) => {
+    const item = s.inventory_item_id ? claseDe.get(s.inventory_item_id) : undefined;
+    const clase = (item?.clase ?? "lamina") as ClaseInventario;
+    return valorItem(
+      { clase, ancho_cm: s.ancho_cm, alto_cm: s.alto_cm, cantidad: Number(s.cantidad), costo_estimado: null },
+      porMaterial.get(s.material_id),
     );
+  };
+  const costoSacado = salidas.reduce((t, s) => t + valorSalida(s), 0);
+  const valorDevuelto = (devueltos ?? []).reduce((t, d) => t + Number(d.costo_estimado ?? 0), 0);
+  const ahorroTotal = (ahorros ?? []).reduce((t, a) => t + Number(a.monto), 0);
 
-  const aprovechadoEnPiezasM2 = (piezas ?? [])
-    .filter((pieza) => pieza.modo !== "lamina" && esPorArea(pieza.material_id))
-    .reduce(
-      (total, p) => total + areaM2(p.ancho_cm, p.alto_cm) * p.cantidad,
-      0,
-    );
+  // Recortes: por material que se corta, sacado − piezas − devueltos.
+  const recorte = new Map<string, { sacado: number; aprovechado: number }>();
+  for (const l of lineas ?? []) {
+    if (!esPorArea(porMaterial.get(l.material_id)?.unidad)) continue;
+    const area = areaM2(l.ancho_cm, l.alto_cm) * Number(l.cantidad);
+    const acc = recorte.get(l.material_id) ?? { sacado: 0, aprovechado: 0 };
+    if (l.modo === "salida") acc.sacado += area;
+    else acc.aprovechado += area;
+    recorte.set(l.material_id, acc);
+  }
+  for (const d of devueltos ?? []) {
+    const acc = recorte.get(d.material_id);
+    if (acc) acc.aprovechado += areaM2(d.ancho_cm, d.alto_cm);
+  }
+  let sacadoM2 = 0;
+  let aprovechadoM2 = 0;
+  let costoPerdido = 0;
+  for (const [materialId, { sacado, aprovechado }] of recorte) {
+    if (sacado <= 0) continue;
+    sacadoM2 += sacado;
+    aprovechadoM2 += aprovechado;
+    costoPerdido += Math.max(sacado - aprovechado, 0) * (porMaterial.get(materialId)?.costo_unitario ?? 0);
+  }
 
-  // Mismo criterio que cerrarConRecortes: sólo cuenta si el sobrante es del
-  // mismo material que alguna lámina registrada en este trabajo, porque sin
-  // eso no hay de qué restarlo.
-  const aprovechadoEnInventarioM2 = (sobrantesLigados ?? [])
-    .filter((s) => s.material_id && materialesConLamina.has(s.material_id))
-    .reduce((total, s) => total + areaM2(s.ancho_cm, s.alto_cm), 0);
+  // --- Opciones de los formularios ------------------------------------------
+  const opcionesInventario: OpcionInventario[] = (disponibles ?? []).flatMap((i) => {
+    const m = porMaterial.get(i.material_id);
+    if (!m) return [];
+    return [{
+      id: i.id,
+      clase: i.clase,
+      material: etiquetaMaterial(m),
+      codigo: i.codigo,
+      ancho_cm: i.ancho_cm,
+      alto_cm: i.alto_cm,
+      cantidad: Number(i.cantidad),
+    }];
+  });
 
-  const aprovechadoM2 = aprovechadoEnPiezasM2 + aprovechadoEnInventarioM2;
+  // Piezas y sobrantes: sólo de los materiales que se cortan y que salieron
+  // del inventario en este trabajo.
+  const materialesCortados: OpcionMaterialTrabajo[] = [
+    ...new Set(salidas.map((s) => s.material_id)),
+  ]
+    .map((mid) => porMaterial.get(mid))
+    .filter((m): m is NonNullable<typeof m> => Boolean(m) && esPorArea(m?.unidad))
+    .map((m) => ({ id: m.id, etiqueta: etiquetaMaterial(m) }));
 
-  const ahorroTotal = (ahorros ?? []).reduce((total, a) => total + a.monto, 0);
-
-  // Los archivados siguen sirviendo para nombrar y valorar el historial, pero
-  // no se ofrecen para registrar nada nuevo.
-  const opciones: OpcionMaterial[] = (materiales ?? []).filter((m) => !m.archivado).map((material) => ({
-    id: material.id,
-    etiqueta: material.color
-      ? `${material.tipo} · ${material.color}`
-      : material.tipo,
-    unidad: material.unidad,
-  }));
-
-  // Láminas nuevas de stock: sólo materiales que de verdad vienen en láminas
-  // con existencias, para no ofrecer un origen que luego falla al descontar.
-  const laminasDisponibles: OpcionLamina[] = (materiales ?? [])
-    .filter(
-      (material) =>
-        !material.archivado &&
-        (material.stock_laminas ?? 0) > 0 &&
-        material.ancho_cm != null &&
-        material.alto_cm != null,
-    )
-    .map((material) => ({
-      id: material.id,
-      etiqueta: material.color
-        ? `${material.tipo} · ${material.color}`
-        : material.tipo,
-      ancho_cm: material.ancho_cm as number,
-      alto_cm: material.alto_cm as number,
-      stock_laminas: material.stock_laminas ?? 0,
-    }));
-
-  // Un sobrante "por unidad" no se corta: se usa completo o en parte (ver
-  // OpcionSobrante.porUnidad, que el formulario usa para pedir cantidad en
-  // vez de ancho/alto).
-  const sobrantesOpciones: OpcionSobrante[] = (sobrantesDisponibles ?? []).map(
-    (sobrante) => {
-      const material = porMaterial.get(sobrante.material_id);
-      return {
-        id: sobrante.id,
-        codigo: sobrante.codigo,
-        material_id: sobrante.material_id,
-        ancho_cm: sobrante.ancho_cm,
-        alto_cm: sobrante.alto_cm,
-        cantidad: sobrante.cantidad,
-        porUnidad: material?.unidad === "unidad",
-        etiqueta: material
-          ? material.color
-            ? `${material.tipo} · ${material.color}`
-            : material.tipo
-          : (sobrante.color ?? "Material"),
-      };
-    });
+  const nombre = (materialId: string) => {
+    const m = porMaterial.get(materialId);
+    return m ? etiquetaMaterial(m) : "—";
+  };
 
   return (
     <>
@@ -214,137 +180,170 @@ export default async function TrabajoPage({
               Guardar
             </Button>
           </form>
-          <Button variant="ghost" size="sm" render={<Link href="/trabajos" />}>
+          <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/trabajos" />}>
             Volver
           </Button>
         </div>
       </EncabezadoPagina>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <Resumen
-          titulo="Consumo teórico"
-          valor={`${formatearNumero(consumoTeorico)} m²`}
-        />
-        <Resumen titulo="Costo teórico" valor={formatearMoneda(costoTeorico)} />
-        <Resumen
-          titulo="Ahorro registrado"
-          valor={formatearMoneda(ahorroTotal)}
-          destacado
-        />
+        <Resumen titulo="Material sacado del inventario" valor={formatearMoneda(costoSacado)} />
+        <Resumen titulo="Sobrantes devueltos" valor={formatearMoneda(valorDevuelto)} />
+        <Resumen titulo="Ahorro por usar retales" valor={formatearMoneda(ahorroTotal)} destacado />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <Card>
-          <CardContent className="p-0">
-            {!piezas?.length ? (
-              <p className="p-6 text-sm text-muted-foreground">
-                Este trabajo aún no tiene piezas.
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {/* La columna de miniatura desaparece entera con las
-                        fotos apagadas, para no dejar un hueco vacío. */}
-                    {FOTOS_ACTIVAS ? <TableHead className="w-0" /> : null}
-                    <TableHead>Material</TableHead>
-                    <TableHead className="text-right">Medidas</TableHead>
-                    <TableHead className="text-right">Cant.</TableHead>
-                    <TableHead className="text-right">Área</TableHead>
-                    <TableHead className="w-0" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {piezas.map((pieza) => {
-                    const material = porMaterial.get(pieza.material_id);
-                    const area =
-                      areaM2(pieza.ancho_cm, pieza.alto_cm) * pieza.cantidad;
-                    const firma = pieza.foto_url
-                      ? firmas.get(pieza.foto_url)
-                      : null;
-                    return (
-                      <TableRow key={pieza.id}>
-                        {FOTOS_ACTIVAS ? (
-                          <TableCell>
-                            {firma ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                loading="lazy"
-                                decoding="async"
-                                src={firma}
-                                alt={pieza.descripcion ?? "Foto de la pieza"}
-                                className="size-10 rounded object-cover"
-                              />
-                            ) : (
-                              <div className="size-10 rounded bg-muted" />
-                            )}
+      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+        <div className="flex min-w-0 flex-col gap-6">
+          {/* --- Lo sacado --- */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Material sacado del inventario</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {!salidas.length ? (
+                <p className="px-6 pb-6 text-sm text-muted-foreground">
+                  Todavía no has sacado material para este trabajo (paso 1).
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Material</TableHead>
+                      <TableHead>Qué salió</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead className="w-0" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {salidas.map((s) => {
+                      const item = s.inventory_item_id ? claseDe.get(s.inventory_item_id) : undefined;
+                      const clase = (item?.clase ?? "lamina") as ClaseInventario;
+                      return (
+                        <TableRow key={s.id}>
+                          <TableCell className="font-medium">
+                            {nombre(s.material_id)}
+                            {clase === "retal" ? (
+                              <Badge className="ml-2 bg-emerald-600 text-white">Retal reutilizado</Badge>
+                            ) : null}
                           </TableCell>
-                        ) : null}
-                        <TableCell className="font-medium">
-                          <span className="flex flex-col">
-                            <span>{material?.tipo ?? "—"}</span>
-                            {pieza.descripcion ? (
-                              <span className="text-xs font-normal text-muted-foreground">
-                                {pieza.descripcion}
-                              </span>
+                          <TableCell className="text-muted-foreground">
+                            {clase === "retal" && item?.codigo ? `${item.codigo} · ` : ""}
+                            {describirCantidad({ clase, ancho_cm: s.ancho_cm, alto_cm: s.alto_cm, cantidad: Number(s.cantidad) })}
+                          </TableCell>
+                          <TableCell className="text-right">{formatearMoneda(valorSalida(s))}</TableCell>
+                          <TableCell>
+                            <BotonQuitar id={s.id} jobId={trabajo.id} etiqueta="Devolver" />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* --- Piezas --- */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Piezas que se entregan</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {!piezas.length ? (
+                <p className="px-6 pb-6 text-sm text-muted-foreground">
+                  Todavía no has registrado piezas (paso 2).
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {FOTOS_ACTIVAS ? <TableHead className="w-0" /> : null}
+                      <TableHead>Material</TableHead>
+                      <TableHead className="text-right">Medidas</TableHead>
+                      <TableHead className="text-right">Cant.</TableHead>
+                      <TableHead className="text-right">Área</TableHead>
+                      <TableHead className="w-0" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {piezas.map((p) => {
+                      const firma = p.foto_url ? firmas.get(p.foto_url) : null;
+                      return (
+                        <TableRow key={p.id}>
+                          {FOTOS_ACTIVAS ? (
+                            <TableCell>
+                              {firma ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  loading="lazy"
+                                  decoding="async"
+                                  src={firma}
+                                  alt={p.descripcion ?? "Foto de la pieza"}
+                                  className="size-10 rounded object-cover"
+                                />
+                              ) : (
+                                <div className="size-10 rounded bg-muted" />
+                              )}
+                            </TableCell>
+                          ) : null}
+                          <TableCell className="font-medium">
+                            {nombre(p.material_id)}
+                            {p.descripcion ? (
+                              <span className="block text-xs font-normal text-muted-foreground">{p.descripcion}</span>
                             ) : null}
-                            {pieza.modo === "lamina" ? (
-                              <span className="text-xs font-normal text-emerald-700">
-                                Lámina consumida
-                              </span>
-                            ) : null}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right text-muted-foreground">
-                          {formatearNumero(pieza.ancho_cm)} ×{" "}
-                          {formatearNumero(pieza.alto_cm)} cm
-                        </TableCell>
-                        <TableCell className="text-right">{pieza.cantidad}</TableCell>
-                        <TableCell className="text-right">
-                          {formatearNumero(area)} m²
-                        </TableCell>
-                        <TableCell>
-                          <form action={eliminarPieza}>
-                            <input type="hidden" name="id" value={pieza.id} />
-                            <input type="hidden" name="job_id" value={trabajo.id} />
-                            <Button
-                              type="submit"
-                              variant="ghost"
-                              size="sm"
-                              className="text-muted-foreground hover:text-destructive"
-                            >
-                              Quitar
-                            </Button>
-                          </form>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                          </TableCell>
+                          <TableCell className="text-right text-muted-foreground">
+                            {formatearNumero(p.ancho_cm)} × {formatearNumero(p.alto_cm)} cm
+                          </TableCell>
+                          <TableCell className="text-right">{formatearNumero(Number(p.cantidad))}</TableCell>
+                          <TableCell className="text-right">
+                            {formatearNumero(areaM2(p.ancho_cm, p.alto_cm) * Number(p.cantidad))} m²
+                          </TableCell>
+                          <TableCell>
+                            <BotonQuitar id={p.id} jobId={trabajo.id} etiqueta="Quitar" />
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* --- Devueltos --- */}
+          {devueltos?.length ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Sobrantes devueltos al inventario</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="flex flex-col divide-y text-sm">
+                  {devueltos.map((d) => (
+                    <li key={d.id} className="flex items-center justify-between gap-3 py-2">
+                      <span>
+                        <span className="font-mono text-xs font-semibold text-emerald-700">{d.codigo}</span>{" "}
+                        {nombre(d.material_id)} · {formatearNumero(d.ancho_cm)} × {formatearNumero(d.alto_cm)} cm
+                      </span>
+                      <Badge variant={d.usado ? "secondary" : "default"}>{d.usado ? "Usado" : "Disponible"}</Badge>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
 
         <div className="flex flex-col gap-6">
-          <FormularioPieza
-            jobId={trabajo.id}
-            materiales={opciones}
-            laminas={laminasDisponibles}
-            sobrantes={sobrantesOpciones}
-            origenSobranteId={origenSobranteId ?? null}
-          />
+          <FormularioSalida jobId={trabajo.id} opciones={opcionesInventario} preseleccion={preseleccion ?? null} />
+          <FormularioPiezaEntregada jobId={trabajo.id} materiales={materialesCortados} />
+          <FormularioDevolver jobId={trabajo.id} materiales={materialesCortados} />
           <BotonRecortes
             jobId={trabajo.id}
-            consumidoM2={Number(consumidoM2.toFixed(2))}
+            consumidoM2={Number(sacadoM2.toFixed(2))}
             aprovechadoM2={Number(aprovechadoM2.toFixed(2))}
-            costoM2={Number(costoM2.toFixed(2))}
+            costoPerdido={Number(costoPerdido.toFixed(2))}
             yaCalculado={Boolean(recortes?.length)}
-          />
-          <FormularioConsumo
-            jobId={trabajo.id}
-            consumoTeorico={Number(consumoTeorico.toFixed(2))}
-            costoM2={Number(costoM2.toFixed(2))}
           />
         </div>
       </div>
@@ -352,24 +351,31 @@ export default async function TrabajoPage({
   );
 }
 
-function Resumen({
-  titulo,
-  valor,
-  destacado = false,
-}: {
-  titulo: string;
-  valor: string;
-  destacado?: boolean;
-}) {
+/** Quita una línea; si es una salida, el material vuelve al inventario. */
+function BotonQuitar({ id, jobId, etiqueta }: { id: string; jobId: string; etiqueta: string }) {
+  return (
+    <form action={eliminarPieza}>
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="job_id" value={jobId} />
+      <Button
+        type="submit"
+        variant="ghost"
+        size="sm"
+        className="text-muted-foreground hover:text-destructive"
+        title={etiqueta === "Devolver" ? "Quitar esta salida: el material vuelve al inventario" : "Quitar esta pieza"}
+      >
+        {etiqueta}
+      </Button>
+    </form>
+  );
+}
+
+function Resumen({ titulo, valor, destacado = false }: { titulo: string; valor: string; destacado?: boolean }) {
   return (
     <Card>
       <CardContent>
         <p className="text-xs text-muted-foreground">{titulo}</p>
-        <p
-          className={`mt-1 text-xl font-bold ${destacado ? "text-emerald-600" : ""}`}
-        >
-          {valor}
-        </p>
+        <p className={`mt-1 text-xl font-bold ${destacado ? "text-emerald-600" : ""}`}>{valor}</p>
       </CardContent>
     </Card>
   );

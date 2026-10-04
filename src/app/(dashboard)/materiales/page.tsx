@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 
-import { ajustarStock } from "./actions";
 import { BotonEliminarMaterial, BotonRestaurarMaterial } from "./botones-material";
 import { FormularioMaterial } from "./formulario-material";
 import { FormularioImportar } from "./formulario-importar";
 import { EncabezadoPagina } from "@/components/dashboard/encabezado-pagina";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -16,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatearMoneda, formatearNumero } from "@/lib/format";
-import { areaLamina, valorStock } from "@/lib/lamina";
+import { areaLamina } from "@/lib/lamina";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Materiales · ECO-SIGN" };
@@ -44,7 +42,7 @@ export default async function MaterialesPage() {
     <>
       <EncabezadoPagina
         titulo="Materiales"
-        descripcion="El catálogo con el que se valoran sobrantes, trabajos y desperdicio."
+        descripcion="El catálogo de precios. Lo que tienes en bodega se registra en Inventario."
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -66,7 +64,6 @@ export default async function MaterialesPage() {
                     <TableHead>Tipo</TableHead>
                     <TableHead className="text-right">Lámina</TableHead>
                     <TableHead className="text-right">Costo</TableHead>
-                    <TableHead className="text-right">Existencias</TableHead>
                     <TableHead className="w-0" />
                   </TableRow>
                 </TableHeader>
@@ -78,10 +75,6 @@ export default async function MaterialesPage() {
                       costoLamina: material.costo_lamina,
                     };
                     const area = areaLamina(datos);
-                    const valor = valorStock({
-                      ...datos,
-                      stockLaminas: material.stock_laminas,
-                    });
                     return (
                     <TableRow key={material.id}>
                       <TableCell className="font-medium">
@@ -123,23 +116,6 @@ export default async function MaterialesPage() {
                           {" "}
                           / {ETIQUETA_UNIDAD[material.unidad] ?? material.unidad}
                         </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {area !== null ? (
-                          <span className="flex flex-col items-end">
-                            <ControlStock
-                              id={material.id}
-                              stock={material.stock_laminas}
-                            />
-                            {valor > 0 ? (
-                              <span className="text-xs text-muted-foreground">
-                                {formatearMoneda(valor)}
-                              </span>
-                            ) : null}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
                       </TableCell>
                       <TableCell>
                         <BotonEliminarMaterial
@@ -190,52 +166,5 @@ export default async function MaterialesPage() {
         </div>
       </div>
     </>
-  );
-}
-
-/**
- * Existencias con botones para sumar o restar una lámina.
- *
- * Son Server Actions directas, así que funcionan sin JavaScript en el cliente:
- * útil en el taller, donde la conexión no siempre acompaña.
- */
-function ControlStock({ id, stock }: { id: string; stock: number }) {
-  return (
-    <span className="flex items-center gap-1">
-      <BotonAjuste id={id} delta={-1} etiqueta="Restar una lámina" simbolo="−" />
-      <span className="min-w-8 text-center font-medium tabular-nums">
-        {formatearNumero(stock)}
-      </span>
-      <BotonAjuste id={id} delta={1} etiqueta="Sumar una lámina" simbolo="+" />
-    </span>
-  );
-}
-
-function BotonAjuste({
-  id,
-  delta,
-  etiqueta,
-  simbolo,
-}: {
-  id: string;
-  delta: number;
-  etiqueta: string;
-  simbolo: string;
-}) {
-  return (
-    <form action={ajustarStock}>
-      <input type="hidden" name="id" value={id} />
-      <input type="hidden" name="delta" value={delta} />
-      <Button
-        type="submit"
-        variant="outline"
-        size="sm"
-        aria-label={etiqueta}
-        title={etiqueta}
-        className="size-7 p-0"
-      >
-        {simbolo}
-      </Button>
-    </form>
   );
 }

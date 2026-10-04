@@ -5,12 +5,14 @@ import Link from "next/link";
 import { eliminarSobrante, marcarUsado } from "./actions";
 import { DialogoVender } from "./dialogo-vender";
 import { FormularioSobrante, type OpcionMaterial } from "./formulario-sobrante";
+import { CorregirCantidad, FormularioEntrada, type MaterialEntrada } from "./formularios-existencias";
 import { EncabezadoPagina } from "@/components/dashboard/encabezado-pagina";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { areaM2, formatearMoneda, formatearNumero } from "@/lib/format";
 import { FOTOS_ACTIVAS } from "@/lib/funciones";
+import { ETIQUETA_CLASE, describirCantidad, etiquetaMaterial, valorItem } from "@/lib/inventario";
 import { createClient } from "@/lib/supabase/server";
 import { firmarFotos } from "@/lib/supabase/subir-foto";
 
@@ -47,11 +49,15 @@ export default async function InventarioPage({
       supabase
         .from("inventory_items")
         .select("*", { count: "exact" })
+        .eq("clase", "retal")
         .eq("usado", verUsados)
         // Disponibles: los más valiosos primero. Usados: los más recientes.
         .order(verUsados ? "created_at" : "costo_estimado", { ascending: false })
         .range(desde, desde + POR_PAGINA - 1),
-      supabase.from("materials").select("id, tipo, color, unidad, archivado").order("tipo"),
+      supabase
+        .from("materials")
+        .select("id, tipo, color, grosor_mm, unidad, archivado, ancho_cm, alto_cm, costo_unitario, costo_lamina")
+        .order("tipo"),
       // Los más recientes: si un taller acumula cientos de trabajos, no hace
       // falta que todos quepan en el selector.
       supabase
@@ -59,11 +65,24 @@ export default async function InventarioPage({
         .select("id, nombre")
         .order("fecha", { ascending: false })
         .limit(30),
-      supabase.from("inventory_items").select("id", { count: "exact", head: true }).eq("usado", false),
-      supabase.from("inventory_items").select("id", { count: "exact", head: true }).eq("usado", true),
+      supabase.from("inventory_items").select("id", { count: "exact", head: true }).eq("clase", "retal").eq("usado", false),
+      supabase.from("inventory_items").select("id", { count: "exact", head: true }).eq("clase", "retal").eq("usado", true),
       // Sumado en la base: con paginación ya no se tienen todas las filas aquí.
       supabase.rpc("valor_sobrantes_disponibles"),
     ]);
+
+  // Existencias (láminas completas, rollos y unidades): pocas filas, una por
+  // material, así que van completas y sin paginar.
+  const [{ data: existencias }, { data: valorPorClase }] = await Promise.all([
+    supabase
+      .from("inventory_items")
+      .select("id, clase, material_id, ancho_cm, alto_cm, cantidad, costo_estimado")
+      .neq("clase", "retal")
+      .eq("usado", false)
+      .order("clase"),
+    supabase.rpc("valor_inventario"),
+  ]);
+  const valorInventario = (valorPorClase ?? []).reduce((t, f) => t + Number(f.valor), 0);
 
   if (errorValor) console.error("[inventario] No se pudo sumar el valor disponible", errorValor);
   const valorDisponible = Number(valorRpc ?? 0);
@@ -90,7 +109,18 @@ export default async function InventarioPage({
 
   // Los archivados siguen sirviendo para nombrar y valorar el historial, pero
   // no se ofrecen para registrar nada nuevo.
-  const opciones: OpcionMaterial[] = (materiales ?? []).filter((m) => !m.archivado).map((material) => ({
+  const paraEntrada: MaterialEntrada[] = (materiales ?? [])
+    .filter((m) => !m.archivado)
+    .map((m) => ({
+      id: m.id,
+      etiqueta: etiquetaMaterial(m),
+      unidad: m.unidad,
+      ancho_cm: m.ancho_cm,
+      alto_cm: m.alto_cm,
+    }));
+
+  // Un retal sólo sale de materiales que se cortan (m²).
+  const opciones: OpcionMaterial[] = (materiales ?? []).filter((m) => !m.archivado && m.unidad === "m2").map((material) => ({
     id: material.id,
     etiqueta: material.color
       ? `${material.tipo} · ${material.color}`
@@ -102,19 +132,65 @@ export default async function InventarioPage({
     <>
       <EncabezadoPagina
         titulo="Inventario de sobrantes"
-        descripcion="Cada retal guardado es material que no hay que volver a comprar."
+        descripcion="Todo lo que tienes en el taller: láminas completas, retales, rollos y unidades. Los trabajos sacan de aquí."
       >
-        <div className="rounded-lg border bg-card px-4 py-2 text-right">
-          <p className="text-xs text-muted-foreground">Valor disponible</p>
-          <p className="text-lg font-bold text-emerald-600">
-            {formatearMoneda(valorDisponible)}
-          </p>
+        <div className="flex gap-2">
+          <div className="rounded-lg border bg-card px-4 py-2 text-right">
+            <p className="text-xs text-muted-foreground">Valor del inventario</p>
+            <p className="text-lg font-bold">{formatearMoneda(valorInventario)}</p>
+          </div>
+          <div className="rounded-lg border bg-card px-4 py-2 text-right">
+            <p className="text-xs text-muted-foreground">En retales</p>
+            <p className="text-lg font-bold text-emerald-600">{formatearMoneda(valorDisponible)}</p>
+          </div>
         </div>
       </EncabezadoPagina>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="flex min-w-0 flex-col gap-4">
-        <nav aria-label="Ver sobrantes" className="flex gap-2">
+        <Card>
+          <CardContent className="p-0">
+            <div className="flex items-center justify-between px-6 pt-1 pb-3">
+              <h2 className="font-semibold">Existencias</h2>
+              <span className="text-xs text-muted-foreground">Láminas completas, rollos y unidades</span>
+            </div>
+            {!existencias?.length ? (
+              <p className="px-6 pb-6 text-sm text-muted-foreground">
+                Todavía no hay existencias. Registra lo que tienes con «Entrada de material».
+              </p>
+            ) : (
+              <ul className="flex flex-col divide-y border-t text-sm">
+                {existencias.map((e) => {
+                  const m = porMaterial.get(e.material_id);
+                  const agotado = Number(e.cantidad) <= 0;
+                  return (
+                    <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 px-6 py-2">
+                      <span className="min-w-0">
+                        <span className="font-medium">{m ? etiquetaMaterial(m) : "—"}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          {ETIQUETA_CLASE[e.clase]} ·{" "}
+                          {agotado ? <strong className="text-destructive">Agotado</strong> : describirCantidad({ ...e, cantidad: Number(e.cantidad) })}
+                          {" · "}
+                          {formatearMoneda(valorItem({ ...e, cantidad: Number(e.cantidad) }, m))}
+                        </span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        {!agotado ? (
+                          <Button size="sm" variant="outline" render={<Link href={`/trabajos?origen_sobrante=${e.id}`} />}>
+                            Usar en un trabajo
+                          </Button>
+                        ) : null}
+                        <CorregirCantidad id={e.id} cantidad={Number(e.cantidad)} decimales={e.clase === "metros"} />
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <nav aria-label="Ver retales" className="flex gap-2">
           <Link
             href={enlace({ ver: null })}
             aria-current={!verUsados ? "page" : undefined}
@@ -124,7 +200,7 @@ export default async function InventarioPage({
                 : "rounded-md border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
             }
           >
-            Disponibles ({totalDisponibles ?? 0})
+            Retales disponibles ({totalDisponibles ?? 0})
           </Link>
           <Link
             href={enlace({ ver: "usados" })}
@@ -135,7 +211,7 @@ export default async function InventarioPage({
                 : "rounded-md border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
             }
           >
-            Usados ({totalUsados ?? 0})
+            Retales usados ({totalUsados ?? 0})
           </Link>
         </nav>
 
@@ -153,10 +229,10 @@ export default async function InventarioPage({
             <Card className={FOTOS_ACTIVAS ? "sm:col-span-2 xl:col-span-3" : "sm:col-span-2"}>
               <CardContent className="p-6 text-sm text-muted-foreground">
                 {verUsados
-                  ? "Todavía no hay sobrantes usados ni vendidos."
+                  ? "Todavía no hay retales usados ni vendidos."
                   : (totalUsados ?? 0) > 0
-                    ? "No hay sobrantes disponibles ahora. Los que ya usaste están en «Usados»."
-                    : "Todavía no hay sobrantes registrados. Registra el primero en el formulario."}
+                    ? "No hay retales disponibles ahora. Los que ya usaste están en «Retales usados»."
+                    : "Todavía no hay retales. Se crean al devolver sobrantes de un trabajo o con «Registrar retal»."}
               </CardContent>
             </Card>
           ) : (
@@ -312,7 +388,10 @@ export default async function InventarioPage({
         ) : null}
         </div>
 
+        <div className="flex flex-col gap-6">
+        <FormularioEntrada materiales={paraEntrada} />
         <FormularioSobrante materiales={opciones} trabajos={trabajos ?? []} />
+        </div>
       </div>
     </>
   );

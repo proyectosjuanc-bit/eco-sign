@@ -103,7 +103,7 @@ const COLUMNAS: Columna[] = [
   {
     clave: "stock_laminas",
     titulo: "Existencias",
-    ayuda: "Cuántas láminas, unidades o metros tienes hoy. Si lo dejas vacío, queda en 0.",
+    ayuda: "Cuántas láminas completas, unidades o metros tienes hoy. Entran al Inventario. Si lo dejas vacío, no se registra nada.",
     obligatoria: false,
     ancho: 14,
     formato: "numero",

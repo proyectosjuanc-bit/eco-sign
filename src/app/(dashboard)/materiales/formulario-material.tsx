@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { crearMaterial } from "./actions";
 import { ESTADO_FORM_INICIAL } from "@/lib/form-state";
@@ -30,6 +31,13 @@ export function FormularioMaterial() {
     crearMaterial,
     ESTADO_FORM_INICIAL,
   );
+
+  // Avisos de éxito: si lo que tienes no pudo entrar al Inventario, se dice.
+  useEffect(() => {
+    if (!estado.ok) return;
+    if (estado.aviso) toast.warning(estado.aviso);
+    else toast.success("Material creado.");
+  }, [estado]);
 
   return (
     <CamposMaterial
@@ -67,7 +75,10 @@ function CamposMaterial({
   const [costoM2Manual, setCostoM2Manual] = useState("");
   const [costoUnitarioManual, setCostoUnitarioManual] = useState("");
 
-  const porUnidad = unidad === "unidad";
+  // Unidades (tornillos, LED) y metro lineal (neón, cable) no se cortan en
+  // láminas: sólo piden su precio (por unidad o por metro).
+  const porUnidad = unidad === "unidad" || unidad === "metro_lineal";
+  const porMetro = unidad === "metro_lineal";
 
   const datos = {
     anchoCm: comoNumero(ancho),
@@ -85,8 +96,9 @@ function CamposMaterial({
       <CardHeader>
         <CardTitle>Nuevo material</CardTitle>
         <CardDescription>
-          Láminas (acrílico, vinilo…) o materiales por unidad (tornillos,
-          luces LED, estructuras). El costo por m² se calcula solo.
+          Láminas (acrílico, vinilo…), rollos por metro (neón, cable) o
+          materiales por unidad (tornillos, luces LED). El costo por m² se
+          calcula solo. Lo que ya tengas en bodega entra al Inventario.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -120,9 +132,9 @@ function CamposMaterial({
           {porUnidad ? (
             <>
               <p className="text-xs text-muted-foreground">
-                Para materiales que no se cortan, como tornillos, luces LED o
-                una estructura metálica: sólo hace falta el precio de cada uno
-                y cuántos tienes.
+                {porMetro
+                  ? "Para rollos que se usan por metro, como neón o cable: sólo hace falta el precio del metro."
+                  : "Para materiales que no se cortan, como tornillos, luces LED o una estructura metálica: sólo hace falta el precio de cada uno."}
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="grid gap-2">
@@ -137,12 +149,14 @@ function CamposMaterial({
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="stock_laminas">Existencias</Label>
+                  <Label htmlFor="stock_laminas">
+                    {porMetro ? "Metros que tienes (opcional)" : "Unidades que tienes (opcional)"}
+                  </Label>
                   <Input
                     id="stock_laminas"
                     name="stock_laminas"
                     type="number"
-                    step="1"
+                    step={porMetro ? "0.1" : "1"}
                     min="0"
                     inputMode="numeric"
                     placeholder="50"
@@ -152,7 +166,7 @@ function CamposMaterial({
                 </div>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="costo_unitario">Precio por unidad</Label>
+                <Label htmlFor="costo_unitario">{porMetro ? "Precio por metro" : "Precio por unidad"}</Label>
                 <Input
                   id="costo_unitario"
                   name="costo_unitario"
@@ -169,7 +183,7 @@ function CamposMaterial({
                 <div className="rounded-md bg-muted p-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">
-                      Valor de {formatearNumero(Number(stock))} unidades
+                      Valor de {formatearNumero(Number(stock))} {porMetro ? "metros" : "unidades"}
                     </span>
                     <strong>
                       {formatearMoneda(Number(stock) * Number(costoUnitarioManual))}
@@ -240,7 +254,7 @@ function CamposMaterial({
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="stock_laminas">Láminas que tienes</Label>
+                  <Label htmlFor="stock_laminas">Láminas que tienes (opcional)</Label>
                   <Input
                     id="stock_laminas"
                     name="stock_laminas"

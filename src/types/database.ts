@@ -108,6 +108,12 @@ export type Material = {
 export type InventoryItem = {
   id: string;
   tenant_id: string;
+  /**
+   * lamina: láminas completas (cantidad = nº de láminas, ancho/alto = tamaño).
+   * retal: un sobrante con medidas y código (cantidad 1).
+   * metros / unidades: cantidad = metros o unidades (ancho/alto 1×1 neutros).
+   */
+  clase: ClaseInventario;
   /** Obligatorio: la columna es NOT NULL, igual que en job_items y waste_logs. */
   material_id: string;
   ancho_cm: number;
@@ -144,17 +150,23 @@ export type Job = {
 };
 
 /**
- * Cómo se registró el consumo de una fila de job_items.
+ * Qué es una fila de job_items.
  *
- * "pieza" es un corte individual; "lamina" es el material total gastado de ese
- * tipo, útil cuando se aprovechó una plancha entera y contar cortes uno a uno
- * daría un consumo menor que el real.
+ * "salida": material sacado del inventario para el trabajo (lámina completa,
+ * retal, metros o unidades; lleva inventory_item_id). "pieza": lo que se
+ * entrega al cliente, con sus medidas; sirve para calcular cuánto se perdió en
+ * recortes (salidas − piezas − sobrantes devueltos).
  */
-export type ModoPieza = "pieza" | "lamina";
+export type ModoPieza = "pieza" | "salida";
+
+/** Las cuatro clases de cosas que guarda el inventario. */
+export type ClaseInventario = "lamina" | "retal" | "metros" | "unidades";
 
 export type JobItem = {
   id: string;
   job_id: string;
+  /** En una salida: de qué ítem del inventario salió. */
+  inventory_item_id: string | null;
   /** Obligatorio: la columna es NOT NULL, a diferencia del resto de tablas. */
   material_id: string;
   ancho_cm: number;
@@ -200,6 +212,8 @@ export type Saving = {
   monto: number;
   descripcion: string | null;
   fecha: string;
+  /** Ahorro por usar un retal: la línea del trabajo que lo generó. */
+  job_item_id: string | null;
 };
 
 /**
@@ -384,7 +398,7 @@ export interface Database {
       };
       inventory_items: {
         Row: InventoryItem;
-        Insert: Requerido<Insertable<InventoryItem, "usado" | "cantidad">, "codigo">;
+        Insert: Requerido<Insertable<InventoryItem, "usado" | "cantidad" | "clase">, "codigo">;
         Update: Partial<InventoryItem>;
         Relationships: [];
       };
@@ -497,6 +511,19 @@ export interface Database {
       mi_acceso: {
         Args: Record<string, never>;
         Returns: { perfil_activo: boolean; taller_estado: string; taller_nombre: string }[];
+      };
+      sacar_inventario: {
+        Args: { p_inventory_item_id: string; p_cantidad: number };
+        /** Lo que queda; null si no alcanzaba o el retal ya estaba usado. */
+        Returns: number | null;
+      };
+      reponer_inventario: {
+        Args: { p_inventory_item_id: string; p_cantidad: number };
+        Returns: number | null;
+      };
+      valor_inventario: {
+        Args: Record<string, never>;
+        Returns: { clase: ClaseInventario; valor: number; items: number }[];
       };
       valor_sobrantes_disponibles: {
         Args: Record<string, never>;

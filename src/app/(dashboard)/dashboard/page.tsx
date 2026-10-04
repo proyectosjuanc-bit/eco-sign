@@ -31,7 +31,7 @@ export default async function DashboardPage() {
     new Date(hoy.getFullYear(), hoy.getMonth() - (MESES_HISTORIA - 1), 1),
   );
 
-  const [{ data: ahorros }, { data: desperdicios }, { data: sobrantes }] =
+  const [{ data: ahorros }, { data: desperdicios }, { data: valorPorClase }] =
     await Promise.all([
       supabase
         .from("savings")
@@ -39,7 +39,8 @@ export default async function DashboardPage() {
         .gte("fecha", inicioHistoria)
         .order("fecha"),
       supabase.from("waste_logs").select("costo"),
-      supabase.from("inventory_items").select("costo_estimado, usado"),
+      // Valor de lo que hay en bodega, sumado en la base por clase.
+      supabase.rpc("valor_inventario"),
     ]);
 
   const filas = ahorros ?? [];
@@ -55,9 +56,10 @@ export default async function DashboardPage() {
     0,
   );
 
-  const valorDisponible = (sobrantes ?? [])
-    .filter((item) => !item.usado)
-    .reduce((total, item) => total + (item.costo_estimado ?? 0), 0);
+  const valorInventario = (valorPorClase ?? []).reduce((t, f) => t + Number(f.valor), 0);
+  const valorDisponible = Number(
+    (valorPorClase ?? []).find((f) => f.clase === "retal")?.valor ?? 0,
+  );
 
   // Serie del gráfico: un punto por mes, con el acumulado corriendo.
   const porMes = new Map<string, number>();
@@ -148,14 +150,14 @@ export default async function DashboardPage() {
         <div className="flex flex-col gap-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Sobrantes disponibles</CardTitle>
+              <CardTitle className="text-base">Inventario</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-emerald-600">
-                {formatearMoneda(valorDisponible)}
-              </p>
+              <p className="text-2xl font-bold">{formatearMoneda(valorInventario)}</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Material listo para reutilizar en el{" "}
+                Todo lo que hay en bodega. De eso,{" "}
+                <strong className="text-emerald-600">{formatearMoneda(valorDisponible)}</strong> en
+                retales listos para reutilizar en el{" "}
                 <Link href="/inventario" className="underline underline-offset-4">
                   inventario
                 </Link>
@@ -183,16 +185,15 @@ export default async function DashboardPage() {
       {filas.length === 0 ? (
         <Card className="mt-6">
           <CardContent className="text-sm text-muted-foreground">
-            Todavía no hay ahorros registrados. Marca un sobrante como reutilizado
-            en el{" "}
-            <Link href="/inventario" className="underline underline-offset-4">
-              inventario
-            </Link>{" "}
-            o registra el consumo real de un{" "}
+            Todavía no hay ahorros registrados. El ahorro aparece cuando un{" "}
             <Link href="/trabajos" className="underline underline-offset-4">
               trabajo
             </Link>{" "}
-            para ver aquí el ROI.
+            usa un retal del{" "}
+            <Link href="/inventario" className="underline underline-offset-4">
+              inventario
+            </Link>{" "}
+            en vez de material nuevo.
           </CardContent>
         </Card>
       ) : null}

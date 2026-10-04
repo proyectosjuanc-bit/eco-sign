@@ -9,6 +9,7 @@ import { areaM2 } from "@/lib/format";
 import { subirFoto } from "@/lib/supabase/subir-foto";
 import { texto, numero } from "@/lib/form-data";
 import { formatearCodigo } from "@/lib/codigos";
+import { claseDeCompra } from "@/lib/inventario";
 
 
 export async function crearSobrante(
@@ -79,7 +80,15 @@ export async function crearSobrante(
   // la cantidad en vez de ancho/alto, y ancho_cm/alto_cm quedan en 1×1 como
   // valor neutro (son NOT NULL en la base), igual que ya se hace en
   // job_items para el mismo tipo de material.
-  const porUnidad = material?.unidad === "unidad";
+  // Un retal es un pedazo con medidas. Tornillos, cables o rollos no dejan
+  // retales: lo que tienes de ellos se registra con «Entrada de material».
+  if (material && material.unidad !== "m2") {
+    return {
+      error: "Ese material no se corta en retales. Para unidades o metros usa «Entrada de material».",
+      ok: false,
+    };
+  }
+  const porUnidad = false;
 
   let ancho: number;
   let alto: number;
@@ -116,6 +125,7 @@ export async function crearSobrante(
   const { error } = await supabase.from("inventory_items").insert({
     tenant_id: perfil.tenant_id,
     material_id: materialId,
+    clase: "retal",
     ancho_cm: ancho,
     alto_cm: alto,
     cantidad,
@@ -162,6 +172,7 @@ export async function marcarUsado(formData: FormData): Promise<void> {
     .from("inventory_items")
     .update({ usado: true })
     .eq("id", id)
+    .eq("clase", "retal")
     .eq("usado", false)
     .select("id");
 
@@ -260,4 +271,123 @@ export async function eliminarSobrante(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/inventario");
+}
+
+// ---------------------------------------------------------------------------
+// Entrada de material (compras) y corrección de existencias
+// ---------------------------------------------------------------------------
+
+/**
+ * Registra material que entra al taller (una compra, o lo que ya había al
+ * empezar a usar ECO-SIGN). Según cómo se mide el material en el catálogo,
+ * entra como láminas completas, metros o unidades. Si ya hay existencias de
+ * ese material, se suman a esa misma fila.
+ */
+export async function entradaMaterial(
+  _previo: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const materialId = texto(formData, "material_id");
+  const cantidad = numero(formData, "cantidad");
+
+  if (!materialId) return { error: "Elige el material que entra.", ok: false };
+  if (cantidad === null || cantidad <= 0) return { error: "Escribe cuánto entra.", ok: false };
+
+  const tenantId = await obtenerTenantId();
+  if (!tenantId) return { error: "Tu sesión expiró. Vuelve a entrar.", ok: false };
+
+  const supabase = await createClient();
+  const { data: material } = await supabase
+    .from("materials")
+    .select("id, unidad, ancho_cm, alto_cm, archivado")
+    .eq("id", materialId)
+    .maybeSingle();
+  if (!material || material.archivado) return { error: "Ese material ya no está en el catálogo.", ok: false };
+
+  const clase = claseDeCompra(material.unidad);
+  if (clase !== "metros" && !Number.isInteger(cantidad)) {
+    return {
+      error: clase === "lamina" ? "Las láminas se cuentan enteras (1, 2, 3…)." : "Las unidades se cuentan enteras.",
+      ok: false,
+    };
+  }
+  if (clase === "lamina" && (!material.ancho_cm || !material.alto_cm)) {
+    return {
+      error: "Para registrar láminas, primero escribe en Materiales el tamaño de la lámina (ancho y alto).",
+      ok: false,
+    };
+  }
+
+  // ¿Ya hay existencias de este material? Se suma ahí.
+  const { data: existente } = await supabase
+    .from("inventory_items")
+    .select("id")
+    .eq("material_id", materialId)
+    .eq("clase", clase)
+    .eq("usado", false)
+    .order("created_at")
+    .limit(1)
+    .maybeSingle();
+
+  if (existente) {
+    const { error } = await supabase.rpc("reponer_inventario", {
+      p_inventory_item_id: existente.id,
+      p_cantidad: cantidad,
+    });
+    if (error) {
+      console.error("[inventario] No se pudo sumar la entrada", error);
+      return { error: "No pudimos registrar la entrada. Revisa que tu rol permita hacer cambios.", ok: false };
+    }
+  } else {
+    const { error } = await supabase.from("inventory_items").insert({
+      tenant_id: tenantId,
+      material_id: materialId,
+      clase,
+      ancho_cm: clase === "lamina" ? Number(material.ancho_cm) : 1,
+      alto_cm: clase === "lamina" ? Number(material.alto_cm) : 1,
+      cantidad,
+      costo_estimado: 0,
+      codigo: null,
+    });
+    if (error) {
+      console.error("[inventario] No se pudo crear la existencia", error);
+      return { error: "No pudimos registrar la entrada. Revisa que tu rol permita hacer cambios.", ok: false };
+    }
+  }
+
+  revalidatePath("/inventario");
+  revalidatePath("/dashboard");
+  return { error: null, ok: true, marca: Date.now() };
+}
+
+/**
+ * Corrige a mano cuánto hay de un material (por ejemplo, después de contar la
+ * bodega). Sólo para láminas completas, metros y unidades: un retal se
+ * registra o se elimina, no se "corrige".
+ */
+export async function corregirCantidad(
+  _previo: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const id = texto(formData, "id");
+  const cantidad = numero(formData, "cantidad");
+  if (!id) return { error: "Falta el material.", ok: false };
+  if (cantidad === null || cantidad < 0) return { error: "Escribe una cantidad de 0 o más.", ok: false };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("inventory_items")
+    .update({ cantidad })
+    .eq("id", id)
+    .neq("clase", "retal")
+    .select("id");
+
+  if (error || !data?.length) {
+    if (error) console.error("[inventario] No se pudo corregir la cantidad", error);
+    return { error: "No pudimos corregir la cantidad. Revisa que tu rol permita hacer cambios.", ok: false };
+  }
+
+  revalidatePath("/inventario");
+  revalidatePath("/dashboard");
+  return { error: null, ok: true, marca: Date.now() };
 }

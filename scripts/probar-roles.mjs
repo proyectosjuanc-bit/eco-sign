@@ -198,7 +198,8 @@ async function main() {
 
   // --- Sobrantes, contador y consumo ------------------------------------------
   console.log("\nSobrantes");
-  const sobrante = { tenant_id: A.tenantId, material_id: mAdmin.id, ancho_cm: 20, alto_cm: 20, cantidad: 5 };
+  // Existencia de 5 unidades (inventario único: clase "unidades").
+  const sobrante = { tenant_id: A.tenantId, material_id: mAdmin.id, clase: "unidades", ancho_cm: 1, alto_cm: 1, cantidad: 5 };
   const { error: eSobL } = await L.db.from("inventory_items").insert(sobrante);
   check("Lectura NO puede registrar sobrantes", Boolean(eSobL));
 
@@ -216,15 +217,18 @@ async function main() {
   check("Lectura NO puede generar códigos de sobrante", Boolean(eNumL));
 
   if (sob) {
-    const { error: eConsL } = await L.db.rpc("consumir_sobrante_unidad", {
-      p_tenant_id: A.tenantId, p_inventory_item_id: sob.id, p_cantidad: 1,
+    const { error: eConsL } = await L.db.rpc("sacar_inventario", {
+      p_inventory_item_id: sob.id, p_cantidad: 1,
     });
-    check("Lectura NO puede consumir sobrantes", Boolean(eConsL));
+    check("Lectura NO puede sacar del inventario", Boolean(eConsL));
 
-    const { data: resto, error: eCons } = await O.db.rpc("consumir_sobrante_unidad", {
-      p_tenant_id: A.tenantId, p_inventory_item_id: sob.id, p_cantidad: 1,
+    const { data: resto, error: eCons } = await O.db.rpc("sacar_inventario", {
+      p_inventory_item_id: sob.id, p_cantidad: 1,
     });
-    check("Operario consume 1 de 5 unidades", !eCons && resto === 4, eCons?.message ?? `quedan ${resto}`);
+    check("Operario saca 1 de 5 unidades", !eCons && Number(resto) === 4, eCons?.message ?? `quedan ${resto}`);
+
+    const { data: resB } = await B.db.rpc("sacar_inventario", { p_inventory_item_id: sob.id, p_cantidad: 1 });
+    check("Otro taller NO puede sacar del inventario de A", resB === null);
 
     // --- Ventas
     const venta = { tenant_id: A.tenantId, inventory_item_id: sob.id, monto: 1000 };

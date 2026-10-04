@@ -15,8 +15,8 @@ import {
 import { formatearMoneda, formatearNumero } from "@/lib/format";
 
 /**
- * Calcula el desperdicio de recortes restando lo aprovechado al material
- * consumido.
+ * Paso 4: calcula el desperdicio de recortes restando, al material sacado del
+ * inventario, las piezas entregadas y los sobrantes devueltos.
  *
  * Existe porque de una lámina salen decenas de pedacitos que nadie va a medir
  * uno a uno. Se muestra la cuenta antes de registrarla para que se vea de dónde
@@ -26,13 +26,16 @@ export function BotonRecortes({
   jobId,
   consumidoM2,
   aprovechadoM2,
-  costoM2,
+  costoPerdido,
   yaCalculado,
 }: {
   jobId: string;
+  /** m² sacados del inventario de materiales que se cortan. */
   consumidoM2: number;
+  /** m² en piezas entregadas + sobrantes devueltos. */
   aprovechadoM2: number;
-  costoM2: number;
+  /** Valor en pesos de lo que se pierde, calculado por material. */
+  costoPerdido: number;
   yaCalculado: boolean;
 }) {
   const [estado, accion, enviando] = useActionState(
@@ -46,7 +49,7 @@ export function BotonRecortes({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Recortes no aprovechables</CardTitle>
+        <CardTitle>4. Recortes que se pierden</CardTitle>
         <CardDescription>
           Los pedacitos que quedan de una lámina, sin medirlos uno a uno.
         </CardDescription>
@@ -57,19 +60,18 @@ export function BotonRecortes({
 
           {!hayLamina ? (
             <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
-              Para calcular los recortes, registra primero la lámina que gastaste
-              usando el modo <strong>Lámina</strong>, y las piezas que
-              aprovechaste en modo <strong>Pieza</strong>.
+              Para calcular los recortes, saca primero del inventario el material
+              que vas a cortar (paso 1) y registra las piezas que entregas (paso 2).
             </p>
           ) : (
             <div className="rounded-md bg-muted p-3 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Material consumido</span>
+                <span className="text-muted-foreground">Material sacado del inventario</span>
                 <strong>{formatearNumero(consumidoM2)} m²</strong>
               </div>
               <div className="mt-1 flex justify-between">
                 <span className="text-muted-foreground">
-                  Aprovechado en piezas e Inventario
+                  Piezas entregadas y sobrantes devueltos
                 </span>
                 <strong>− {formatearNumero(aprovechadoM2)} m²</strong>
               </div>
@@ -79,11 +81,11 @@ export function BotonRecortes({
                   {formatearNumero(Math.max(sobra, 0))} m²
                 </strong>
               </div>
-              {sobra > 0 && costoM2 > 0 ? (
+              {sobra > 0 && costoPerdido > 0 ? (
                 <div className="mt-1 flex justify-between">
                   <span className="text-muted-foreground">Costo</span>
                   <strong className="text-destructive">
-                    {formatearMoneda(sobra * costoM2)}
+                    {formatearMoneda(costoPerdido)}
                   </strong>
                 </div>
               ) : null}
