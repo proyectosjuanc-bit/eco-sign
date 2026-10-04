@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { guardarMaquina } from "@/app/(dashboard)/capacidad/actions";
 import { CamposEspecificaciones } from "@/components/capacidad/campos-especificaciones";
 import { TarjetaMaquina } from "@/components/capacidad/tarjeta-maquina";
+import { SelectorHorario } from "@/components/capacidad/selector-horario";
 import { CampoFoto } from "@/components/dashboard/campo-foto";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +22,6 @@ import {
   CAMPOS_POR_TIPO,
   DIAS,
   ESTADOS_OPERATIVOS,
-  PREFIJO_HORARIO,
   TIPOS_MAQUINA,
   UNIDADES_PRECIO,
   leerFranjas,
@@ -117,15 +117,6 @@ export function FormularioMaquina({
 
   const esEdicion = Boolean(maquina);
   const publicada = maquina?.estado_publicacion === "publicada";
-
-  const copiarLunes = () =>
-    setHorario((h) => ({
-      ...h,
-      martes: h.lunes,
-      miercoles: h.lunes,
-      jueves: h.lunes,
-      viernes: h.lunes,
-    }));
 
   return (
     <form action={accion} className="grid items-start gap-6 lg:grid-cols-[1fr_340px]">
@@ -296,32 +287,10 @@ export function FormularioMaquina({
               <span className="font-normal text-muted-foreground">(opcional)</span>
             </legend>
             <p className="text-xs text-muted-foreground">
-              Franjas como <code>08:00-12:00</code>, separadas por coma. Deja vacío el día
-              que no la prestas.
+              Marca los días que la prestas y elige desde qué hora hasta qué hora.
+              Si un día la prestas en la mañana y en la tarde, agrega otra franja.
             </p>
-            {DIAS.map((dia) => (
-              <div key={dia.valor} className="grid grid-cols-[88px_1fr] items-center gap-2">
-                <Label htmlFor={`${PREFIJO_HORARIO}${dia.valor}`}>{dia.etiqueta}</Label>
-                <Input
-                  id={`${PREFIJO_HORARIO}${dia.valor}`}
-                  name={`${PREFIJO_HORARIO}${dia.valor}`}
-                  placeholder="08:00-12:00, 14:00-18:00"
-                  maxLength={120}
-                  value={horario[dia.valor]}
-                  onChange={(e) => setHorario((h) => ({ ...h, [dia.valor]: e.target.value }))}
-                />
-              </div>
-            ))}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="w-fit"
-              onClick={copiarLunes}
-              disabled={!horario.lunes}
-            >
-              Usar el horario del lunes de martes a viernes
-            </Button>
+            <SelectorHorario horario={horario} onChange={setHorario} />
           </fieldset>
 
           <div className="grid gap-3">
