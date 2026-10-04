@@ -266,3 +266,84 @@ export function validarSolicitud(formData: FormData): Resultado<DatosSolicitud> 
 // ---------------------------------------------------------------------------
 
 export const esquemaId = z.uuid();
+
+// ---------------------------------------------------------------------------
+// Busco máquina
+// ---------------------------------------------------------------------------
+
+const esquemaBusqueda = z
+  .object({
+    tipo: z.enum(
+      ["impresora_gran_formato", "laser_corte", "plotter_corte", "impresora_3d", "router_cnc", "otra"] satisfies TipoMaquina[],
+      { error: "Elige qué máquina necesitas." },
+    ),
+    descripcion: z
+      .string()
+      .transform(sanitizarTextoLibre)
+      .pipe(
+        z
+          .string()
+          .min(10, { error: "Cuenta para qué trabajo la necesitas (mínimo 10 caracteres)." })
+          .max(1000, { error: "La descripción es demasiado larga (máximo 1000 caracteres)." }),
+      ),
+    fecha_deseada: z.string().regex(FECHA, { error: "Elige la fecha en que la necesitas." }),
+    ciudad: z
+      .string()
+      .transform(sanitizarTextoLibre)
+      .pipe(
+        z
+          .string()
+          .min(2, { error: "Escribe la ciudad." })
+          .max(80, { error: "La ciudad es demasiado larga." }),
+      ),
+  })
+  .refine((s) => s.fecha_deseada >= hoyEnColombia(), {
+    error: "La fecha no puede ser anterior a hoy.",
+  })
+  .refine((s) => s.fecha_deseada <= enUnAnio(hoyEnColombia()), {
+    error: "Elige una fecha dentro del próximo año.",
+  });
+
+export type DatosBusqueda = z.infer<typeof esquemaBusqueda>;
+
+export function validarBusqueda(formData: FormData): Resultado<DatosBusqueda> {
+  const resultado = esquemaBusqueda.safeParse({
+    tipo: texto(formData, "tipo"),
+    descripcion: texto(formData, "descripcion"),
+    fecha_deseada: texto(formData, "fecha_deseada"),
+    ciudad: texto(formData, "ciudad"),
+  });
+  if (!resultado.success) return { datos: null, error: primerError(resultado.error) };
+  return { datos: resultado.data, error: null };
+}
+
+const esquemaRespuestaBusqueda = z.object({
+  search_id: z.uuid({ error: "Falta la búsqueda." }),
+  mensaje: z
+    .string()
+    .transform(sanitizarTextoLibre)
+    .pipe(
+      z
+        .string()
+        .min(5, { error: "Escribe un mensaje corto (mínimo 5 caracteres)." })
+        .max(500, { error: "El mensaje es demasiado largo (máximo 500 caracteres)." }),
+    ),
+  telefono: z
+    .string()
+    .trim()
+    .regex(/^\+?[\d\s()-]{7,20}$/, {
+      error: "Escribe un teléfono válido (solo números, espacios, + o -).",
+    }),
+});
+
+export type DatosRespuestaBusqueda = z.infer<typeof esquemaRespuestaBusqueda>;
+
+export function validarRespuestaBusqueda(formData: FormData): Resultado<DatosRespuestaBusqueda> {
+  const resultado = esquemaRespuestaBusqueda.safeParse({
+    search_id: texto(formData, "search_id"),
+    mensaje: texto(formData, "mensaje"),
+    telefono: texto(formData, "telefono"),
+  });
+  if (!resultado.success) return { datos: null, error: primerError(resultado.error) };
+  return { datos: resultado.data, error: null };
+}

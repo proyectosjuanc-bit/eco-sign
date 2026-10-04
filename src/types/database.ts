@@ -334,6 +334,35 @@ export type MachineReview = {
   created_at: string;
 };
 
+export type EstadoBusqueda = "abierta" | "resuelta" | "cancelada";
+
+/** «Busco máquina»: un taller pide a toda la red (tabla `machine_searches`). */
+export type MachineSearch = {
+  id: string;
+  tenant_id: string;
+  tipo: TipoMaquina;
+  descripcion: string;
+  fecha_deseada: string;
+  ciudad: string;
+  estado: EstadoBusqueda;
+  /** Copia del nombre del taller que busca (la pone la base). */
+  taller_nombre: string;
+  created_at: string;
+  updated_at: string;
+};
+
+/** «Yo puedo ayudar» (tabla `machine_search_responses`). */
+export type MachineSearchResponse = {
+  id: string;
+  search_id: string;
+  tenant_id: string;
+  mensaje: string;
+  telefono: string;
+  /** Copia del nombre del taller que responde (la pone la base). */
+  taller_nombre: string;
+  created_at: string;
+};
+
 /** Aviso de la campanita (tabla `notifications`). Los crea la base con triggers. */
 export type Notificacion = {
   id: string;
@@ -494,6 +523,19 @@ export interface Database {
         Row: MachineReview;
         Insert: Insertable<MachineReview>;
         /** Una calificación no se edita. */
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      machine_searches: {
+        Row: MachineSearch;
+        Insert: Pick<MachineSearch, "tenant_id" | "tipo" | "descripcion" | "fecha_deseada" | "ciudad">;
+        /** Sólo se cierra (permiso por columna). */
+        Update: Pick<Partial<MachineSearch>, "estado">;
+        Relationships: [];
+      };
+      machine_search_responses: {
+        Row: MachineSearchResponse;
+        Insert: Pick<MachineSearchResponse, "search_id" | "tenant_id" | "mensaje" | "telefono">;
         Update: Record<string, never>;
         Relationships: [];
       };

@@ -7,6 +7,8 @@ import { after } from "next/server";
 import {
   esquemaId,
   validarMaquina,
+  validarBusqueda,
+  validarRespuestaBusqueda,
   validarSolicitud,
   sanitizarTextoLibre,
 } from "@/lib/capacidad/esquemas";
@@ -444,4 +446,120 @@ export async function calificarSolicitud(
   after(despacharPush);
   revalidarCapacidad(solicitud.tenant_propietario);
   return { error: null, ok: true, marca: Date.now() };
+}
+
+// ---------------------------------------------------------------------------
+// Busco máquina
+// ---------------------------------------------------------------------------
+
+/** Error de la base → mensaje para el formulario. */
+function mensajeErrorBusqueda(error: { code?: string; message: string }, accion: string): string {
+  // P0001: mensajes propios de los triggers (tope diario, fecha, ya cerrada).
+  if (error.code === "P0001") return error.message;
+  if (error.code === "42501" || /row-level security/i.test(error.message)) {
+    return `Tu rol no permite ${accion}. Pide a un administrador u operario que lo haga.`;
+  }
+  console.error(`[capacidad] No se pudo ${accion}`, error);
+  return `No se pudo ${accion}. Intenta de nuevo.`;
+}
+
+/**
+ * Publica una búsqueda para toda la red. La base pone el nombre del taller,
+ * aplica el tope de 3 al día y avisa a los administradores de todos los
+ * demás talleres (trigger); aquí sólo se manda además el push.
+ */
+export async function publicarBusqueda(
+  _previo: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const ctx = await sesion();
+  if (!ctx) return { error: ERROR_SIN_TENANT, ok: false };
+
+  const validacion = validarBusqueda(formData);
+  if (validacion.error !== null) return { error: validacion.error, ok: false };
+
+  const { error } = await ctx.supabase
+    .from("machine_searches")
+    .insert({ tenant_id: ctx.tenantId, ...validacion.datos });
+  if (error) return { error: mensajeErrorBusqueda(error, "publicar la búsqueda"), ok: false };
+
+  after(despacharPush);
+  revalidarCapacidad();
+  return { error: null, ok: true, marca: Date.now() };
+}
+
+/** El dueño cierra su búsqueda: la consiguió (resuelta) o ya no la necesita. */
+export async function cerrarBusqueda(formData: FormData): Promise<void> {
+  const id = texto(formData, "id");
+  const estado = texto(formData, "estado");
+  if (!esquemaId.safeParse(id).success) return;
+  if (estado !== "resuelta" && estado !== "cancelada") return;
+
+  const ctx = await sesion();
+  if (!ctx) return;
+
+  await ctx.supabase
+    .from("machine_searches")
+    .update({ estado })
+    .eq("id", id)
+    .eq("tenant_id", ctx.tenantId)
+    .eq("estado", "abierta");
+
+  revalidarCapacidad();
+}
+
+/** «Yo puedo ayudar»: otro taller responde con un mensaje y su teléfono. */
+export async function responderBusqueda(
+  _previo: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const ctx = await sesion();
+  if (!ctx) return { error: ERROR_SIN_TENANT, ok: false };
+
+  const validacion = validarRespuestaBusqueda(formData);
+  if (validacion.error !== null) return { error: validacion.error, ok: false };
+  const datos = validacion.datos;
+
+  const { data: busqueda } = await ctx.supabase
+    .from("machine_searches")
+    .select("tenant_id, estado, fecha_deseada")
+    .eq("id", datos.search_id)
+    .maybeSingle();
+  if (!busqueda || busqueda.estado !== "abierta") {
+    return { error: "Esta búsqueda ya está cerrada.", ok: false };
+  }
+  if (busqueda.tenant_id === ctx.tenantId) {
+    return { error: "No puedes responder tu propia búsqueda.", ok: false };
+  }
+
+  const { error } = await ctx.supabase
+    .from("machine_search_responses")
+    .insert({ ...datos, tenant_id: ctx.tenantId });
+  if (error) {
+    if (error.code === "23505") return { error: "Ya respondiste esta búsqueda.", ok: false };
+    if (error.code === "42501" || /row-level security/i.test(error.message)) {
+      // La política también exige que la fecha no haya pasado.
+      return {
+        error: "No puedes responder: la búsqueda ya venció o tu rol no lo permite.",
+        ok: false,
+      };
+    }
+    return { error: mensajeErrorBusqueda(error, "enviar tu respuesta"), ok: false };
+  }
+
+  after(despacharPush);
+  revalidarCapacidad();
+  return { error: null, ok: true, marca: Date.now() };
+}
+
+/** Quien respondió retira su respuesta. */
+export async function retirarRespuestaBusqueda(formData: FormData): Promise<void> {
+  const id = texto(formData, "id");
+  if (!esquemaId.safeParse(id).success) return;
+
+  const ctx = await sesion();
+  if (!ctx) return;
+
+  await ctx.supabase.from("machine_search_responses").delete().eq("id", id).eq("tenant_id", ctx.tenantId);
+  revalidarCapacidad();
 }

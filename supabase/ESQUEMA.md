@@ -609,3 +609,25 @@ con la app agregada a la pantalla de inicio.
 Pruebas: `node --env-file=.env.local scripts/probar-notificaciones.mjs`
 (24 comprobaciones). Verificado en Chrome el 4 de octubre de 2026 (15
 comprobaciones, push real por Google).
+
+## Busco máquina (Capacidad)
+
+Migración `20261005_busquedas.sql`. Un taller pide a toda la red una máquina
+para un trabajo, aunque nadie la tenga publicada (`/capacidad/busquedas`).
+
+- `machine_searches`: tipo de máquina, descripción del trabajo, fecha y
+  ciudad. La ven todos los miembros activos; la crea y la cierra (`resuelta` o
+  `cancelada`, sin reabrir) sólo su taller. El trigger `preparar_busqueda`
+  copia el nombre del taller, exige fecha entre hoy y un año y limita a 3
+  búsquedas por taller en 24 horas.
+- `machine_search_responses`: «Yo puedo ayudar» con mensaje y teléfono; una
+  por taller y búsqueda, sólo a búsquedas abiertas y vigentes de otro taller.
+  La ven únicamente el que responde y el dueño de la búsqueda. Quien responde
+  puede retirarla.
+- Avisos: `notificar_busqueda` avisa a los administradores activos de TODOS
+  los demás talleres activos; `notificar_respuesta_busqueda` avisa al dueño
+  con el mensaje y el teléfono.
+
+Pruebas: `node --env-file=.env.local scripts/probar-busquedas.mjs` (21
+comprobaciones; borra de las campanitas reales los avisos que genera).
+Verificado en Chrome el 4 de octubre de 2026 (12 comprobaciones, push real).

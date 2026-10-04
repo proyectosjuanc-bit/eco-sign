@@ -8,12 +8,13 @@ import { cn } from "@/lib/utils";
 const PESTANAS = [
   { href: "/capacidad", etiqueta: "Mis máquinas" },
   { href: "/capacidad/disponibles", etiqueta: "Red de talleres" },
+  { href: "/capacidad/busquedas", etiqueta: "Busco máquina" },
   { href: "/capacidad/solicitudes-recibidas", etiqueta: "Recibidas" },
   { href: "/capacidad/solicitudes-enviadas", etiqueta: "Enviadas" },
 ] as const;
 
 /**
- * Navegación entre las cuatro vistas de Capacidad. Con scroll horizontal en
+ * Navegación entre las vistas de Capacidad. Con scroll horizontal en
  * móvil en vez de saltar de línea, para que no empuje el contenido hacia abajo.
  */
 export function PestanasCapacidad({ pendientes }: { pendientes: number }) {
