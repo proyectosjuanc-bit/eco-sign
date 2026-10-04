@@ -16,6 +16,6 @@ export const config = {
   // Se excluyen estáticos, imágenes optimizadas y ficheros con extensión para
   // no gastar una llamada a Auth en cada asset.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico|json)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw\.js|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico|json)$).*)",
   ],
 };

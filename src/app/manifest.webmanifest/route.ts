@@ -24,6 +24,9 @@ export function GET() {
         type: "image/svg+xml",
         purpose: "any",
       },
+      // PNG: los piden Android al instalar y los avisos push.
+      { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
   });
 }

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { BotonLogout } from "@/components/dashboard/boton-logout";
 import { Sidebar } from "@/components/dashboard/sidebar";
+import { Campana } from "@/components/notificaciones/campana";
 import { enlaceWhatsApp } from "@/lib/soporte";
 import { createClient } from "@/lib/supabase/server";
 
@@ -116,6 +117,12 @@ export default async function DashboardLayout({
             </Link>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            {perfil ? (
+              <Campana
+                userId={user.id}
+                llavePublica={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null}
+              />
+            ) : null}
             {esSuperadmin ? (
               <Link
                 href="/admin"

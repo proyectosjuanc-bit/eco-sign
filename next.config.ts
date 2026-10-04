@@ -40,7 +40,18 @@ const CABECERAS_SEGURIDAD = [
 
 const nextConfig: NextConfig = {
   async headers() {
-    return [{ source: "/:path*", headers: CABECERAS_SEGURIDAD }];
+    return [
+      { source: "/:path*", headers: CABECERAS_SEGURIDAD },
+      // El service worker de los avisos push: que el navegador siempre tome la
+      // versión nueva al publicar un cambio.
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+        ],
+      },
+    ];
   },
   experimental: {
     serverActions: {

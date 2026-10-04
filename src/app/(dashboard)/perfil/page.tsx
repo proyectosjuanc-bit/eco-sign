@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { BotonCerrarSesiones, FormularioClave, FormularioNombre } from "./formularios-perfil";
 import { TarjetaSoporte } from "@/components/configuracion/tarjeta-soporte";
 import { EncabezadoPagina } from "@/components/dashboard/encabezado-pagina";
+import { AvisosDispositivo } from "@/components/notificaciones/avisos-dispositivo";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ETIQUETA_ROL } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 
@@ -43,6 +45,18 @@ export default async function PerfilPage() {
         </div>
 
         <div className="flex flex-col gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Avisos en este dispositivo</CardTitle>
+              <CardDescription>
+                Te llegan cuando un taller te pide una máquina, te responde o te
+                califica. Actívalos en cada celular y PC donde uses ECO-SIGN.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AvisosDispositivo llavePublica={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? null} />
+            </CardContent>
+          </Card>
           <TarjetaSoporte />
         </div>
       </div>

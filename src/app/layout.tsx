@@ -18,6 +18,8 @@ export const metadata: Metadata = {
   description:
     "Reduce el desperdicio y reutiliza sobrantes: tu desperdicio paga el software.",
   manifest: "/manifest.webmanifest",
+  // Ícono al agregar ECO-SIGN a la pantalla de inicio del iPhone.
+  icons: { apple: "/apple-touch-icon.png" },
   appleWebApp: { capable: true, title: "ECO-SIGN", statusBarStyle: "default" },
 };
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 
 import {
   esquemaId,
@@ -13,6 +14,7 @@ import { sendRespuestaSolicitud, sendSolicitudMaquina } from "@/lib/email/send";
 import { texto } from "@/lib/form-data";
 import type { EstadoForm } from "@/lib/form-state";
 import { formatearFecha } from "@/lib/format";
+import { despacharPush } from "@/lib/notificaciones/push";
 import { createClient } from "@/lib/supabase/server";
 import { subirFoto } from "@/lib/supabase/subir-foto";
 import { ERROR_SIN_TENANT } from "@/lib/supabase/tenant";
@@ -258,6 +260,10 @@ export async function solicitarMaquina(
     return { error: `No se pudo enviar la solicitud: ${error?.message ?? "error desconocido"}`, ok: false };
   }
 
+  // La base ya creó el aviso de la campanita del dueño (trigger); esto lo
+  // manda además a su celular y su PC, después de responder.
+  after(despacharPush);
+
   // El correo nunca rompe el flujo: si falla, la solicitud ya quedó guardada
   // y el dueño la verá en "Solicitudes recibidas".
   const [{ data: propietarios }, { data: miTaller }] = await Promise.all([
@@ -321,6 +327,7 @@ export async function responderSolicitud(formData: FormData): Promise<void> {
 
   const fila = actualizadas?.[0];
   if (!fila) return;
+  after(despacharPush);
 
   if (decision !== "completada") {
     const [{ data: solicitantes }, { data: maquina }, { data: miTaller }] = await Promise.all([
@@ -364,6 +371,7 @@ export async function cancelarSolicitud(formData: FormData): Promise<void> {
     .eq("id", id)
     .eq("tenant_solicitante", ctx.tenantId)
     .eq("estado", "pendiente");
+  after(despacharPush);
 
   revalidarCapacidad();
 }
@@ -433,6 +441,7 @@ export async function calificarSolicitud(
     };
   }
 
+  after(despacharPush);
   revalidarCapacidad(solicitud.tenant_propietario);
   return { error: null, ok: true, marca: Date.now() };
 }

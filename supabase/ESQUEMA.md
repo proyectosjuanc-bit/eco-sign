@@ -580,3 +580,32 @@ interfaz muestra «Nuevo» hasta 3 reseñas (`RESENAS_PARA_PUNTAJE`).
 `reputacion_talleres(ids)` da lo mismo por taller (todas sus máquinas).
 Las columnas de reputación no tienen GRANT de escritura: sólo las mueve el
 trigger. Verificado en Chrome el 4 de octubre de 2026 (13 comprobaciones).
+
+## Notificaciones: campanita y avisos push
+
+Migración `20261005_notificaciones.sql`.
+
+- `notifications`: un aviso por persona. Lo crean **sólo** triggers
+  (`machine_requests_notificar` al crear o cambiar de estado una solicitud,
+  `machine_reviews_notificar` al calificar) mediante `notificar_taller()`, que
+  lo envía a los administradores activos del taller y borra lo de más de 90
+  días. El usuario lee las suyas y sólo puede cambiar `leida_at`. Está en la
+  publicación `supabase_realtime`: la campanita se actualiza sola.
+- `push_subscriptions`: dispositivos (navegador del celular o PC) de cada
+  persona; sólo direcciones de servicios push conocidos (Google, Mozilla,
+  Apple, Microsoft). Se escriben con `registrar_suscripcion_push()` y
+  `quitar_suscripcion_push()`; máximo 10 por persona. Al salir de la app se
+  quita el dispositivo.
+- `probar_aviso()`: aviso de prueba para uno mismo (máx. 5 por hora).
+
+El envío push lo hace `src/lib/notificaciones/push.ts` con `after()` al final
+de las acciones de Capacidad: marca `push_enviada_at` en el mismo UPDATE (no
+se envía dos veces) y borra los dispositivos que el servicio push da por
+vencidos (404/410). Requiere `NEXT_PUBLIC_VAPID_PUBLIC_KEY`,
+`VAPID_PRIVATE_KEY` y `VAPID_SUBJECT`; sin ellas la campanita funciona igual,
+sin push. El service worker es `public/sw.js`. En iPhone el push sólo llega
+con la app agregada a la pantalla de inicio.
+
+Pruebas: `node --env-file=.env.local scripts/probar-notificaciones.mjs`
+(24 comprobaciones). Verificado en Chrome el 4 de octubre de 2026 (15
+comprobaciones, push real por Google).

@@ -334,6 +334,31 @@ export type MachineReview = {
   created_at: string;
 };
 
+/** Aviso de la campanita (tabla `notifications`). Los crea la base con triggers. */
+export type Notificacion = {
+  id: string;
+  user_id: string;
+  tipo: string;
+  titulo: string;
+  cuerpo: string;
+  /** Ruta interna de la app a la que lleva el aviso. */
+  url: string;
+  leida_at: string | null;
+  push_enviada_at: string | null;
+  created_at: string;
+};
+
+/** Dispositivo suscrito a los avisos push (tabla `push_subscriptions`). */
+export type SuscripcionPush = {
+  id: string;
+  user_id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  user_agent: string | null;
+  created_at: string;
+};
+
 /** Columnas que la base rellena sola: nunca se envían en un insert. */
 type Generado = "id" | "created_at";
 
@@ -472,6 +497,24 @@ export interface Database {
         Update: Record<string, never>;
         Relationships: [];
       };
+      notifications: {
+        Row: Notificacion;
+        /** Sólo las crean los triggers de la base. */
+        Insert: Record<string, never>;
+        /**
+         * El usuario sólo puede cambiar leida_at (permiso por columna);
+         * push_enviada_at lo anota el servidor al enviar el aviso push.
+         */
+        Update: Pick<Partial<Notificacion>, "leida_at" | "push_enviada_at">;
+        Relationships: [];
+      };
+      push_subscriptions: {
+        Row: SuscripcionPush;
+        /** Se escriben con registrar_suscripcion_push / quitar_suscripcion_push. */
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       machine_requests: {
         Row: MachineRequest;
         /** Sin estado: toda solicitud nace "pendiente". */
@@ -484,6 +527,18 @@ export interface Database {
     /** El MVP1 no usa vistas, pero GenericSchema exige la clave. */
     Views: Record<never, never>;
     Functions: {
+      registrar_suscripcion_push: {
+        Args: { p_endpoint: string; p_p256dh: string; p_auth: string; p_user_agent?: string | null };
+        Returns: undefined;
+      };
+      quitar_suscripcion_push: {
+        Args: { p_endpoint: string };
+        Returns: undefined;
+      };
+      probar_aviso: {
+        Args: Record<string, never>;
+        Returns: undefined;
+      };
       current_tenant_id: {
         Args: Record<string, never>;
         Returns: string;
