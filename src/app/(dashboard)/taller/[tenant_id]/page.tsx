@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { DialogoSolicitud } from "@/components/capacidad/dialogo-solicitud";
+import { EstrellasFijas, Reputacion } from "@/components/capacidad/reputacion";
 import { TarjetaMaquina } from "@/components/capacidad/tarjeta-maquina";
 import { EncabezadoPagina } from "@/components/dashboard/encabezado-pagina";
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,7 @@ export default async function TallerPage({
 
   const [supabase, miTenant] = await Promise.all([createClient(), obtenerTenantId()]);
 
-  const [nombres, { data }] = await Promise.all([
+  const [nombres, { data }, { data: reputacion }, { data: resenas }] = await Promise.all([
     nombresTalleres(supabase, [tallerId]),
     supabase
       .from("machines")
@@ -40,7 +41,17 @@ export default async function TallerPage({
       .eq("tenant_id", tallerId)
       .eq("estado_publicacion", "publicada")
       .order("updated_at", { ascending: false }),
+    supabase.rpc("reputacion_talleres", { p_ids: [tallerId] }),
+    supabase
+      .from("machine_reviews")
+      .select("id, estrellas, comentario, created_at, tenant_autor, machine_id")
+      .eq("tenant_calificado", tallerId)
+      .order("created_at", { ascending: false })
+      .limit(10),
   ]);
+  const rep = reputacion?.[0];
+  // Nombre de quien calificó, sólo si ese taller es visible para quien mira.
+  const autores = await nombresTalleres(supabase, (resenas ?? []).map((r) => r.tenant_autor));
 
   const nombre = nombres.get(tallerId);
   if (!nombre) notFound();
@@ -63,7 +74,11 @@ export default async function TallerPage({
         </Button>
       </EncabezadoPagina>
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-lg border bg-card px-4 py-3">
+          <p className="text-xs text-muted-foreground">Reputación</p>
+          <Reputacion promedio={rep?.promedio} total={rep?.total} className="mt-1 text-sm" />
+        </div>
         <Dato etiqueta="Ubicación" valores={ciudades} vacio="Sin máquinas publicadas" />
         <Dato
           etiqueta="Contacto"
@@ -99,6 +114,28 @@ export default async function TallerPage({
           ))}
         </div>
       )}
+
+      {resenas?.length ? (
+        <Card className="mt-6">
+          <CardContent>
+            <h2 className="mb-3 font-semibold">Lo que dicen otros talleres</h2>
+            <ul className="flex flex-col divide-y text-sm">
+              {resenas.map((r) => (
+                <li key={r.id} className="py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <EstrellasFijas estrellas={r.estrellas} />
+                    <span className="text-xs text-muted-foreground">
+                      {autores.get(r.tenant_autor) ?? "Un taller de la red"} ·{" "}
+                      {new Date(r.created_at).toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric", timeZone: "America/Bogota" })}
+                    </span>
+                  </div>
+                  {r.comentario ? <p className="mt-1 whitespace-pre-line text-muted-foreground">{r.comentario}</p> : null}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
     </>
   );
 }

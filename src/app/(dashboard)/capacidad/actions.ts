@@ -7,6 +7,7 @@ import {
   esquemaId,
   validarMaquina,
   validarSolicitud,
+  sanitizarTextoLibre,
 } from "@/lib/capacidad/esquemas";
 import { sendRespuestaSolicitud, sendSolicitudMaquina } from "@/lib/email/send";
 import { texto } from "@/lib/form-data";
@@ -365,4 +366,73 @@ export async function cancelarSolicitud(formData: FormData): Promise<void> {
     .eq("estado", "pendiente");
 
   revalidarCapacidad();
+}
+
+// ---------------------------------------------------------------------------
+// Reputación
+// ---------------------------------------------------------------------------
+
+/**
+ * El taller que pidió una máquina califica al dueño, una sola vez y sólo
+ * cuando la solicitud quedó COMPLETADA. La base lo vuelve a exigir (RLS) y
+ * recalcula sola la reputación de la máquina (trigger).
+ */
+export async function calificarSolicitud(
+  _previo: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const ctx = await sesion();
+  if (!ctx) return { error: ERROR_SIN_TENANT, ok: false };
+  const { supabase, tenantId } = ctx;
+
+  const id = texto(formData, "id");
+  if (!esquemaId.safeParse(id).success) return { error: "Solicitud no válida.", ok: false };
+
+  const estrellas = Number(texto(formData, "estrellas"));
+  if (!Number.isInteger(estrellas) || estrellas < 1 || estrellas > 5) {
+    return { error: "Elige de 1 a 5 estrellas.", ok: false };
+  }
+  const comentario = sanitizarTextoLibre(texto(formData, "comentario"));
+  if (comentario.length > 500) {
+    return { error: "El comentario es demasiado largo (máximo 500 caracteres).", ok: false };
+  }
+
+  const { data: solicitud } = await supabase
+    .from("machine_requests")
+    .select("id, estado, machine_id, tenant_solicitante, tenant_propietario")
+    .eq("id", id)
+    .maybeSingle();
+  if (!solicitud || solicitud.tenant_solicitante !== tenantId) {
+    return { error: "Sólo puede calificar el taller que pidió la máquina.", ok: false };
+  }
+  if (solicitud.estado !== "completada") {
+    return {
+      error: "Podrás calificar cuando el taller marque la solicitud como completada.",
+      ok: false,
+    };
+  }
+
+  const { error } = await supabase.from("machine_reviews").insert({
+    request_id: solicitud.id,
+    machine_id: solicitud.machine_id,
+    tenant_autor: tenantId,
+    tenant_calificado: solicitud.tenant_propietario,
+    estrellas,
+    comentario: comentario || null,
+  });
+
+  if (error) {
+    if (error.code === "23505") return { error: "Ya calificaste esta solicitud.", ok: false };
+    console.error("[capacidad] No se pudo guardar la calificación", error);
+    return {
+      error:
+        error.code === "42501" || /row-level security/i.test(error.message)
+          ? "Tu rol no permite calificar. Pide a un administrador u operario que lo haga."
+          : "No pudimos guardar la calificación. Intenta de nuevo.",
+      ok: false,
+    };
+  }
+
+  revalidarCapacidad(solicitud.tenant_propietario);
+  return { error: null, ok: true, marca: Date.now() };
 }

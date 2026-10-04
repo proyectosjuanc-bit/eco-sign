@@ -12,6 +12,7 @@ import {
   unidadCorta,
   valorEspecificacion,
 } from "@/lib/capacidad/tipos";
+import { Reputacion } from "@/components/capacidad/reputacion";
 import { formatearMoneda } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Machine } from "@/types/database";
@@ -28,7 +29,12 @@ export type DatosTarjeta = Pick<
   | "estado_operativo"
   | "especificaciones"
   | "disponibilidad_horaria"
-> & { precio: number | null };
+> & {
+  precio: number | null;
+  /** Reputación de la máquina. Si no viene (vista previa), no se muestra. */
+  rating_promedio?: number;
+  total_resenas?: number;
+};
 
 /**
  * Tarjeta de una máquina, igual a como la ven los demás talleres.
@@ -94,6 +100,9 @@ export function TarjetaMaquina({
               {maquina.ciudad || "Ciudad"}
               {maquina.zona ? ` · ${maquina.zona}` : ""}
             </p>
+            {maquina.total_resenas !== undefined ? (
+              <Reputacion promedio={maquina.rating_promedio} total={maquina.total_resenas} className="mt-1" />
+            ) : null}
           </div>
           <EstadoOperativoBadge estado={maquina.estado_operativo} />
         </div>

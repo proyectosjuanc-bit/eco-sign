@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { cancelarSolicitud } from "../actions";
+import { DialogoCalificar } from "@/components/capacidad/dialogo-calificar";
 import { TarjetaSolicitud } from "@/components/capacidad/tarjeta-solicitud";
 import { EncabezadoPagina } from "@/components/dashboard/encabezado-pagina";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,13 @@ export default async function SolicitudesEnviadasPage() {
     ),
   ]);
   const porId = new Map((maquinas ?? []).map((m) => [m.id, m]));
+
+  // Calificaciones que ya di, para no ofrecer calificar dos veces.
+  const idsCompletadas = solicitudes.filter((s) => s.estado === "completada").map((s) => s.id);
+  const { data: resenas } = idsCompletadas.length
+    ? await supabase.from("machine_reviews").select("request_id, estrellas").in("request_id", idsCompletadas)
+    : { data: [] as { request_id: string; estrellas: number }[] };
+  const calificacion = new Map((resenas ?? []).map((r) => [r.request_id, r.estrellas]));
 
   return (
     <>
@@ -85,6 +93,14 @@ export default async function SolicitudesEnviadasPage() {
                       Cancelar solicitud
                     </Button>
                   </form>
+                ) : null}
+                {s.estado === "completada" ? (
+                  <DialogoCalificar
+                    solicitudId={s.id}
+                    nombreTaller={talleres.get(s.tenant_propietario) ?? "el taller"}
+                    nombreMaquina={maquina?.nombre ?? "la máquina"}
+                    estrellasDadas={calificacion.get(s.id)}
+                  />
                 ) : null}
                 {s.estado === "aceptada" && maquina ? (
                   <p className="text-sm">

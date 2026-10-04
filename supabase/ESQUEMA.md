@@ -564,3 +564,19 @@ Migración `20261004_inventario_unico.sql`. Reemplaza el modelo anterior de
 Verificado el 4 de octubre de 2026 en Chrome contra la base real (27
 comprobaciones con el ejemplo del aviso: acrílico 50 × 50, 10 m de neón y
 10 m de cable) y con `scripts/probar-roles.mjs`.
+
+## Reputación (Capacidad)
+
+Migración `20261004_reputacion.sql`. Tabla `machine_reviews`: una reseña por
+solicitud (`request_id` único), 1–5 estrellas y comentario opcional (≤ 500).
+Sólo la crea el **solicitante** de una solicitud **completada** (RLS +
+`puede_escribir()`); no se edita ni se borra. La leen los miembros activos de
+la red.
+
+El trigger `machine_reviews_reputacion` recalcula
+`machines.rating_promedio = (2×5 + Σ estrellas) / (2 + total_resenas)`:
+todos empiezan en 5,0 y una sola reseña no hunde a un taller nuevo. La
+interfaz muestra «Nuevo» hasta 3 reseñas (`RESENAS_PARA_PUNTAJE`).
+`reputacion_talleres(ids)` da lo mismo por taller (todas sus máquinas).
+Las columnas de reputación no tienen GRANT de escritura: sólo las mueve el
+trigger. Verificado en Chrome el 4 de octubre de 2026 (13 comprobaciones).

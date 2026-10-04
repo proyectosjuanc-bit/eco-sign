@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { responderSolicitud } from "../actions";
+import { EstrellasFijas } from "@/components/capacidad/reputacion";
 import { TarjetaSolicitud } from "@/components/capacidad/tarjeta-solicitud";
 import { EncabezadoPagina } from "@/components/dashboard/encabezado-pagina";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,13 @@ export default async function SolicitudesRecibidasPage() {
   ]);
   const nombreMaquina = new Map((maquinas ?? []).map((m) => [m.id, m.nombre]));
 
+  // Calificaciones que me dieron en las solicitudes completadas.
+  const idsCompletadas = solicitudes.filter((s) => s.estado === "completada").map((s) => s.id);
+  const { data: resenas } = idsCompletadas.length
+    ? await supabase.from("machine_reviews").select("request_id, estrellas, comentario").in("request_id", idsCompletadas)
+    : { data: [] as { request_id: string; estrellas: number; comentario: string | null }[] };
+  const calificacion = new Map((resenas ?? []).map((r) => [r.request_id, r]));
+
   return (
     <>
       <EncabezadoPagina
@@ -73,7 +81,24 @@ export default async function SolicitudesRecibidasPage() {
                 </>
               ) : null}
               {s.estado === "aceptada" ? (
-                <BotonDecision id={s.id} decision="completada" etiqueta="Marcar como completada" />
+                <>
+                  <BotonDecision id={s.id} decision="completada" etiqueta="Marcar como completada" />
+                  <span className="text-xs text-muted-foreground">
+                    Al completarla, el taller podrá calificarte.
+                  </span>
+                </>
+              ) : null}
+              {s.estado === "completada" ? (
+                calificacion.has(s.id) ? (
+                  <p className="text-sm">
+                    Te calificó: <EstrellasFijas estrellas={calificacion.get(s.id)?.estrellas ?? 0} />
+                    {calificacion.get(s.id)?.comentario ? (
+                      <span className="block text-muted-foreground">«{calificacion.get(s.id)?.comentario}»</span>
+                    ) : null}
+                  </p>
+                ) : (
+                  <span className="text-xs text-muted-foreground">Aún no te ha calificado.</span>
+                )
               ) : null}
             </TarjetaSolicitud>
           ))}

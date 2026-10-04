@@ -287,8 +287,10 @@ export type Machine = {
   /** Rutas en el bucket "maquinas", no URLs: se firman al mostrarlas. */
   fotos: string[];
   contacto_telefono: string;
-  /** Reputación futura: sólo los escriben triggers, nunca la aplicación. */
+  /** Reputación: promedio bayesiano que empieza en 5. Sólo lo escribe un trigger. */
   rating_promedio: number;
+  /** Número de reseñas reales de esta máquina. Sólo lo escribe un trigger. */
+  total_resenas: number;
   total_solicitudes: number;
   total_completadas: number;
   created_at: string;
@@ -318,7 +320,19 @@ export type MachineRequest = {
 };
 
 /** Columnas de reputación: la base no deja que el usuario las escriba. */
-type Reputacion = "rating_promedio" | "total_solicitudes" | "total_completadas";
+type Reputacion = "rating_promedio" | "total_solicitudes" | "total_completadas" | "total_resenas";
+
+/** Calificación de una solicitud completada (tabla `machine_reviews`). */
+export type MachineReview = {
+  id: string;
+  request_id: string;
+  machine_id: string;
+  tenant_autor: string;
+  tenant_calificado: string;
+  estrellas: number;
+  comentario: string | null;
+  created_at: string;
+};
 
 /** Columnas que la base rellena sola: nunca se envían en un insert. */
 type Generado = "id" | "created_at";
@@ -451,6 +465,13 @@ export interface Database {
         Update: Partial<Omit<Machine, "id" | "tenant_id" | "created_at" | "updated_at" | Reputacion>>;
         Relationships: [];
       };
+      machine_reviews: {
+        Row: MachineReview;
+        Insert: Insertable<MachineReview>;
+        /** Una calificación no se edita. */
+        Update: Record<string, never>;
+        Relationships: [];
+      };
       machine_requests: {
         Row: MachineRequest;
         /** Sin estado: toda solicitud nace "pendiente". */
@@ -528,6 +549,10 @@ export interface Database {
       valor_sobrantes_disponibles: {
         Args: Record<string, never>;
         Returns: number;
+      };
+      reputacion_talleres: {
+        Args: { p_ids: string[] };
+        Returns: { tenant_id: string; promedio: number; total: number }[];
       };
       nombres_talleres: {
         Args: { p_ids: string[] };
