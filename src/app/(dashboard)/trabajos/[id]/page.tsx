@@ -228,6 +228,9 @@ export default async function TrabajoPage({
                             {clase === "retal" ? (
                               <Badge className="ml-2 bg-emerald-600 text-white">Retal reutilizado</Badge>
                             ) : null}
+                            {clase === "mililitros" && s.descripcion ? (
+                              <span className="block text-xs font-normal text-muted-foreground">{s.descripcion}</span>
+                            ) : null}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {clase === "retal" && item?.codigo ? `${item.codigo} · ` : ""}

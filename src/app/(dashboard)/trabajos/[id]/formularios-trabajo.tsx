@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { registrarPieza, registrarSobranteDeCorte, sacarDelInventario } from "../actions";
 import { CalculadoraLiquido } from "./calculadora-liquido";
+import { TintasImpresion } from "./tintas-impresion";
 import { CampoFoto } from "@/components/dashboard/campo-foto";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,6 +76,13 @@ export function FormularioSalida({
   const [estado, accion, enviando] = useActionState(sacarDelInventario, ESTADO_FORM_INICIAL);
   const clave = useExito(estado, "Material sacado del inventario.");
 
+  // Tintas: los líquidos que se llaman «tinta…». Si el taller no les puso ese
+  // nombre, se ofrecen todos sus líquidos.
+  const liquidos = opciones.filter((o) => o.clase === "mililitros");
+  const tintas = liquidos.some((o) => /tinta/i.test(o.material))
+    ? liquidos.filter((o) => /tinta/i.test(o.material))
+    : liquidos;
+
   return (
     <Card>
       <CardHeader>
@@ -95,6 +103,11 @@ export function FormularioSalida({
           enviando={enviando}
           estado={estado}
         />
+        {tintas.length ? (
+          <div className="mt-4 border-t pt-4">
+            <TintasImpresion jobId={jobId} tintas={tintas} />
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

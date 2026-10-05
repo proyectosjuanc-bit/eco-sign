@@ -646,3 +646,11 @@ no conoce su tasa, la saca de un periodo medido (ml gastados ÷ m² impresos);
 al usar el resultado puede guardarla con `guardarMlPorM2`. Cada taller pone
 la de su máquina. Verificado en Chrome el 5 de octubre de 2026 (12
 comprobaciones).
+
+Tintas de impresión (`trabajos/[id]/tintas-impresion.tsx`, acción
+`sacarTintas`): una impresión saca varias tintas a la vez (los líquidos
+llamados «tinta…», o todos los líquidos si ninguno se llama así). Cada tinta
+usa su propio `ml_por_m2` (se puede repartir un total en partes iguales);
+ml = m² × ml/m² por tinta. Todo o nada: si una no alcanza, se devuelven las
+demás. Cada salida queda como línea con la descripción «Impresión de X m² a
+Y ml/m²». Verificado en Chrome el 5 de octubre de 2026 (10 comprobaciones).

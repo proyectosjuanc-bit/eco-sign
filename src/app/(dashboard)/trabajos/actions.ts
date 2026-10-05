@@ -512,3 +512,125 @@ export async function cerrarConRecortes(
   revalidatePath("/dashboard");
   return { error: null, ok: true, marca: Date.now() };
 }
+
+// ---------------------------------------------------------------------------
+// 1b. Tintas de impresión (varias a la vez)
+// ---------------------------------------------------------------------------
+
+export interface TintaParaSacar {
+  inventoryItemId: string;
+  /** ml por m² que gasta la máquina con esta tinta (se guarda en el material). */
+  mlPorM2: number;
+}
+
+/**
+ * Una impresión gasta varias tintas a la vez (cyan, magenta, amarillo, negro y
+ * a veces blanco). Saca cada una de su inventario según el área impresa:
+ *
+ *   ml de cada tinta = m² impresos × ml por m² de esa tinta
+ *
+ * Todo o nada: si una tinta no alcanza, se devuelven las que ya salieron.
+ * Los ml por m² de cada tinta quedan guardados para la próxima impresión.
+ */
+export async function sacarTintas(
+  jobId: string,
+  m2: number,
+  tintas: TintaParaSacar[],
+): Promise<{ error: string | null }> {
+  if (!/^[0-9a-f-]{36}$/i.test(jobId)) return { error: "Falta el trabajo." };
+  if (!Number.isFinite(m2) || m2 <= 0 || m2 > 100000) return { error: "Escribe la medida impresa." };
+  if (!tintas.length) return { error: "Marca al menos una tinta." };
+  if (tintas.length > 12) return { error: "Demasiadas tintas a la vez." };
+  for (const t of tintas) {
+    if (!/^[0-9a-f-]{36}$/i.test(t.inventoryItemId)) return { error: "Tinta no válida." };
+    if (!Number.isFinite(t.mlPorM2) || t.mlPorM2 <= 0 || t.mlPorM2 > 1000) {
+      return { error: "Escribe los ml por m² de cada tinta marcada (entre 0 y 1000)." };
+    }
+  }
+
+  const tenantId = await obtenerTenantId();
+  if (!tenantId) return { error: ERROR_SIN_TENANT };
+  const supabase = await createClient();
+
+  const { data: items } = await supabase
+    .from("inventory_items")
+    .select("id, clase, material_id, cantidad")
+    .in("id", tintas.map((t) => t.inventoryItemId));
+  const porId = new Map((items ?? []).map((i) => [i.id, i]));
+  const { data: materiales } = await supabase
+    .from("materials")
+    .select("id, tipo, color, ml_por_m2")
+    .in("id", (items ?? []).map((i) => i.material_id));
+  const material = new Map((materiales ?? []).map((m) => [m.id, m]));
+
+  const hechas: { itemId: string; ml: number; lineaId: string }[] = [];
+  const deshacer = async () => {
+    for (const h of hechas) {
+      await supabase.from("job_items").delete().eq("id", h.lineaId);
+      await supabase.rpc("reponer_inventario", { p_inventory_item_id: h.itemId, p_cantidad: h.ml });
+    }
+  };
+
+  for (const t of tintas) {
+    const item = porId.get(t.inventoryItemId);
+    if (!item || item.clase !== "mililitros") {
+      await deshacer();
+      return { error: "Una de las tintas ya no está en el inventario." };
+    }
+    const m = material.get(item.material_id);
+    const nombre = m ? [m.tipo, m.color].filter(Boolean).join(" ") : "una tinta";
+    const ml = Math.round(m2 * t.mlPorM2 * 10) / 10;
+    if (ml <= 0) continue;
+
+    const { data: restante, error: errorSacar } = await supabase.rpc("sacar_inventario", {
+      p_inventory_item_id: item.id,
+      p_cantidad: ml,
+    });
+    if (errorSacar || restante === null) {
+      await deshacer();
+      if (errorSacar) console.error("[trabajos] No se pudo sacar una tinta", errorSacar);
+      return {
+        error: errorSacar
+          ? mensajeError(errorSacar)
+          : `No alcanza la tinta ${nombre}: necesitas ${ml} ml y hay ${Number(item.cantidad)} ml. No se sacó ninguna.`,
+      };
+    }
+
+    const { data: linea, error } = await supabase
+      .from("job_items")
+      .insert({
+        job_id: jobId,
+        material_id: item.material_id,
+        inventory_item_id: item.id,
+        modo: "salida",
+        ancho_cm: 1,
+        alto_cm: 1,
+        cantidad: ml,
+        descripcion: `Impresión de ${Math.round(m2 * 100) / 100} m² a ${t.mlPorM2} ml/m²`,
+      })
+      .select("id")
+      .single();
+    if (error || !linea) {
+      await supabase.rpc("reponer_inventario", { p_inventory_item_id: item.id, p_cantidad: ml });
+      await deshacer();
+      console.error("[trabajos] No se pudo registrar una tinta", error);
+      return { error: error ? mensajeError(error) : "No pudimos registrar las tintas." };
+    }
+    hechas.push({ itemId: item.id, ml, lineaId: linea.id });
+
+    // Guardar los ml/m² de esta tinta para la próxima impresión.
+    if (m && Number(m.ml_por_m2 ?? 0) !== t.mlPorM2) {
+      await supabase
+        .from("materials")
+        .update({ ml_por_m2: Math.round(t.mlPorM2 * 100) / 100 })
+        .eq("id", m.id)
+        .eq("unidad", "ml");
+    }
+  }
+
+  revalidatePath(`/trabajos/${jobId}`);
+  revalidatePath("/inventario");
+  revalidatePath("/materiales");
+  revalidatePath("/dashboard");
+  return { error: null };
+}
