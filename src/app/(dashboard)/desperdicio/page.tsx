@@ -15,7 +15,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatearMoneda, formatearNumero } from "@/lib/format";
+import { FOTOS_ACTIVAS } from "@/lib/funciones";
 import { createClient } from "@/lib/supabase/server";
+import { firmarFotos } from "@/lib/supabase/subir-foto";
 
 export const metadata: Metadata = { title: "Desperdicio · ECO-SIGN" };
 
@@ -23,11 +25,17 @@ export default async function DesperdicioPage() {
   const supabase = await createClient();
 
   const [{ data: registros }, { data: materiales }] = await Promise.all([
-    supabase.from("waste_logs").select("*"),
+    supabase.from("waste_logs").select("*").order("created_at", { ascending: false }),
     supabase.from("materials").select("id, tipo, color, archivado").order("tipo"),
   ]);
 
   const porMaterial = new Map((materiales ?? []).map((m) => [m.id, m]));
+
+  // Miniaturas: las fotos están en el bucket privado «sobrantes» y se ven con
+  // un enlace firmado que caduca (igual que en Inventario y Trabajos).
+  const firmas = FOTOS_ACTIVAS
+    ? await firmarFotos(supabase, (registros ?? []).map((r) => r.foto_url))
+    : new Map<string, string>();
   const costoTotal = (registros ?? []).reduce(
     (total, registro) => total + (registro.costo ?? 0),
     0,
@@ -67,6 +75,7 @@ export default async function DesperdicioPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    {FOTOS_ACTIVAS ? <TableHead className="w-0">Foto</TableHead> : null}
                     <TableHead>Material</TableHead>
                     <TableHead className="text-right">Medidas</TableHead>
                     <TableHead className="text-right">Cantidad</TableHead>
@@ -76,8 +85,28 @@ export default async function DesperdicioPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {registros.map((registro) => (
+                  {registros.map((registro) => {
+                    const firma = registro.foto_url ? firmas.get(registro.foto_url) : null;
+                    return (
                     <TableRow key={registro.id}>
+                      {FOTOS_ACTIVAS ? (
+                        <TableCell>
+                          {firma ? (
+                            <a href={firma} target="_blank" rel="noopener noreferrer" title="Ver la foto completa">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                loading="lazy"
+                                decoding="async"
+                                src={firma}
+                                alt={`Foto del desperdicio: ${registro.motivo ?? "sin motivo"}`}
+                                className="size-10 rounded object-cover"
+                              />
+                            </a>
+                          ) : (
+                            <div className="size-10 rounded bg-muted" />
+                          )}
+                        </TableCell>
+                      ) : null}
                       <TableCell className="font-medium">
                         <span className="flex flex-col">
                           <span>
@@ -120,7 +149,8 @@ export default async function DesperdicioPage() {
                         </form>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}
