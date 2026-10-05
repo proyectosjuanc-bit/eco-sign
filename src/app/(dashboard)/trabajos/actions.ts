@@ -634,3 +634,160 @@ export async function sacarTintas(
   revalidatePath("/dashboard");
   return { error: null };
 }
+
+// ---------------------------------------------------------------------------
+// Devolver parte de lo sacado (metros, unidades, ml)
+// ---------------------------------------------------------------------------
+
+/**
+ * Devuelve PARTE de una salida de metros, unidades o ml (sacaste 2,5 m de
+ * vinilo y usaste 2: devuelves 0,5). Dos destinos:
+ *
+ * - "inventario": vuelve a la misma existencia (el rollo, la caja, la botella).
+ * - "retal" (sólo metros): queda como un retal aparte con su código SOB, sus
+ *   medidas (ancho del rollo × largo devuelto) y foto opcional, disponible
+ *   para otro trabajo. Su valor es lo que cuestan esos metros.
+ *
+ * La salida del trabajo baja en lo devuelto; si se devuelve todo, se quita.
+ */
+export async function devolverParte(
+  _previo: EstadoForm,
+  formData: FormData,
+): Promise<EstadoForm> {
+  const id = texto(formData, "id");
+  const jobId = texto(formData, "job_id");
+  const cantidad = numero(formData, "cantidad");
+  const destino = texto(formData, "destino") === "retal" ? "retal" : "inventario";
+
+  if (!id || !jobId) return { error: "Falta la línea del trabajo.", ok: false };
+  if (cantidad === null || cantidad <= 0) return { error: "Escribe cuánto devuelves.", ok: false };
+
+  const tenantId = await obtenerTenantId();
+  if (!tenantId) return { error: ERROR_SIN_TENANT, ok: false };
+  const supabase = await createClient();
+
+  const { data: linea } = await supabase
+    .from("job_items")
+    .select("id, job_id, modo, inventory_item_id, material_id, cantidad")
+    .eq("id", id)
+    .eq("job_id", jobId)
+    .maybeSingle();
+  if (!linea || linea.modo !== "salida" || !linea.inventory_item_id) {
+    return { error: "Esa salida ya no está en el trabajo.", ok: false };
+  }
+  const { data: item } = await supabase
+    .from("inventory_items")
+    .select("id, clase")
+    .eq("id", linea.inventory_item_id)
+    .maybeSingle();
+  if (!item || !["metros", "unidades", "mililitros"].includes(item.clase)) {
+    return { error: "Esta salida se devuelve completa con «Devolver».", ok: false };
+  }
+  if (item.clase === "unidades" && !Number.isInteger(cantidad)) {
+    return { error: "Las unidades se devuelven enteras.", ok: false };
+  }
+  const sacado = Number(linea.cantidad);
+  if (cantidad > sacado + 1e-9) {
+    return { error: `No puedes devolver más de lo que sacaste (${sacado}).`, ok: false };
+  }
+  if (destino === "retal" && item.clase !== "metros") {
+    return { error: "Sólo los rollos por metro se guardan como retal.", ok: false };
+  }
+
+  // Retal: medidas y valor antes de tocar nada.
+  let retal: { ancho: number; largo: number; costo: number; color: string | null } | null = null;
+  if (destino === "retal") {
+    const ancho = numero(formData, "ancho_cm");
+    if (ancho === null || ancho <= 0 || ancho > 1000) {
+      return { error: "Escribe el ancho del rollo en cm (por ejemplo 60).", ok: false };
+    }
+    const { data: material } = await supabase
+      .from("materials")
+      .select("costo_unitario, color")
+      .eq("id", linea.material_id)
+      .maybeSingle();
+    retal = {
+      ancho,
+      largo: Math.round(cantidad * 100 * 10) / 10,
+      costo: Number(((material?.costo_unitario ?? 0) * cantidad).toFixed(2)),
+      color: material?.color ?? null,
+    };
+  }
+
+  // 1. La salida del trabajo baja (o se quita si se devolvió todo).
+  const resto = Math.round((sacado - cantidad) * 100) / 100;
+  const { data: tocada, error: errorLinea } =
+    resto <= 0
+      ? await supabase.from("job_items").delete().eq("id", linea.id).select("id")
+      : await supabase.from("job_items").update({ cantidad: resto }).eq("id", linea.id).select("id");
+  if (errorLinea || !tocada?.length) {
+    if (errorLinea) console.error("[trabajos] No se pudo ajustar la salida", errorLinea);
+    return { error: errorLinea ? mensajeError(errorLinea) : "Tu rol no permite registrar cambios.", ok: false };
+  }
+  const deshacerLinea = async () => {
+    if (resto <= 0) {
+      await supabase.from("job_items").insert({
+        job_id: linea.job_id,
+        material_id: linea.material_id,
+        inventory_item_id: linea.inventory_item_id,
+        modo: "salida",
+        ancho_cm: 1,
+        alto_cm: 1,
+        cantidad: sacado,
+      });
+    } else {
+      await supabase.from("job_items").update({ cantidad: sacado }).eq("id", linea.id);
+    }
+  };
+
+  // 2a. Al inventario: vuelve a la misma existencia.
+  if (!retal) {
+    const { error } = await supabase.rpc("reponer_inventario", {
+      p_inventory_item_id: item.id,
+      p_cantidad: cantidad,
+    });
+    if (error) {
+      await deshacerLinea();
+      console.error("[trabajos] No se pudo devolver al inventario", error);
+      return { error: mensajeError(error), ok: false };
+    }
+  } else {
+    // 2b. Como retal aparte, con código y foto opcional.
+    const { data: numeroCodigo, error: errorCodigo } = await supabase.rpc("siguiente_contador", {
+      p_tenant_id: tenantId,
+      p_tipo: "sobrante",
+    });
+    if (errorCodigo || numeroCodigo === null) {
+      await deshacerLinea();
+      return { error: errorCodigo ? mensajeError(errorCodigo) : "No se pudo generar el código del retal.", ok: false };
+    }
+    const foto = await subirFoto(supabase, formData.get("foto"), tenantId, "retal-");
+    if (foto.error) {
+      await deshacerLinea();
+      return { error: foto.error, ok: false };
+    }
+    const { error } = await supabase.from("inventory_items").insert({
+      tenant_id: tenantId,
+      material_id: linea.material_id,
+      clase: "retal",
+      ancho_cm: retal.ancho,
+      alto_cm: retal.largo,
+      color: retal.color,
+      foto_url: foto.ruta,
+      costo_estimado: retal.costo,
+      job_id: jobId,
+      codigo: formatearCodigo("SOB", numeroCodigo),
+    });
+    if (error) {
+      if (foto.ruta) await supabase.storage.from("sobrantes").remove([foto.ruta]);
+      await deshacerLinea();
+      console.error("[trabajos] No se pudo guardar el retal", error);
+      return { error: mensajeError(error), ok: false };
+    }
+  }
+
+  revalidatePath(`/trabajos/${jobId}`);
+  revalidatePath("/inventario");
+  revalidatePath("/dashboard");
+  return { error: null, ok: true, marca: Date.now() };
+}

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { eliminarPieza } from "../actions";
 import { SelectorEstado } from "./selector-estado";
+import { DialogoDevolver } from "./dialogo-devolver";
 import { BotonRecortes } from "./boton-recortes";
 import {
   FormularioDevolver,
@@ -233,7 +234,19 @@ export default async function TrabajoPage({
                           </TableCell>
                           <TableCell className="text-right">{formatearMoneda(valorSalida(s))}</TableCell>
                           <TableCell>
-                            <BotonQuitar id={s.id} jobId={trabajo.id} etiqueta="Devolver" />
+                            {clase === "metros" || clase === "unidades" || clase === "mililitros" ? (
+                              <DialogoDevolver
+                                id={s.id}
+                                jobId={trabajo.id}
+                                clase={clase}
+                                material={nombre(s.material_id)}
+                                sacado={Number(s.cantidad)}
+                                precio={Number(porMaterial.get(s.material_id)?.costo_unitario ?? 0)}
+                                anchoSugerido={anchoDelNombre(nombre(s.material_id))}
+                              />
+                            ) : (
+                              <BotonQuitar id={s.id} jobId={trabajo.id} etiqueta="Devolver" />
+                            )}
                           </TableCell>
                         </TableRow>
                       );
@@ -355,6 +368,17 @@ export default async function TrabajoPage({
       </div>
     </>
   );
+}
+
+/**
+ * Ancho del rollo escrito en el nombre del material: «Vinilo de corte x 60»,
+ * «Vinilo 1,22 m», «Lona 150 cm». Sólo sugiere el valor del diálogo.
+ */
+function anchoDelNombre(nombre: string): number | null {
+  const enCm = nombre.match(/(\d+(?:[.,]\d+)?)\s*cm\b/i) ?? nombre.match(/[x×]\s*(\d+(?:[.,]\d+)?)(?![\d.,]|\s*m\b)/i);
+  if (enCm) return Number(enCm[1].replace(",", "."));
+  const enM = nombre.match(/(\d+(?:[.,]\d+)?)\s*m\b/i);
+  return enM ? Math.round(Number(enM[1].replace(",", ".")) * 100) : null;
 }
 
 /** Quita una línea; si es una salida, el material vuelve al inventario. */
