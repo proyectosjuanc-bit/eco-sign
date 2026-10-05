@@ -17,6 +17,9 @@ function leer(valor: string): number {
 
 const redondear = (n: number, decimales = 1) => Math.round(n * 10 ** decimales) / 10 ** decimales;
 
+/** En la tabla basta el color: «Tinta eco-solvente botella 1 L · Cyan» → «Cyan». */
+const nombreCorto = (material: string) => material.split(" · ").at(-1) ?? material;
+
 /**
  * Tintas de impresión: una impresión gasta varias tintas a la vez. Se marca
  * cuáles usa (cyan, magenta, amarillo, negro, blanco…), cada una con los ml
@@ -59,6 +62,7 @@ export function TintasImpresion({
     });
   const totalMl = redondear(filas.reduce((s, f) => s + f.ml, 0));
   const totalCosto = filas.reduce((s, f) => s + f.costo, 0);
+  const totalTasa = redondear(filas.reduce((s, f) => s + f.tasa, 0), 2);
   const faltanTasas = filas.some((f) => f.tasa <= 0);
   const noAlcanza = filas.find((f) => !f.alcanza);
   const listo = m2 > 0 && filas.length > 0 && !faltanTasas && !noAlcanza;
@@ -192,29 +196,46 @@ export function TintasImpresion({
       ) : null}
 
       {filas.length && m2 > 0 ? (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs text-muted-foreground">
-              <th className="font-normal">Tinta</th>
-              <th className="text-right font-normal">ml</th>
-              <th className="text-right font-normal">Costo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filas.map((f) => (
-              <tr key={f.tinta.id} className={f.alcanza ? undefined : "text-destructive"}>
-                <td className="truncate pr-2">{f.tinta.material}</td>
-                <td className="text-right">{f.tasa > 0 ? formatearNumero(f.ml) : "—"}</td>
-                <td className="text-right">{f.tasa > 0 ? formatearMoneda(f.costo) : "—"}</td>
+        <div className="flex flex-col gap-2">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-muted-foreground">
+                <th className="font-normal">Tinta</th>
+                <th className="px-2 text-right font-normal">ml/m²</th>
+                <th className="px-2 text-right font-normal">ml</th>
+                <th className="text-right font-normal">Costo</th>
               </tr>
-            ))}
-            <tr className="border-t font-semibold">
-              <td>Total</td>
-              <td className="text-right">{formatearNumero(totalMl)} ml</td>
-              <td className="text-right">{formatearMoneda(totalCosto)}</td>
-            </tr>
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filas.map((f) => (
+                <tr key={f.tinta.id} className={f.alcanza ? undefined : "text-destructive"}>
+                  <td className="pr-2" title={f.tinta.material}>{nombreCorto(f.tinta.material)}</td>
+                  <td className="px-2 text-right whitespace-nowrap text-muted-foreground">
+                    {f.tasa > 0 ? formatearNumero(f.tasa) : "—"}
+                  </td>
+                  <td className="px-2 text-right whitespace-nowrap">{f.tasa > 0 ? formatearNumero(f.ml) : "—"}</td>
+                  <td className="text-right whitespace-nowrap">{f.tasa > 0 ? formatearMoneda(f.costo) : "—"}</td>
+                </tr>
+              ))}
+              <tr className="border-t font-semibold">
+                <td className="pt-1">Total</td>
+                <td className="px-2 pt-1 text-right whitespace-nowrap">{formatearNumero(totalTasa)}</td>
+                <td className="px-2 pt-1 text-right whitespace-nowrap">{formatearNumero(totalMl)} ml</td>
+                <td className="pt-1 text-right whitespace-nowrap">{formatearMoneda(totalCosto)}</td>
+              </tr>
+            </tbody>
+          </table>
+          {!faltanTasas ? (
+            <p className="rounded-md bg-background px-3 py-2 text-xs text-muted-foreground">
+              Cada tinta: m² impresos × sus ml/m². En total:{" "}
+              <strong className="text-foreground">
+                {formatearNumero(redondear(m2, 2))} m² × {formatearNumero(totalTasa)} ml/m² ={" "}
+                {formatearNumero(totalMl)} ml
+              </strong>
+              , que cuestan <strong className="text-foreground">{formatearMoneda(totalCosto)}</strong>.
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       {faltanTasas && filas.length ? (
