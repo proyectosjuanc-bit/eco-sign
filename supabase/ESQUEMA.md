@@ -654,3 +654,13 @@ usa su propio `ml_por_m2` (se puede repartir un total en partes iguales);
 ml = m² × ml/m² por tinta. Todo o nada: si una no alcanza, se devuelven las
 demás. Cada salida queda como línea con la descripción «Impresión de X m² a
 Y ml/m²». Verificado en Chrome el 5 de octubre de 2026 (10 comprobaciones).
+
+## Lo que se cobra en Capacidad
+
+Migración `20261006_capacidad_cobros.sql`. `machine_requests.monto_cobrado`
+(opcional): lo que cobró el dueño de la máquina; sólo él lo escribe y sólo con
+la solicitud completada (trigger `machine_requests_cobro`, que además pone
+`completada_en`). Se pregunta al «Marcar como completada» y se puede registrar
+o cambiar después (`DialogoCobro`). El Dashboard («Resumen del taller») suma
+los ingresos del mes y el total; las tarjetas de ROI (suscripción, beneficio,
+ROI circular) están ocultas con `MOSTRAR_ROI = false` en `src/lib/funciones.ts`.

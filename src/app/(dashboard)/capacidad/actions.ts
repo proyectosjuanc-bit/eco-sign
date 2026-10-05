@@ -563,3 +563,67 @@ export async function retirarRespuestaBusqueda(formData: FormData): Promise<void
   await ctx.supabase.from("machine_search_responses").delete().eq("id", id).eq("tenant_id", ctx.tenantId);
   revalidarCapacidad();
 }
+
+// ---------------------------------------------------------------------------
+// Lo que se cobra en Capacidad
+// ---------------------------------------------------------------------------
+
+function montoValido(monto: number | null): boolean {
+  return monto === null || (Number.isFinite(monto) && monto >= 0 && monto <= 10_000_000_000);
+}
+
+/**
+ * El dueño marca la solicitud como completada y, si quiere, anota cuánto
+ * cobró. Ese monto es lo que el Dashboard muestra como «Ingresos por
+ * Capacidad». El estado anterior va en la condición del update, como en
+ * responderSolicitud.
+ */
+export async function completarSolicitud(id: string, monto: number | null): Promise<{ error: string | null }> {
+  if (!esquemaId.safeParse(id).success) return { error: "Solicitud no válida." };
+  if (!montoValido(monto)) return { error: "Escribe un valor válido (solo el número)." };
+
+  const ctx = await sesion();
+  if (!ctx) return { error: ERROR_SIN_TENANT };
+
+  const { data, error } = await ctx.supabase
+    .from("machine_requests")
+    .update(monto === null ? { estado: "completada" } : { estado: "completada", monto_cobrado: monto })
+    .eq("id", id)
+    .eq("tenant_propietario", ctx.tenantId)
+    .eq("estado", "aceptada")
+    .select("id");
+  if (error || !data?.length) {
+    if (error) console.error("[capacidad] No se pudo completar la solicitud", error);
+    return { error: "No pudimos marcarla como completada. Revisa que siga aceptada y que tu rol lo permita." };
+  }
+
+  after(despacharPush);
+  revalidarCapacidad();
+  revalidatePath("/dashboard");
+  return { error: null };
+}
+
+/** Registra o corrige lo que se cobró en una solicitud ya completada. */
+export async function registrarCobro(id: string, monto: number | null): Promise<{ error: string | null }> {
+  if (!esquemaId.safeParse(id).success) return { error: "Solicitud no válida." };
+  if (!montoValido(monto)) return { error: "Escribe un valor válido (solo el número)." };
+
+  const ctx = await sesion();
+  if (!ctx) return { error: ERROR_SIN_TENANT };
+
+  const { data, error } = await ctx.supabase
+    .from("machine_requests")
+    .update({ monto_cobrado: monto })
+    .eq("id", id)
+    .eq("tenant_propietario", ctx.tenantId)
+    .eq("estado", "completada")
+    .select("id");
+  if (error || !data?.length) {
+    if (error) console.error("[capacidad] No se pudo registrar el cobro", error);
+    return { error: "No pudimos guardar lo que cobraste. Revisa que tu rol lo permita." };
+  }
+
+  revalidarCapacidad();
+  revalidatePath("/dashboard");
+  return { error: null };
+}

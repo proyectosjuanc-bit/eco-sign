@@ -6,8 +6,10 @@ import { GraficoAhorro, type PuntoAhorro } from "@/components/dashboard/grafico-
 import { EncabezadoPagina } from "@/components/dashboard/encabezado-pagina";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatearMoneda, formatearNumero } from "@/lib/format";
+import { MOSTRAR_ROI } from "@/lib/funciones";
 import { aFechaIso, calcularRoi, etiquetaMes, rangoMesActual } from "@/lib/roi";
 import { createClient } from "@/lib/supabase/server";
+import { obtenerTenantId } from "@/lib/supabase/tenant";
 
 export const metadata: Metadata = { title: "Dashboard · ECO-SIGN" };
 
@@ -31,16 +33,44 @@ export default async function DashboardPage() {
     new Date(hoy.getFullYear(), hoy.getMonth() - (MESES_HISTORIA - 1), 1),
   );
 
-  const [{ data: ahorros }, { data: desperdicios }, { data: valorPorClase }] =
+  const tenantId = await obtenerTenantId();
+  // Primer instante del mes en Colombia, para comparar con fechas de la base.
+  const inicioMes = new Date(`${inicio}T00:00:00-05:00`).getTime();
+  const desdeEsteMes = (fecha: string | null) => fecha != null && new Date(fecha).getTime() >= inicioMes;
+
+  const [
+    { data: ahorros },
+    { data: desperdicios },
+    { data: valorPorClase },
+    { data: trabajosAbiertos },
+    { data: cobros },
+    { count: porResponder },
+  ] =
     await Promise.all([
       supabase
         .from("savings")
         .select("monto, tipo, fecha, descripcion")
         .gte("fecha", inicioHistoria)
         .order("fecha"),
-      supabase.from("waste_logs").select("costo"),
+      supabase.from("waste_logs").select("costo, created_at"),
       // Valor de lo que hay en bodega, sumado en la base por clase.
       supabase.rpc("valor_inventario"),
+      supabase.from("jobs").select("estado").in("estado", ["pendiente", "en_proceso"]),
+      // Capacidad: lo que este taller cobró por prestar sus máquinas.
+      tenantId
+        ? supabase
+            .from("machine_requests")
+            .select("monto_cobrado, completada_en")
+            .eq("tenant_propietario", tenantId)
+            .eq("estado", "completada")
+        : Promise.resolve({ data: [] as { monto_cobrado: number | null; completada_en: string | null }[] }),
+      tenantId
+        ? supabase
+            .from("machine_requests")
+            .select("id", { count: "exact", head: true })
+            .eq("tenant_propietario", tenantId)
+            .eq("estado", "pendiente")
+        : Promise.resolve({ count: 0 }),
     ]);
 
   const filas = ahorros ?? [];
@@ -55,6 +85,19 @@ export default async function DashboardPage() {
     (total, fila) => total + (fila.costo ?? 0),
     0,
   );
+  const desperdicioMes = (desperdicios ?? [])
+    .filter((fila) => desdeEsteMes(fila.created_at))
+    .reduce((total, fila) => total + (fila.costo ?? 0), 0);
+
+  const enProceso = (trabajosAbiertos ?? []).filter((t) => t.estado === "en_proceso").length;
+  const pendientes = (trabajosAbiertos ?? []).filter((t) => t.estado === "pendiente").length;
+
+  // Capacidad: completadas como dueño de la máquina.
+  const completadas = cobros ?? [];
+  const completadasMes = completadas.filter((c) => desdeEsteMes(c.completada_en));
+  const ingresosMes = completadasMes.reduce((t, c) => t + Number(c.monto_cobrado ?? 0), 0);
+  const ingresosTotal = completadas.reduce((t, c) => t + Number(c.monto_cobrado ?? 0), 0);
+  const sinCobroRegistrado = completadas.filter((c) => c.monto_cobrado == null).length;
 
   const valorInventario = (valorPorClase ?? []).reduce((t, f) => t + Number(f.valor), 0);
   const valorDisponible = Number(
@@ -96,8 +139,8 @@ export default async function DashboardPage() {
   return (
     <>
       <EncabezadoPagina
-        titulo="ROI Circular"
-        descripcion="Cuánto te devuelve reutilizar sobrantes y desperdiciar menos."
+        titulo="Resumen del taller"
+        descripcion="Lo que ahorras reutilizando, lo que se pierde y lo que ganas prestando tus máquinas."
       >
         <Link
           href="/guia"
@@ -107,6 +150,35 @@ export default async function DashboardPage() {
         </Link>
       </EncabezadoPagina>
 
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Metrica
+          titulo="Ahorro del mes"
+          valor={formatearMoneda(roi.ahorroMes)}
+          nota="Por reutilizar retales en vez de material nuevo"
+          acento="emerald"
+        />
+        <Metrica
+          titulo="Desperdicio del mes"
+          valor={formatearMoneda(desperdicioMes)}
+          nota="Lo que costó el material perdido este mes"
+          acento={desperdicioMes > 0 ? "destructive" : undefined}
+        />
+        <Metrica
+          titulo="Trabajos en proceso"
+          valor={formatearNumero(enProceso)}
+          nota={`${formatearNumero(pendientes)} ${pendientes === 1 ? "pendiente" : "pendientes"} por empezar`}
+          href="/trabajos"
+        />
+        <Metrica
+          titulo="Ingresos por Capacidad"
+          valor={formatearMoneda(ingresosMes)}
+          nota={`Este mes · ${formatearNumero(completadasMes.length)} ${completadasMes.length === 1 ? "préstamo completado" : "préstamos completados"}`}
+          acento={ingresosMes > 0 ? "emerald" : undefined}
+          href="/capacidad/solicitudes-recibidas"
+        />
+      </div>
+
+      {MOSTRAR_ROI ? (
       <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metrica
           titulo="Ahorro del mes"
@@ -136,6 +208,7 @@ export default async function DashboardPage() {
           acento={roi.seAutofinancia ? "emerald" : undefined}
         />
       </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <Card>
@@ -148,6 +221,47 @@ export default async function DashboardPage() {
         </Card>
 
         <div className="flex flex-col gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Capacidad</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-2 text-sm">
+              <p>
+                <span className="text-2xl font-bold text-emerald-600">{formatearMoneda(ingresosTotal)}</span>
+                <span className="block text-muted-foreground">
+                  ganados prestando tus máquinas a otros talleres ({formatearNumero(completadas.length)}{" "}
+                  {completadas.length === 1 ? "préstamo" : "préstamos"} en total).
+                </span>
+              </p>
+              {porResponder ? (
+                <Link
+                  href="/capacidad/solicitudes-recibidas"
+                  className="rounded-md bg-amber-50 px-3 py-2 font-medium text-amber-900 hover:bg-amber-100"
+                >
+                  {porResponder} {porResponder === 1 ? "solicitud" : "solicitudes"} por responder →
+                </Link>
+              ) : null}
+              {sinCobroRegistrado ? (
+                <Link
+                  href="/capacidad/solicitudes-recibidas"
+                  className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+                >
+                  {sinCobroRegistrado} {sinCobroRegistrado === 1 ? "préstamo completado" : "préstamos completados"} sin lo cobrado
+                  registrado: anótalo para que sume aquí.
+                </Link>
+              ) : null}
+              {!completadas.length && !porResponder ? (
+                <p className="text-xs text-muted-foreground">
+                  Publica tus máquinas en{" "}
+                  <Link href="/capacidad" className="underline underline-offset-4">
+                    Capacidad
+                  </Link>{" "}
+                  para ganar con el tiempo en que están quietas.
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Inventario</CardTitle>
@@ -206,11 +320,14 @@ function Metrica({
   valor,
   nota,
   acento,
+  href,
 }: {
   titulo: string;
   valor: string;
   nota: string;
   acento?: "emerald" | "destructive";
+  /** Si se da, la tarjeta entera lleva a esa página. */
+  href?: string;
 }) {
   const color =
     acento === "emerald"
@@ -219,8 +336,8 @@ function Metrica({
         ? "text-destructive"
         : "";
 
-  return (
-    <Card>
+  const tarjeta = (
+    <Card className={href ? "h-full transition-colors hover:bg-muted/40" : "h-full"}>
       <CardContent>
         <p className="text-xs font-medium text-muted-foreground">{titulo}</p>
         <p className={`mt-1 text-2xl font-bold tracking-tight ${color}`}>{valor}</p>
@@ -228,4 +345,5 @@ function Metrica({
       </CardContent>
     </Card>
   );
+  return href ? <Link href={href}>{tarjeta}</Link> : tarjeta;
 }

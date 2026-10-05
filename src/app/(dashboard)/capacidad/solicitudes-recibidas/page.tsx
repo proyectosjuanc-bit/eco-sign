@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { responderSolicitud } from "../actions";
+import { DialogoCobro } from "@/components/capacidad/dialogo-cobro";
 import { EstrellasFijas } from "@/components/capacidad/reputacion";
 import { TarjetaSolicitud } from "@/components/capacidad/tarjeta-solicitud";
 import { EncabezadoPagina } from "@/components/dashboard/encabezado-pagina";
@@ -81,13 +82,18 @@ export default async function SolicitudesRecibidasPage() {
                   <BotonDecision id={s.id} decision="rechazada" etiqueta="Rechazar" />
                 </>
               ) : null}
+              {s.estado === "aceptada" || s.estado === "completada" ? (
+                <DialogoCobro
+                  solicitudId={s.id}
+                  estado={s.estado}
+                  monto={s.monto_cobrado == null ? null : Number(s.monto_cobrado)}
+                  nombreTaller={talleres.get(s.tenant_solicitante) ?? "el taller"}
+                />
+              ) : null}
               {s.estado === "aceptada" ? (
-                <>
-                  <BotonDecision id={s.id} decision="completada" etiqueta="Marcar como completada" />
-                  <span className="text-xs text-muted-foreground">
-                    Al completarla, el taller podrá calificarte.
-                  </span>
-                </>
+                <span className="text-xs text-muted-foreground">
+                  Al completarla, el taller podrá calificarte.
+                </span>
               ) : null}
               {s.estado === "completada" ? (
                 calificacion.has(s.id) ? (
@@ -116,7 +122,7 @@ function BotonDecision({
   principal = false,
 }: {
   id: string;
-  decision: "aceptada" | "rechazada" | "completada";
+  decision: "aceptada" | "rechazada";
   etiqueta: string;
   principal?: boolean;
 }) {

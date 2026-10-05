@@ -30,3 +30,13 @@ export const FOTOS_ACTIVAS = true;
  * Sólo tiene efecto con `FOTOS_ACTIVAS` en `true`: sin foto no hay qué medir.
  */
 export const MEDICION_AUTOMATICA_ACTIVA = false;
+
+/**
+ * Tarjetas de ROI en el Dashboard: Suscripción, Beneficio adicional y «ROI
+ * Circular» (cuántas veces el ahorro cubre la suscripción).
+ *
+ * Apagado durante el piloto: los talleres no pagan y ver «Suscripción
+ * $149.000» y un beneficio negativo en rojo confunde. El cálculo sigue en
+ * `src/lib/roi.ts`; al empezar a cobrar se vuelve a encender.
+ */
+export const MOSTRAR_ROI = false;

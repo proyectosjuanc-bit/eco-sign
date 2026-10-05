@@ -204,6 +204,7 @@ export type WasteLog = {
   alto_cm: number | null;
   job_id: string | null;
   origen: OrigenDesperdicio;
+  created_at: string;
 };
 
 export type Saving = {
@@ -319,6 +320,10 @@ export type MachineRequest = {
   estado: EstadoSolicitud;
   created_at: string;
   updated_at: string;
+  /** Lo que cobró el dueño de la máquina (opcional, sólo con la solicitud completada). */
+  monto_cobrado: number | null;
+  /** Cuándo se completó (la pone la base). */
+  completada_en: string | null;
 };
 
 /** Columnas de reputación: la base no deja que el usuario las escriba. */
@@ -562,9 +567,12 @@ export interface Database {
       machine_requests: {
         Row: MachineRequest;
         /** Sin estado: toda solicitud nace "pendiente". */
-        Insert: Omit<Insertable<MachineRequest, "estado" | "updated_at">, "estado" | "updated_at">;
-        /** Una vez enviada sólo cambia el estado (permiso por columna en la base). */
-        Update: Pick<Partial<MachineRequest>, "estado">;
+        Insert: Omit<
+          Insertable<MachineRequest, "estado" | "updated_at">,
+          "estado" | "updated_at" | "monto_cobrado" | "completada_en"
+        >;
+        /** Una vez enviada sólo cambian el estado y lo cobrado (permiso por columna en la base). */
+        Update: Pick<Partial<MachineRequest>, "estado" | "monto_cobrado">;
         Relationships: [];
       };
     };
