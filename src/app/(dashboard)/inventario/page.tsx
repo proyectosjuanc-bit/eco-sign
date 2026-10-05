@@ -10,6 +10,14 @@ import { EncabezadoPagina } from "@/components/dashboard/encabezado-pagina";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { areaM2, formatearMoneda, formatearNumero } from "@/lib/format";
 import { FOTOS_ACTIVAS } from "@/lib/funciones";
 import { ETIQUETA_CLASE, admiteDecimales, describirCantidad, etiquetaMaterial, valorItem } from "@/lib/inventario";
@@ -216,155 +224,117 @@ export default async function InventarioPage({
           </Link>
         </nav>
 
-        {/* Sin la franja de foto la tarjeta es mucho más baja; a tres
-            columnas quedaba tan estrecha que la fila de botones se
-            recortaba. Con fotos activas se recupera la tercera columna. */}
-        <div
-          className={
-            FOTOS_ACTIVAS
-              ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
-              : "grid gap-4 sm:grid-cols-2"
-          }
-        >
-          {!sobrantes?.length ? (
-            <Card className={FOTOS_ACTIVAS ? "sm:col-span-2 xl:col-span-3" : "sm:col-span-2"}>
-              <CardContent className="p-6 text-sm text-muted-foreground">
+        <Card>
+          <CardContent className="p-0">
+            {!sobrantes?.length ? (
+              <p className="p-6 text-sm text-muted-foreground">
                 {verUsados
                   ? "Todavía no hay retales usados ni vendidos."
                   : (totalUsados ?? 0) > 0
                     ? "No hay retales disponibles ahora. Los que ya usaste están en «Retales usados»."
                     : "Todavía no hay retales. Se crean al devolver sobrantes de un trabajo o con «Registrar retal»."}
-              </CardContent>
-            </Card>
-          ) : (
-            sobrantes.map((item) => {
-              const firma = item.foto_url ? firmas.get(item.foto_url) : null;
-              const porUnidad = porMaterial.get(item.material_id)?.unidad === "unidad";
-              return (
-                <Card
-                  key={item.id}
-                  className={FOTOS_ACTIVAS ? "overflow-hidden pt-0" : "overflow-hidden"}
-                >
-                  {/* Sin fotos la tarjeta no reserva la franja de imagen: el
-                      código y las medidas quedan arriba del todo. */}
-                  {FOTOS_ACTIVAS ? (
-                    firma ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        loading="lazy"
-                        decoding="async"
-                        src={firma}
-                        alt={
-                          porUnidad
-                            ? `Sobrante de ${item.cantidad} unidades`
-                            : `Sobrante de ${item.ancho_cm}×${item.alto_cm} cm`
-                        }
-                        className="h-36 w-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-36 items-center justify-center bg-muted text-xs text-muted-foreground">
-                        Sin foto
-                      </div>
-                    )
-                  ) : null}
-
-                  <CardContent className="flex flex-col gap-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        {item.codigo ? (
-                          <p className="font-mono text-xs font-semibold text-emerald-700">
-                            {item.codigo}
-                          </p>
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {FOTOS_ACTIVAS ? <TableHead className="w-0">Foto</TableHead> : null}
+                    <TableHead>Retal</TableHead>
+                    <TableHead className="text-right">Medidas</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sobrantes.map((item) => {
+                    const firma = item.foto_url ? firmas.get(item.foto_url) : null;
+                    const material = porMaterial.get(item.material_id);
+                    const porUnidad = material?.unidad === "unidad";
+                    const medidas = porUnidad
+                      ? `${formatearNumero(item.cantidad)} unidades`
+                      : `${formatearNumero(item.ancho_cm)} × ${formatearNumero(item.alto_cm)} cm`;
+                    return (
+                      <TableRow key={item.id}>
+                        {FOTOS_ACTIVAS ? (
+                          <TableCell className="align-top">
+                            {firma ? (
+                              <a href={firma} target="_blank" rel="noopener noreferrer" title="Ver la foto completa">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  loading="lazy"
+                                  decoding="async"
+                                  src={firma}
+                                  alt={`Foto del retal ${item.codigo ?? ""} de ${medidas}`}
+                                  className="size-10 rounded object-cover"
+                                />
+                              </a>
+                            ) : (
+                              <div className="size-10 rounded bg-muted" />
+                            )}
+                          </TableCell>
                         ) : null}
-                        {porUnidad ? (
-                          <p className="font-semibold">
-                            {formatearNumero(item.cantidad)} unidades
-                          </p>
-                        ) : (
-                          <>
-                            <p className="font-semibold">
-                              {formatearNumero(item.ancho_cm)} ×{" "}
-                              {formatearNumero(item.alto_cm)} cm
-                            </p>
-                            <p className="text-xs text-muted-foreground">
+                        {/* Código, material y botones en una sola columna: en
+                            el celular la tabla cabe sin deslizar de lado. */}
+                        <TableCell className="whitespace-normal">
+                          <span className="font-mono text-xs font-semibold text-emerald-700">
+                            {item.codigo ?? "Sin código"}
+                          </span>
+                          {item.usado ? (
+                            <Badge variant="secondary" className="ml-2">Usado</Badge>
+                          ) : null}
+                          <span className="block font-medium">
+                            {material ? etiquetaMaterial(material) : "—"}
+                          </span>
+                          <div className="mt-1 flex flex-wrap items-center gap-1">
+                            {!item.usado ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  render={<Link href={`/trabajos?origen_sobrante=${item.id}`} />}
+                                >
+                                  Usar en un trabajo
+                                </Button>
+                                <DialogoVender id={item.id} codigo={item.codigo} />
+                                <form action={marcarUsado}>
+                                  <input type="hidden" name="id" value={item.id} />
+                                  <Button type="submit" size="sm" variant="ghost" className="text-muted-foreground">
+                                    Reutilizar
+                                  </Button>
+                                </form>
+                              </>
+                            ) : null}
+                            <form action={eliminarSobrante}>
+                              <input type="hidden" name="id" value={item.id} />
+                              <Button
+                                type="submit"
+                                size="sm"
+                                variant="ghost"
+                                className="text-muted-foreground hover:text-destructive"
+                              >
+                                Eliminar
+                              </Button>
+                            </form>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right align-top">
+                          {medidas}
+                          {!porUnidad ? (
+                            <span className="block text-xs text-muted-foreground">
                               {formatearNumero(areaM2(item.ancho_cm, item.alto_cm))} m²
-                              {item.color ? ` · ${item.color}` : ""}
-                            </p>
-                          </>
-                        )}
-                      </div>
-                      <Badge variant={item.usado ? "secondary" : "default"}>
-                        {item.usado ? "Usado" : "Disponible"}
-                      </Badge>
-                    </div>
-
-                    <p className="text-sm">
-                      Valor:{" "}
-                      <strong className="text-emerald-600">
-                        {formatearMoneda(item.costo_estimado)}
-                      </strong>
-                    </p>
-
-                    {!item.usado ? (
-                      <div className="flex flex-col gap-2">
-                        <Button
-                          size="sm"
-                          variant="default"
-                          className="w-full"
-                          render={
-                            <Link href={`/trabajos?origen_sobrante=${item.id}`} />
-                          }
-                        >
-                          Usar en un trabajo
-                        </Button>
-                        {/* flex-wrap y no justify-between: en una tarjeta
-                            estrecha los tres botones no caben en una línea y
-                            el último se recortaba. Así baja de línea. */}
-                        <div className="flex flex-wrap items-center gap-1">
-                          <DialogoVender id={item.id} codigo={item.codigo} />
-                          <form action={marcarUsado}>
-                            <input type="hidden" name="id" value={item.id} />
-                            <Button
-                              type="submit"
-                              size="sm"
-                              variant="ghost"
-                              className="text-muted-foreground"
-                            >
-                              Reutilizar
-                            </Button>
-                          </form>
-                          <form action={eliminarSobrante}>
-                            <input type="hidden" name="id" value={item.id} />
-                            <Button
-                              type="submit"
-                              size="sm"
-                              variant="ghost"
-                              className="text-muted-foreground hover:text-destructive"
-                            >
-                              Eliminar
-                            </Button>
-                          </form>
-                        </div>
-                      </div>
-                    ) : (
-                      <form action={eliminarSobrante}>
-                        <input type="hidden" name="id" value={item.id} />
-                        <Button
-                          type="submit"
-                          size="sm"
-                          variant="ghost"
-                          className="text-muted-foreground hover:text-destructive"
-                        >
-                          Eliminar
-                        </Button>
-                      </form>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })
-          )}
-        </div>
+                            </span>
+                          ) : null}
+                        </TableCell>
+                        <TableCell className="text-right align-top font-medium text-emerald-600">
+                          {formatearMoneda(item.costo_estimado)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
 
         {totalPaginas > 1 ? (
           <nav aria-label="Páginas" className="flex items-center justify-between gap-2 text-sm">
