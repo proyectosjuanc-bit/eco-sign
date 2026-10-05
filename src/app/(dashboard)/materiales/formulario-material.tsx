@@ -73,11 +73,19 @@ function CamposMaterial({
   // Sólo se usa cuando el material no viene en láminas.
   const [costoM2Manual, setCostoM2Manual] = useState("");
   const [costoUnitarioManual, setCostoUnitarioManual] = useState("");
+  // Líquidos: precio y contenido del envase.
+  const [precioEnvase, setPrecioEnvase] = useState("");
+  const [contenidoMl, setContenidoMl] = useState("1000");
 
   // Unidades (tornillos, LED) y metro lineal (neón, cable) no se cortan en
   // láminas: sólo piden su precio (por unidad o por metro).
   const porUnidad = unidad === "unidad" || unidad === "metro_lineal";
   const porMetro = unidad === "metro_lineal";
+  const esLiquido = unidad === "ml";
+  const precioMl =
+    (comoNumero(precioEnvase) ?? 0) > 0 && (comoNumero(contenidoMl) ?? 0) > 0
+      ? (comoNumero(precioEnvase) ?? 0) / (comoNumero(contenidoMl) ?? 1)
+      : null;
 
   const datos = {
     anchoCm: comoNumero(ancho),
@@ -93,8 +101,9 @@ function CamposMaterial({
       <CardHeader>
         <CardTitle>Nuevo material</CardTitle>
         <CardDescription>
-          Láminas (acrílico, vinilo…), rollos por metro (neón, cable) o
-          materiales por unidad (tornillos, luces LED). El costo por m² se
+          Láminas (acrílico, vinilo…), rollos por metro (neón, cable),
+          materiales por unidad (tornillos, luces LED) o líquidos por ml
+          (tintas, adhesivos). El costo por m² se
           calcula solo. Aquí van solo los precios: lo que tienes en bodega se
           registra en Inventario → Entrada de material.
         </CardDescription>
@@ -123,11 +132,80 @@ function CamposMaterial({
                 <option value="m2">Lámina (m²)</option>
                 <option value="unidad">Unidad (tornillos, luces, piezas…)</option>
                 <option value="metro_lineal">Metro lineal</option>
+                <option value="ml">Mililitros (tintas, adhesivos, líquidos)</option>
               </select>
             </div>
           </div>
 
-          {porUnidad ? (
+          {esLiquido ? (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Para tintas, adhesivos, solventes y otros líquidos: escribe lo
+                que cuesta el envase y cuánto trae. En los trabajos se gasta por
+                ml, y hay una calculadora para saber cuántos ml lleva cada
+                trabajo según tu máquina.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="precio_envase">Precio del envase</Label>
+                  <Input
+                    id="precio_envase"
+                    name="precio_envase"
+                    type="number"
+                    step="1"
+                    min="0"
+                    inputMode="decimal"
+                    placeholder="180000"
+                    value={precioEnvase}
+                    onChange={(e) => setPrecioEnvase(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="contenido_ml">Contenido del envase (ml)</Label>
+                  <Input
+                    id="contenido_ml"
+                    name="contenido_ml"
+                    type="number"
+                    step="1"
+                    min="1"
+                    inputMode="decimal"
+                    placeholder="1000"
+                    value={contenidoMl}
+                    onChange={(e) => setContenidoMl(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                1 litro = 1000 ml · 1 galón = 3785 ml.
+              </p>
+              {precioMl !== null ? (
+                <div className="rounded-md bg-muted p-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Precio por ml</span>
+                    <strong className="text-emerald-600">{formatearMoneda(precioMl)}</strong>
+                  </div>
+                </div>
+              ) : null}
+              <div className="grid gap-2">
+                <Label htmlFor="ml_por_m2">¿Cuántos ml gasta tu máquina por m²? (opcional)</Label>
+                <Input
+                  id="ml_por_m2"
+                  name="ml_por_m2"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  inputMode="decimal"
+                  placeholder="10"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Si no lo sabes, déjalo vacío: lo puedes calcular después en el
+                  trabajo con el botón «Calcular consumo».
+                </p>
+              </div>
+            </>
+          ) : porUnidad ? (
             <>
               <p className="text-xs text-muted-foreground">
                 {porMetro

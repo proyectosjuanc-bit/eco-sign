@@ -10,7 +10,7 @@ import { texto, numero } from "@/lib/form-data";
 import { leerArchivoMateriales, unidadDesdeTexto } from "@/lib/materiales-archivo";
 import type { Unidad } from "@/types/database";
 
-const UNIDADES: readonly Unidad[] = ["m2", "unidad", "metro_lineal"];
+const UNIDADES: readonly Unidad[] = ["m2", "unidad", "metro_lineal", "ml"];
 
 interface DatosMaterial {
   tipo: string;
@@ -21,6 +21,10 @@ interface DatosMaterial {
   alto: number | null;
   costoLamina: number | null;
   costoUnitarioCrudo: number | null;
+  /** Líquidos: precio y contenido (ml) del envase, y ml por m² si se sabe. */
+  precioEnvase?: number | null;
+  contenidoMl?: number | null;
+  mlPorM2?: number | null;
 }
 
 /**
@@ -48,13 +52,28 @@ function prepararMaterial(datos: DatosMaterial): ResultadoMaterial {
     altoCm: datos.alto,
     costoLamina: datos.costoLamina,
   });
-  const costo = porM2 ?? datos.costoUnitarioCrudo;
+  // Líquidos: el precio de 1 ml sale del envase (un litro de tinta, un galón
+  // de adhesivo…), que es como lo vende el proveedor.
+  const porMl =
+    unidad === "ml" && datos.precioEnvase != null && datos.contenidoMl
+      ? datos.precioEnvase / datos.contenidoMl
+      : null;
+  if (unidad === "ml" && datos.contenidoMl != null && datos.contenidoMl <= 0) {
+    return { ok: false, error: "El contenido del envase debe ser mayor que cero." };
+  }
+  const costo = unidad === "m2" ? (porM2 ?? datos.costoUnitarioCrudo) : (porMl ?? datos.costoUnitarioCrudo);
+  const mlPorM2 = unidad === "ml" ? (datos.mlPorM2 ?? null) : null;
+  if (mlPorM2 !== null && (mlPorM2 <= 0 || mlPorM2 > 1000)) {
+    return { ok: false, error: "Los ml por m² deben estar entre 0 y 1000." };
+  }
 
   if (costo === null || costo < 0) {
     return {
       ok: false,
       error:
-        "Escribe el tamaño y el precio de la lámina, o el precio por unidad si el material no viene en láminas.",
+        unidad === "ml"
+          ? "Escribe el precio y el contenido (ml) del envase."
+          : "Escribe el tamaño y el precio de la lámina, o el precio por unidad si el material no viene en láminas.",
     };
   }
 
@@ -68,10 +87,11 @@ function prepararMaterial(datos: DatosMaterial): ResultadoMaterial {
       grosor_mm: datos.grosor,
       costo_unitario: costo,
       unidad,
-      ancho_cm: datos.ancho,
-      alto_cm: datos.alto,
-      costo_lamina: datos.costoLamina,
+      ancho_cm: unidad === "m2" ? datos.ancho : null,
+      alto_cm: unidad === "m2" ? datos.alto : null,
+      costo_lamina: unidad === "m2" ? datos.costoLamina : null,
       stock_laminas: 0,
+      ml_por_m2: mlPorM2,
     },
   };
 }
@@ -86,6 +106,7 @@ interface MaterialParaInsertar {
   alto_cm: number | null;
   costo_lamina: number | null;
   stock_laminas: number;
+  ml_por_m2: number | null;
 }
 
 export async function crearMaterial(
@@ -101,6 +122,9 @@ export async function crearMaterial(
     alto: numero(formData, "alto_cm"),
     costoLamina: numero(formData, "costo_lamina"),
     costoUnitarioCrudo: numero(formData, "costo_unitario"),
+    precioEnvase: numero(formData, "precio_envase"),
+    contenidoMl: numero(formData, "contenido_ml"),
+    mlPorM2: numero(formData, "ml_por_m2"),
   });
 
   if (!resultado.ok) return { error: resultado.error, ok: false };
@@ -172,16 +196,19 @@ export async function importarMateriales(
   // Fila por fila, no en lote: así una fila con datos raros no descarta las
   // demás, y el resumen puede decir exactamente cuál falló y por qué.
   for (const { numero: numeroFila, datos: fila } of filas) {
+    // La plantilla muestra "Lámina (m²)", "Unidad"…; aquí se pasa al valor interno.
+    const unidadFila = unidadDesdeTexto(fila.unidad ?? "");
+    const precioFila = numeroDeCelda(fila.costo_unitario);
     const resultado = prepararMaterial({
       tipo: fila.tipo ?? "",
       color: fila.color ?? "",
       grosor: numeroDeCelda(fila.grosor_mm),
-      // La plantilla muestra "Lámina (m²)", "Unidad"…; aquí se pasa al valor interno.
-      unidadCruda: unidadDesdeTexto(fila.unidad ?? ""),
+      unidadCruda: unidadFila,
       ancho: numeroDeCelda(fila.ancho_cm),
       alto: numeroDeCelda(fila.alto_cm),
       costoLamina: numeroDeCelda(fila.costo_lamina),
-      costoUnitarioCrudo: numeroDeCelda(fila.costo_unitario),
+      // Para líquidos la plantilla pide el precio de 1 litro.
+      costoUnitarioCrudo: unidadFila === "ml" && precioFila !== null ? precioFila / 1000 : precioFila,
     });
 
     if (!resultado.ok) {
@@ -281,3 +308,28 @@ export async function restaurarMaterial(id: string): Promise<ResultadoArchivo> {
   return { ok: true, mensaje: "Material restaurado." };
 }
 
+/**
+ * Guarda cuántos ml por m² gasta el taller con un líquido (tinta, adhesivo).
+ * Lo usa la calculadora de «Sacar del inventario» para la próxima vez: cada
+ * máquina gasta distinto, así que cada taller pone su propio número.
+ */
+export async function guardarMlPorM2(materialId: string, mlPorM2: number): Promise<{ error: string | null }> {
+  if (!/^[0-9a-f-]{36}$/i.test(materialId)) return { error: "Material no válido." };
+  if (!Number.isFinite(mlPorM2) || mlPorM2 <= 0 || mlPorM2 > 1000) {
+    return { error: "Los ml por m² deben estar entre 0 y 1000." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("materials")
+    .update({ ml_por_m2: Math.round(mlPorM2 * 100) / 100 })
+    .eq("id", materialId)
+    .eq("unidad", "ml")
+    .select("id");
+  if (error || !data?.length) {
+    if (error) console.error("[materiales] No se pudo guardar ml por m²", error);
+    return { error: "No pudimos guardar el consumo por m². Revisa que tu rol permita editar." };
+  }
+  revalidatePath("/materiales");
+  return { error: null };
+}

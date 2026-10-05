@@ -60,7 +60,7 @@ export default async function TrabajoPage({
     supabase.from("job_items").select("*").eq("job_id", id).order("created_at"),
     supabase
       .from("materials")
-      .select("id, tipo, color, grosor_mm, costo_unitario, costo_lamina, unidad, archivado"),
+      .select("id, tipo, color, grosor_mm, costo_unitario, costo_lamina, unidad, archivado, ml_por_m2"),
     supabase.from("savings").select("monto").eq("job_id", id),
     supabase.from("waste_logs").select("id").eq("job_id", id).eq("origen", "recortes"),
     supabase
@@ -141,6 +141,9 @@ export default async function TrabajoPage({
       ancho_cm: i.ancho_cm,
       alto_cm: i.alto_cm,
       cantidad: Number(i.cantidad),
+      material_id: m.id,
+      precio: Number(m.costo_unitario),
+      ml_por_m2: m.ml_por_m2 == null ? null : Number(m.ml_por_m2),
     }];
   });
 

@@ -117,7 +117,9 @@ export async function sacarDelInventario(
           ? "Escribe cuántas láminas sacas."
           : item.clase === "metros"
             ? "Escribe cuántos metros usas."
-            : "Escribe cuántas unidades usas.",
+            : item.clase === "mililitros"
+              ? "Escribe cuántos ml usas."
+              : "Escribe cuántas unidades usas.",
       ok: false,
     };
   }

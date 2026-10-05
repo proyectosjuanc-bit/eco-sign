@@ -4,6 +4,7 @@ import { useActionState, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { registrarPieza, registrarSobranteDeCorte, sacarDelInventario } from "../actions";
+import { CalculadoraLiquido } from "./calculadora-liquido";
 import { CampoFoto } from "@/components/dashboard/campo-foto";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { ESTADO_FORM_INICIAL, type EstadoForm } from "@/lib/form-state";
 import { formatearNumero } from "@/lib/format";
 import { FOTOS_ACTIVAS } from "@/lib/funciones";
-import { describirCantidad, retalAlcanza } from "@/lib/inventario";
+import { admiteDecimales, describirCantidad, retalAlcanza } from "@/lib/inventario";
 import type { ClaseInventario } from "@/types/database";
 
 const CLASE_SELECT =
@@ -27,6 +28,11 @@ export interface OpcionInventario {
   ancho_cm: number;
   alto_cm: number;
   cantidad: number;
+  material_id: string;
+  /** Precio de 1 unidad, metro o ml (para mostrar el costo en la calculadora). */
+  precio: number;
+  /** Líquidos: ml por m² guardados por el taller. */
+  ml_por_m2: number | null;
 }
 
 /** Un material del catálogo para piezas y sobrantes. */
@@ -75,7 +81,8 @@ export function FormularioSalida({
         <CardTitle>1. Sacar del inventario</CardTitle>
         <CardDescription>
           Todo lo que usas sale de tu inventario: láminas completas, retales,
-          metros o unidades. Usar un retal cuenta como ahorro.
+          metros, unidades o líquidos (tinta, adhesivo) en ml. Usar un retal
+          cuenta como ahorro.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -131,6 +138,7 @@ function CamposSalida({
       { titulo: "Láminas completas", items: opciones.filter((o) => o.clase === "lamina") },
       { titulo: "Rollos (metros)", items: opciones.filter((o) => o.clase === "metros") },
       { titulo: "Unidades", items: opciones.filter((o) => o.clase === "unidades") },
+      { titulo: "Líquidos (ml)", items: opciones.filter((o) => o.clase === "mililitros") },
     ].filter((g) => g.items.length);
   }, [opciones, conMedida, ancho, alto]);
 
@@ -220,15 +228,17 @@ function CamposSalida({
               ? "¿Cuántas láminas sacas?"
               : elegido.clase === "metros"
                 ? "¿Cuántos metros usas?"
-                : "¿Cuántas unidades usas?"}
+                : elegido.clase === "mililitros"
+                  ? "¿Cuántos ml usas?"
+                  : "¿Cuántas unidades usas?"}
           </Label>
           <Input
             id="cantidad_salida"
             name="cantidad"
             type="number"
             inputMode="decimal"
-            min={elegido.clase === "metros" ? "0.1" : "1"}
-            step={elegido.clase === "metros" ? "0.1" : "1"}
+            min={admiteDecimales(elegido.clase) ? "0.1" : "1"}
+            step={admiteDecimales(elegido.clase) ? "0.1" : "1"}
             max={elegido.cantidad}
             value={cantidad}
             onChange={(e) => setCantidad(e.target.value)}
@@ -237,6 +247,17 @@ function CamposSalida({
           <p className="text-xs text-muted-foreground">
             Hay {describirCantidad(elegido)} en el inventario.
           </p>
+          {elegido.clase === "mililitros" ? (
+            <CalculadoraLiquido
+              key={elegido.id}
+              materialId={elegido.material_id}
+              mlPorM2Guardado={elegido.ml_por_m2}
+              precioMl={elegido.precio}
+              anchoInicial={anchoNecesario}
+              altoInicial={altoNecesario}
+              onUsar={(ml) => setCantidad(String(ml))}
+            />
+          ) : null}
         </div>
       ) : null}
 

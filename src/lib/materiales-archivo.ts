@@ -43,7 +43,7 @@ interface Columna {
 }
 
 /** Valores de la lista desplegable de "Se mide por", tal como los ve el cliente. */
-const UNIDADES_VISIBLES = ["Lámina (m²)", "Unidad", "Metro lineal"] as const;
+const UNIDADES_VISIBLES = ["Lámina (m²)", "Unidad", "Metro lineal", "Mililitros (líquidos)"] as const;
 
 const COLUMNAS: Columna[] = [
   {
@@ -63,7 +63,7 @@ const COLUMNAS: Columna[] = [
   {
     clave: "unidad",
     titulo: "Se mide por",
-    ayuda: "Elige de la lista: Lámina (m²), Unidad o Metro lineal. Si lo dejas vacío, se toma como lámina.",
+    ayuda: "Elige de la lista: Lámina (m²), Unidad, Metro lineal o Mililitros (tintas, adhesivos y otros líquidos). Si lo dejas vacío, se toma como lámina.",
     obligatoria: false,
     ancho: 16,
   },
@@ -93,8 +93,8 @@ const COLUMNAS: Columna[] = [
   },
   {
     clave: "costo_unitario",
-    titulo: "Precio por unidad o metro",
-    ayuda: "Para lo que NO es lámina: el precio de cada unidad (un tornillo, una luz LED) o de cada metro lineal.",
+    titulo: "Precio por unidad, metro o litro",
+    ayuda: "Para lo que NO es lámina: el precio de cada unidad (un tornillo, una luz LED), de cada metro lineal o, para líquidos, de 1 LITRO (se pasa solo a precio por ml).",
     obligatoria: false,
     ancho: 24,
     formato: "dinero",
@@ -113,6 +113,7 @@ const EJEMPLOS: (string | number)[][] = [
   ["Acrílico", "Blanco", "Lámina (m²)", 120, 180, 250000, "", 3],
   ["Luces LED", "", "Unidad", "", "", "", 3500, ""],
   ["Vinilo de corte", "Negro", "Metro lineal", "", "", "", 12000, ""],
+  ["Tinta eco-solvente", "Cian", "Mililitros (líquidos)", "", "", "", 180000, ""],
 ];
 
 /** Filas con validación y formato preparadas en la hoja; de sobra para una carga inicial. */
@@ -286,6 +287,7 @@ export function unidadDesdeTexto(texto: string): string {
   if (n === "m2" || n.startsWith("lamina")) return "m2";
   if (n.startsWith("unidad")) return "unidad";
   if (n.startsWith("metro")) return "metro_lineal";
+  if (n.startsWith("mili") || n === "ml" || n.startsWith("liquido") || n.startsWith("litro")) return "ml";
   return texto;
 }
 

@@ -64,7 +64,9 @@ function CamposEntrada({
       ? "¿Cuántas unidades entran?"
       : elegido?.unidad === "metro_lineal"
         ? "¿Cuántos metros entran?"
-        : "¿Cuántas láminas completas entran?";
+        : elegido?.unidad === "ml"
+          ? "¿Cuántos ml entran? (1 litro = 1000 ml)"
+          : "¿Cuántas láminas completas entran?";
   const sinTamano = elegido?.unidad === "m2" && (!elegido.ancho_cm || !elegido.alto_cm);
 
   return (
@@ -73,7 +75,7 @@ function CamposEntrada({
         <CardTitle>Entrada de material</CardTitle>
         <CardDescription>
           Registra lo que compras (o lo que ya tienes en bodega al empezar):
-          láminas completas, metros de rollo o unidades.
+          láminas completas, metros de rollo, unidades o líquidos (ml).
         </CardDescription>
       </CardHeader>
       <CardContent>

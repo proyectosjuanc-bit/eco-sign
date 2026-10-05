@@ -9,7 +9,7 @@ import { areaM2 } from "@/lib/format";
 import { subirFoto } from "@/lib/supabase/subir-foto";
 import { texto, numero } from "@/lib/form-data";
 import { formatearCodigo } from "@/lib/codigos";
-import { claseDeCompra } from "@/lib/inventario";
+import { admiteDecimales, claseDeCompra } from "@/lib/inventario";
 
 
 export async function crearSobrante(
@@ -305,7 +305,7 @@ export async function entradaMaterial(
   if (!material || material.archivado) return { error: "Ese material ya no está en el catálogo.", ok: false };
 
   const clase = claseDeCompra(material.unidad);
-  if (clase !== "metros" && !Number.isInteger(cantidad)) {
+  if (!admiteDecimales(clase) && !Number.isInteger(cantidad)) {
     return {
       error: clase === "lamina" ? "Las láminas se cuentan enteras (1, 2, 3…)." : "Las unidades se cuentan enteras.",
       ok: false,

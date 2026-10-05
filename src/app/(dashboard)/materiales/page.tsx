@@ -23,6 +23,7 @@ const ETIQUETA_UNIDAD: Record<string, string> = {
   m2: "m²",
   unidad: "unidad",
   metro_lineal: "metro lineal",
+  ml: "ml",
 };
 
 /** Catálogo de materiales del tenant: listado y alta. */
@@ -116,6 +117,12 @@ export default async function MaterialesPage() {
                           {" "}
                           / {ETIQUETA_UNIDAD[material.unidad] ?? material.unidad}
                         </span>
+                        {material.unidad === "ml" ? (
+                          <span className="block text-xs text-muted-foreground">
+                            {formatearMoneda(material.costo_unitario * 1000)} / litro
+                            {material.ml_por_m2 ? ` · ${formatearNumero(material.ml_por_m2)} ml/m²` : ""}
+                          </span>
+                        ) : null}
                       </TableCell>
                       <TableCell>
                         <BotonEliminarMaterial

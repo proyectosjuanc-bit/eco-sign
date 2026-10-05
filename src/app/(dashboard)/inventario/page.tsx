@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { areaM2, formatearMoneda, formatearNumero } from "@/lib/format";
 import { FOTOS_ACTIVAS } from "@/lib/funciones";
-import { ETIQUETA_CLASE, describirCantidad, etiquetaMaterial, valorItem } from "@/lib/inventario";
+import { ETIQUETA_CLASE, admiteDecimales, describirCantidad, etiquetaMaterial, valorItem } from "@/lib/inventario";
 import { createClient } from "@/lib/supabase/server";
 import { firmarFotos } from "@/lib/supabase/subir-foto";
 
@@ -180,7 +180,7 @@ export default async function InventarioPage({
                             Usar en un trabajo
                           </Button>
                         ) : null}
-                        <CorregirCantidad id={e.id} cantidad={Number(e.cantidad)} decimales={e.clase === "metros"} />
+                        <CorregirCantidad id={e.id} cantidad={Number(e.cantidad)} decimales={admiteDecimales(e.clase)} />
                       </span>
                     </li>
                   );

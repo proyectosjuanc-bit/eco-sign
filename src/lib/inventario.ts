@@ -13,12 +13,14 @@ export const ETIQUETA_CLASE: Record<ClaseInventario, string> = {
   retal: "Retales",
   metros: "Rollos (metros)",
   unidades: "Unidades",
+  mililitros: "Líquidos (ml)",
 };
 
 /** Clase en la que entra una compra de un material, según cómo se mide. */
 export function claseDeCompra(unidad: Unidad | string): Exclude<ClaseInventario, "retal"> {
   if (unidad === "unidad") return "unidades";
   if (unidad === "metro_lineal") return "metros";
+  if (unidad === "ml") return "mililitros";
   return "lamina";
 }
 
@@ -55,7 +57,12 @@ export function valorItem(item: ItemParaValorar, material: PrecioMaterial | unde
   return Number(item.cantidad) * material.costo_unitario;
 }
 
-/** "5 láminas de 120 × 180 cm", "60 × 70 cm", "40 m", "200 unidades". */
+/** ¿Se cuenta con decimales? Metros (10,5 m) y mililitros (12,5 ml) sí. */
+export function admiteDecimales(clase: ClaseInventario): boolean {
+  return clase === "metros" || clase === "mililitros";
+}
+
+/** "5 láminas de 120 × 180 cm", "60 × 70 cm", "40 m", "200 unidades", "1.500 ml (1,5 L)". */
 export function describirCantidad(item: {
   clase: ClaseInventario;
   ancho_cm: number;
@@ -72,6 +79,8 @@ export function describirCantidad(item: {
       return `${formatearNumero(n)} m`;
     case "unidades":
       return `${formatearNumero(n)} ${n === 1 ? "unidad" : "unidades"}`;
+    case "mililitros":
+      return n >= 1000 ? `${formatearNumero(n)} ml (${formatearNumero(n / 1000)} L)` : `${formatearNumero(n)} ml`;
   }
 }
 

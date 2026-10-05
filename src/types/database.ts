@@ -27,7 +27,7 @@ export type TipoAhorro =
   | "optimizacion"
   | "otro";
 
-export type Unidad = "m2" | "unidad" | "metro_lineal";
+export type Unidad = "m2" | "unidad" | "metro_lineal" | "ml";
 
 export type Tenant = {
   id: string;
@@ -103,6 +103,8 @@ export type Material = {
   stock_laminas: number;
   /** Ya no se ofrece al registrar, pero su historial se conserva. */
   archivado: boolean;
+  /** Sólo líquidos (unidad ml): ml que gasta el taller por m² impreso o pegado. */
+  ml_por_m2: number | null;
 };
 
 export type InventoryItem = {
@@ -160,7 +162,7 @@ export type Job = {
 export type ModoPieza = "pieza" | "salida";
 
 /** Las cuatro clases de cosas que guarda el inventario. */
-export type ClaseInventario = "lamina" | "retal" | "metros" | "unidades";
+export type ClaseInventario = "lamina" | "retal" | "metros" | "unidades" | "mililitros";
 
 export type JobItem = {
   id: string;

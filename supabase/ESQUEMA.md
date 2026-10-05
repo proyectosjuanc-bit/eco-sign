@@ -631,3 +631,18 @@ para un trabajo, aunque nadie la tenga publicada (`/capacidad/busquedas`).
 Pruebas: `node --env-file=.env.local scripts/probar-busquedas.mjs` (21
 comprobaciones; borra de las campanitas reales los avisos que genera).
 Verificado en Chrome el 4 de octubre de 2026 (12 comprobaciones, push real).
+
+## Líquidos por mililitro (tintas, adhesivos)
+
+Migración `20261006_liquidos.sql`. `materials.unidad = 'ml'`: `costo_unitario`
+es el precio de 1 ml (el formulario lo deriva del precio y el contenido del
+envase; la plantilla de Excel pide el precio de 1 litro). Entra al inventario
+como clase `mililitros` (cantidad = ml, con decimales).
+
+`materials.ml_por_m2` (opcional): cuántos ml gasta el taller por m² impreso o
+pegado. La calculadora de «Sacar del inventario» del trabajo
+(`trabajos/[id]/calculadora-liquido.tsx`) calcula m² × ml/m² y, si el taller
+no conoce su tasa, la saca de un periodo medido (ml gastados ÷ m² impresos);
+al usar el resultado puede guardarla con `guardarMlPorM2`. Cada taller pone
+la de su máquina. Verificado en Chrome el 5 de octubre de 2026 (12
+comprobaciones).
