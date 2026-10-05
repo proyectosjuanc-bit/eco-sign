@@ -371,19 +371,19 @@ export async function eliminarPieza(formData: FormData): Promise<void> {
   revalidatePath("/dashboard");
 }
 
-export async function cambiarEstado(formData: FormData): Promise<void> {
-  const id = texto(formData, "id");
-  const estadoCrudo = texto(formData, "estado");
-  if (!id || !ESTADOS.includes(estadoCrudo as EstadoTrabajo)) return;
+export async function cambiarEstado(id: string, estado: EstadoTrabajo): Promise<{ error: string | null }> {
+  if (!id || !ESTADOS.includes(estado)) return { error: "Estado no válido." };
 
   const supabase = await createClient();
-  await supabase
-    .from("jobs")
-    .update({ estado: estadoCrudo as EstadoTrabajo })
-    .eq("id", id);
+  const { data, error } = await supabase.from("jobs").update({ estado }).eq("id", id).select("id");
+  if (error || !data?.length) {
+    if (error) console.error("[trabajos] No se pudo cambiar el estado", error);
+    return { error: error ? mensajeError(error) : "Tu rol no permite cambiar el estado del trabajo." };
+  }
 
   revalidatePath("/trabajos");
   revalidatePath(`/trabajos/${id}`);
+  return { error: null };
 }
 
 /** Borra el trabajo. Lo que había sacado del inventario vuelve al inventario. */

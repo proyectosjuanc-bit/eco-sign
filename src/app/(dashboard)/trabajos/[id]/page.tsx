@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { cambiarEstado, eliminarPieza } from "../actions";
+import { eliminarPieza } from "../actions";
+import { SelectorEstado } from "./selector-estado";
 import { BotonRecortes } from "./boton-recortes";
 import {
   FormularioDevolver,
@@ -176,21 +177,7 @@ export default async function TrabajoPage({
         descripcion={`${trabajo.cliente ?? "Sin cliente"} · ${formatearFecha(trabajo.fecha)}`}
       >
         <div className="flex items-center gap-2">
-          <form action={cambiarEstado} className="flex items-center gap-2">
-            <input type="hidden" name="id" value={trabajo.id} />
-            <select
-              name="estado"
-              defaultValue={trabajo.estado}
-              className="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-            >
-              <option value="pendiente">Pendiente</option>
-              <option value="en_proceso">En proceso</option>
-              <option value="terminado">Terminado</option>
-            </select>
-            <Button type="submit" variant="outline" size="sm">
-              Guardar
-            </Button>
-          </form>
+          <SelectorEstado key={trabajo.estado} jobId={trabajo.id} estado={trabajo.estado} />
           <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/trabajos" />}>
             Volver
           </Button>
