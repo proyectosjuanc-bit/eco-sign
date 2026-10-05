@@ -4,8 +4,6 @@ import type { ReactNode } from "react";
 
 import { EncabezadoPagina } from "@/components/dashboard/encabezado-pagina";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatearMoneda } from "@/lib/format";
-import { SUSCRIPCION_MENSUAL } from "@/lib/roi";
 
 export const metadata: Metadata = { title: "Cómo funciona · ECO-SIGN" };
 
@@ -21,59 +19,68 @@ export default function GuiaPage() {
     <>
       <EncabezadoPagina
         titulo="Cómo funciona"
-        descripcion="El recorrido completo, de la compra del material al ahorro del mes."
+        descripcion="El recorrido completo: del material que compras al ahorro del mes y lo que ganas prestando tus máquinas."
       />
 
       <div className="flex max-w-3xl flex-col gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">
-              La idea en una línea
-            </CardTitle>
+            <CardTitle className="text-base">La idea en una línea</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm">
             <p>
-              Cada retazo que reutilizas es material que no vuelves a comprar.
-              ECO-SIGN registra ese dinero y lo compara con lo que pagas por el
-              software, que son {formatearMoneda(SUSCRIPCION_MENSUAL)} al mes.
+              Cada retal que reutilizas es material que no vuelves a comprar, y
+              cada hora que tu máquina está quieta puede ser plata si otro
+              taller la usa. ECO-SIGN registra las dos cosas para que veas cuánto
+              ahorras y cuánto ganas.
             </p>
-            <p className="text-muted-foreground">
-              Cuando el ahorro supera esa cifra, el software se paga solo. Eso es
-              el ROI Circular del panel principal.
-            </p>
+            <nav aria-label="Secciones de la guía" className="flex flex-wrap gap-2 text-xs">
+              {SECCIONES.map((s) => (
+                <a key={s.id} href={`#${s.id}`} className="rounded-full border px-2.5 py-1 hover:bg-muted">
+                  {s.numero}. {s.nombre}
+                </a>
+              ))}
+            </nav>
           </CardContent>
         </Card>
 
-        <Paso numero={1} titulo="Materiales: el catálogo de precios" enlace="/materiales">
+        <Paso id="materiales" numero={1} titulo="Materiales: el catálogo de precios" enlace="/materiales">
           <p>
             Aquí defines <strong>qué materiales usas y cuánto cuestan</strong>.
-            No es la bodega: lo que tienes físicamente va en Inventario.
+            Solo precios: lo que tienes físicamente se registra en Inventario.
           </p>
           <ul className="ml-4 list-disc space-y-1">
             <li><strong>Lámina (m²)</strong>: acrílico, PVC, vinilo… Escribe el tamaño de la lámina y su precio; el costo por m² se calcula solo.</li>
-            <li><strong>Metro lineal</strong>: neón, cable, perfiles… Escribe el precio del metro.</li>
+            <li><strong>Metro lineal</strong>: neón, cable, vinilo de corte en rollo… Escribe el precio del metro.</li>
             <li><strong>Unidad</strong>: tornillos, luces LED, fuentes… Escribe el precio de cada una.</li>
+            <li><strong>Mililitros</strong>: tintas, adhesivos, pinturas, thinner. Escribe el precio del envase y cuánto trae (1 litro = 1000 ml, 1 galón = 3785 ml); el precio por ml se calcula solo.</li>
           </ul>
           <Ejemplo>
             Acrílico negro 3 mm, lámina de 120 × 180 cm a $250.000: el sistema
-            calcula 2,16 m² por lámina y $115.741 el m².
+            calcula 2,16 m² por lámina y $115.741 el m². Tinta cyan, botella de
+            1000 ml a $95.000: $95 el ml.
           </Ejemplo>
+          <p className="text-muted-foreground">
+            ¿Muchos materiales? Usa <strong>Cargar varios materiales</strong> con la
+            plantilla de Excel.
+          </p>
         </Paso>
 
-        <Paso numero={2} titulo="Inventario: todo lo que tienes" enlace="/inventario">
+        <Paso id="inventario" numero={2} titulo="Inventario: todo lo que tienes" enlace="/inventario">
           <p>
-            Aquí vive <strong>todo lo físico</strong> del taller, en cuatro clases:
-            láminas completas, retales (pedazos con medidas y código SOB), rollos
-            por metro y unidades.
+            Aquí vive <strong>todo lo físico</strong> del taller: láminas
+            completas, retales (pedazos con medidas y código SOB), rollos por
+            metro, unidades y líquidos en ml.
           </p>
           <ul className="ml-4 list-disc space-y-1">
-            <li>Cuando compras, usa <strong>Entrada de material</strong>: por ejemplo «Acrílico negro: 5 láminas» o «Neón rojo: 50 m».</li>
+            <li>Cuando compras, usa <strong>Entrada de material</strong>: por ejemplo «Acrílico negro: 5 láminas», «Neón rojo: 50 m» o «Tinta cyan: 1000 ml».</li>
             <li>Si cuentas la bodega y algo no cuadra, usa <strong>Corregir</strong> en esa existencia.</li>
             <li>Los retales viejos que ya tenías, regístralos con <strong>Registrar retal</strong>. Marca su código con marcador sobre el material.</li>
+            <li><strong>Usar en un trabajo</strong> te lleva directo a sacar esa existencia para un trabajo.</li>
           </ul>
         </Paso>
 
-        <Paso numero={3} titulo="Trabajos: todo sale del inventario" enlace="/trabajos">
+        <Paso id="trabajos" numero={3} titulo="Trabajos: todo sale del inventario" enlace="/trabajos">
           <p>Crea el trabajo, ábrelo y sigue cuatro pasos:</p>
           <ol className="ml-4 list-decimal space-y-1">
             <li>
@@ -83,7 +90,7 @@ export default function GuiaPage() {
               lámina nueva es ahorro.
             </li>
             <li><strong>Piezas que entregas</strong>: las medidas de lo que se lleva el cliente.</li>
-            <li><strong>Devolver sobrante</strong>: lo que te sobró y sirve vuelve al inventario como retal con código.</li>
+            <li><strong>Devolver sobrante</strong>: lo que te sobró de una lámina vuelve al inventario como retal con código.</li>
             <li><strong>Recortes que se pierden</strong>: el sistema resta y anota en Desperdicio lo que no se aprovechó.</li>
           </ol>
           <Ejemplo>
@@ -93,9 +100,24 @@ export default function GuiaPage() {
             Registras la pieza de 50 × 50 y devuelves la franja de 60 × 20 que
             sobró. El resto del retal queda como recorte perdido.
           </Ejemplo>
+          <p>
+            <strong>Tintas de impresión</strong>: en «Sacar del inventario», el
+            botón <strong>🖨️ Tintas de impresión</strong> saca todas las tintas
+            de una impresión a la vez. Escribes la medida impresa, marcas las
+            tintas (cyan, magenta, amarillo, negro, blanco) y los ml que gasta tu
+            máquina por m² de cada una; quedan guardados para la próxima.
+          </p>
+          <p>
+            <strong>Adhesivos, pinturas y otros líquidos</strong>: al elegirlos,
+            el botón <strong>🧮 Calcular consumo</strong> multiplica los m² por
+            los ml que gasta tu máquina. Si no lo sabes, lo calcula con lo que
+            gastaste en un periodo (ml gastados ÷ m² hechos).
+          </p>
           <p className="text-muted-foreground">
-            ¿Te equivocaste? Con «Devolver» en la línea, el material vuelve al
-            inventario. Si borras el trabajo, también vuelve todo lo que sacó.
+            ¿Sacaste de más? Con <strong>Devolver</strong> en la línea decides
+            cuánto devuelves. Los rollos por metro pueden volver al rollo o
+            quedar como un retal aparte con su foto. Si borras el trabajo, vuelve
+            todo lo que sacó.
           </p>
           <p>
             <strong>¿Forma irregular, como una letra corpórea?</strong> Anota como
@@ -103,7 +125,7 @@ export default function GuiaPage() {
           </p>
         </Paso>
 
-        <Paso numero={4} titulo="Desperdicio: lo que se perdió" enlace="/desperdicio">
+        <Paso id="desperdicio" numero={4} titulo="Desperdicio: lo que se perdió" enlace="/desperdicio">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-md border border-emerald-600/30 bg-emerald-50/50 p-3">
               <p className="text-sm font-medium text-emerald-900">Sobrante</p>
@@ -121,16 +143,82 @@ export default function GuiaPage() {
           <p>
             Los recortes de cada trabajo se calculan solos (paso 4 del trabajo).
             Lo demás —una impresión dañada, una lámina rayada— lo registras en
-            Desperdicio con sus medidas y el motivo.
+            Desperdicio con sus medidas, el motivo y una foto si quieres.
           </p>
         </Paso>
 
-        <Paso numero={5} titulo="Dashboard: el resultado" enlace="/dashboard">
+        <Paso id="capacidad" numero={5} titulo="Capacidad: presta y pide máquinas" enlace="/capacidad">
           <p>
-            El <strong>ahorro del mes</strong> sale de cada retal que un trabajo
-            usa en vez de material nuevo, por su valor en pesos. También muestra
-            el valor de tu inventario y el costo del desperdicio. Solo lo ven los
-            administradores.
+            La red de talleres de ECO-SIGN: cuando tu máquina está quieta, otro
+            taller te la puede alquilar; cuando te falta una, la consigues.
+          </p>
+          <ul className="ml-4 list-disc space-y-1">
+            <li><strong>Mis máquinas</strong>: publica las tuyas con fotos, precio, contacto y las horas en que están disponibles cada día.</li>
+            <li><strong>Red de talleres</strong>: busca máquinas de otros talleres y toca <strong>Solicitar disponibilidad</strong>.</li>
+            <li><strong>Busco máquina</strong>: ¿necesitas una máquina que nadie tiene publicada? Cuenta para qué trabajo y les llega un aviso a todos los talleres; los que puedan responden «Yo puedo ayudar» con su teléfono.</li>
+            <li><strong>Recibidas</strong>: acepta o rechaza lo que te piden. Al terminar, <strong>Marcar como completada</strong> te pregunta cuánto cobraste: eso suma en tu Dashboard.</li>
+            <li><strong>Enviadas</strong>: en qué va lo que pediste. Cuando te la completen, califica al taller con estrellas.</li>
+          </ul>
+          <p className="text-muted-foreground">
+            <strong>Reputación</strong>: todos empiezan con 5,0 estrellas y llevan la
+            etiqueta «Nuevo» hasta tener 3 calificaciones.
+          </p>
+          <Ejemplo>
+            Tu láser está libre los sábados. Lo publicas con ese horario; otro
+            taller lo pide para cortar 40 letras, lo aceptas, haces el trabajo y
+            lo marcas como completado con $80.000 cobrados.
+          </Ejemplo>
+        </Paso>
+
+        <Paso id="avisos" numero={6} titulo="Avisos: la campanita 🔔" enlace="/perfil">
+          <p>
+            La campanita de arriba te avisa cuando te piden una máquina, te
+            responden, te califican o alguien busca una máquina en la red.
+          </p>
+          <p>
+            Para recibirlos también en el <strong>celular o el computador</strong>,
+            aunque ECO-SIGN esté cerrado: toca la campanita →{" "}
+            <strong>Activar avisos aquí</strong>, en cada dispositivo. En iPhone,
+            primero agrega ECO-SIGN a la pantalla de inicio (Safari → Compartir →
+            Agregar a inicio).
+          </p>
+        </Paso>
+
+        <Paso id="dashboard" numero={7} titulo="Dashboard: el resultado" enlace="/dashboard" soloAdmin>
+          <p>
+            El <strong>Resumen del taller</strong>: ahorro del mes (cada retal que
+            un trabajo usa en vez de material nuevo), desperdicio del mes,
+            trabajos en proceso e <strong>ingresos por Capacidad</strong> (lo que
+            cobraste prestando tus máquinas). También el valor de tu inventario.
+          </p>
+        </Paso>
+
+        <Paso id="equipo" numero={8} titulo="Equipo: quién usa ECO-SIGN" enlace="/configuracion/equipo" soloAdmin>
+          <p>
+            Invita a tu gente con su correo y elige qué puede hacer cada uno:
+          </p>
+          <ul className="ml-4 list-disc space-y-1">
+            <li><strong>Administrador</strong>: todo, incluido el Dashboard, el equipo y la configuración.</li>
+            <li><strong>Operario</strong>: registra el día a día (inventario, trabajos, desperdicio, capacidad), sin ver las cifras de dinero del Dashboard.</li>
+            <li><strong>Solo lectura</strong>: ve la información, pero no puede crear, editar ni borrar.</li>
+          </ul>
+          <p className="text-muted-foreground">
+            La invitación llega por correo y vence a los 7 días. Puedes cambiar el
+            rol de alguien o desactivarlo cuando ya no trabaje contigo.
+          </p>
+        </Paso>
+
+        <Paso id="configuracion" numero={9} titulo="Configuración: los datos del taller" enlace="/configuracion" soloAdmin>
+          <p>
+            El nombre, NIT, teléfono, ciudad y dirección del taller. El{" "}
+            <strong>teléfono</strong> es el que se sugiere cuando respondes una
+            búsqueda en Capacidad, y la <strong>ciudad</strong> la que aparece al
+            publicar una. Ahí también está el contacto de soporte.
+          </p>
+          <p className="text-muted-foreground">
+            Tus datos personales (nombre, contraseña, avisos de cada dispositivo)
+            están en <Link href="/perfil" className="underline underline-offset-4">Mi perfil</Link>,
+            tocando tu nombre arriba.
           </p>
         </Paso>
 
@@ -143,8 +231,10 @@ export default function GuiaPage() {
               <li>Llega material: regístralo en Inventario → Entrada de material.</li>
               <li>Empieza una obra: créala en Trabajos.</li>
               <li>Antes de cortar: escribe la medida en «Sacar del inventario» y usa un retal si alcanza.</li>
+              <li>Si imprimes: saca las tintas con «Tintas de impresión».</li>
               <li>Al terminar: registra las piezas, devuelve lo que sobró y registra los recortes.</li>
               <li>Se dañó algo: regístralo en Desperdicio.</li>
+              <li>Revisa la campanita: responde las solicitudes de Capacidad.</li>
             </ol>
           </CardContent>
         </Card>
@@ -153,19 +243,36 @@ export default function GuiaPage() {
   );
 }
 
+const SECCIONES = [
+  { id: "materiales", numero: 1, nombre: "Materiales" },
+  { id: "inventario", numero: 2, nombre: "Inventario" },
+  { id: "trabajos", numero: 3, nombre: "Trabajos" },
+  { id: "desperdicio", numero: 4, nombre: "Desperdicio" },
+  { id: "capacidad", numero: 5, nombre: "Capacidad" },
+  { id: "avisos", numero: 6, nombre: "Avisos" },
+  { id: "dashboard", numero: 7, nombre: "Dashboard" },
+  { id: "equipo", numero: 8, nombre: "Equipo" },
+  { id: "configuracion", numero: 9, nombre: "Configuración" },
+];
+
 function Paso({
+  id,
   numero,
   titulo,
   enlace,
+  soloAdmin = false,
   children,
 }: {
+  id: string;
   numero: number;
   titulo: string;
   enlace: string;
+  /** Sección que sólo ven los administradores del taller. */
+  soloAdmin?: boolean;
   children: ReactNode;
 }) {
   return (
-    <Card>
+    <Card id={id} className="scroll-mt-20">
       <CardHeader>
         <CardTitle className="flex items-center gap-3 text-base">
           <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white">
@@ -174,6 +281,11 @@ function Paso({
           <Link href={enlace} className="underline-offset-4 hover:underline">
             {titulo}
           </Link>
+          {soloAdmin ? (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">
+              Solo administradores
+            </span>
+          ) : null}
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 text-sm">{children}</CardContent>
