@@ -15,6 +15,7 @@ import { FOTOS_ACTIVAS } from "@/lib/funciones";
 import { ETIQUETA_CLASE, admiteDecimales, describirCantidad, etiquetaMaterial, valorItem } from "@/lib/inventario";
 import { createClient } from "@/lib/supabase/server";
 import { firmarFotos } from "@/lib/supabase/subir-foto";
+import { CLASE_DESPLAZABLE } from "@/components/ui/cuadro-desplazable";
 
 export const metadata: Metadata = { title: "Inventario · ECO-SIGN" };
 
@@ -152,14 +153,14 @@ export default async function InventarioPage({
           <CardContent className="p-0">
             <div className="flex items-center justify-between px-6 pt-1 pb-3">
               <h2 className="font-semibold">Existencias</h2>
-              <span className="text-xs text-muted-foreground">Láminas completas, rollos y unidades</span>
+              <span className="text-xs text-muted-foreground">Láminas completas, rollos, unidades y líquidos</span>
             </div>
             {!existencias?.length ? (
               <p className="px-6 pb-6 text-sm text-muted-foreground">
                 Todavía no hay existencias. Registra lo que tienes con «Entrada de material».
               </p>
             ) : (
-              <ul className="flex flex-col divide-y border-t text-sm">
+              <ul className={`flex flex-col divide-y border-t text-sm ${CLASE_DESPLAZABLE}`}>
                 {existencias.map((e) => {
                   const m = porMaterial.get(e.material_id);
                   const agotado = Number(e.cantidad) <= 0;

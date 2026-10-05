@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 import { obtenerTenantId } from "@/lib/supabase/tenant";
 import { cn } from "@/lib/utils";
 import type { EstadoPublicacion } from "@/types/database";
+import { CLASE_DESPLAZABLE_TARJETAS } from "@/components/ui/cuadro-desplazable";
 
 export const metadata: Metadata = { title: "Capacidad · ECO-SIGN" };
 
@@ -85,7 +86,7 @@ export default async function CapacidadPage({
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className={`grid gap-4 sm:grid-cols-2 xl:grid-cols-3 ${CLASE_DESPLAZABLE_TARJETAS}`}>
           {maquinas.map((m) => (
             <TarjetaMaquina
               key={m.id}

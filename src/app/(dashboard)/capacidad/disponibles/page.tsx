@@ -12,6 +12,7 @@ import { firmarPortadas, nombresTalleres } from "@/lib/capacidad/consultas";
 import { TIPOS_MAQUINA, disponibleHoy } from "@/lib/capacidad/tipos";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerTenantId } from "@/lib/supabase/tenant";
+import { CLASE_DESPLAZABLE_TARJETAS } from "@/components/ui/cuadro-desplazable";
 
 export const metadata: Metadata = { title: "Red de talleres · ECO-SIGN" };
 
@@ -210,7 +211,7 @@ export default async function DisponiblesPage({
           <p className="mb-3 text-sm text-muted-foreground">
             {maquinas.length === 1 ? "1 máquina" : `${maquinas.length} máquinas`}
           </p>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className={`grid gap-4 sm:grid-cols-2 xl:grid-cols-3 ${CLASE_DESPLAZABLE_TARJETAS}`}>
             {maquinas.map((m) => {
               const nombreTaller = talleres.get(m.tenant_id) ?? "Taller de la red";
               return (

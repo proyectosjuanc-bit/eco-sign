@@ -3,11 +3,23 @@
 import * as React from "react"
 import { cn } from "cn"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+/**
+ * Todas las tablas viven en un cuadro de altura máxima con su propia barra
+ * (más bajo en el celular, para poder deslizar también la página por fuera).
+ * Una tabla corta no muestra barra. `sinLimite` lo quita donde no haga falta.
+ */
+function Table({
+  className,
+  sinLimite = false,
+  ...props
+}: React.ComponentProps<"table"> & { sinLimite?: boolean }) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className={cn(
+        "relative w-full overflow-x-auto",
+        !sinLimite && "max-h-[55svh] overflow-y-auto md:max-h-[60vh]"
+      )}
     >
       <table
         data-slot="table"
@@ -22,7 +34,12 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      // Fijo arriba al deslizar. El borde va como sombra: el de la fila no
+      // se ve cuando el encabezado está pegado.
+      className={cn(
+        "sticky top-0 z-10 bg-card shadow-[inset_0_-1px_0_var(--border)] [&_tr]:border-b",
+        className
+      )}
       {...props}
     />
   )

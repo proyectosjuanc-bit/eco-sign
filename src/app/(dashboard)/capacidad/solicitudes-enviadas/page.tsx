@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { nombresTalleres } from "@/lib/capacidad/consultas";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerTenantId } from "@/lib/supabase/tenant";
+import { CLASE_DESPLAZABLE_TARJETAS } from "@/components/ui/cuadro-desplazable";
 
 export const metadata: Metadata = { title: "Solicitudes enviadas · ECO-SIGN" };
 
@@ -67,7 +68,7 @@ export default async function SolicitudesEnviadasPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className={`grid gap-4 lg:grid-cols-2 ${CLASE_DESPLAZABLE_TARJETAS}`}>
           {solicitudes.map((s) => {
             const maquina = porId.get(s.machine_id);
             return (

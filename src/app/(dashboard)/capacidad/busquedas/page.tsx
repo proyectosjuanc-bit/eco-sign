@@ -11,6 +11,7 @@ import { formatearFecha } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerTenantId } from "@/lib/supabase/tenant";
 import type { MachineSearch, MachineSearchResponse } from "@/types/database";
+import { CLASE_DESPLAZABLE_TARJETAS } from "@/components/ui/cuadro-desplazable";
 
 export const metadata: Metadata = { title: "Busco máquina · ECO-SIGN" };
 
@@ -117,7 +118,7 @@ export default async function BusquedasPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className={`grid gap-4 lg:grid-cols-2 ${CLASE_DESPLAZABLE_TARJETAS}`}>
             {misBusquedas.map((b) => {
               const estado = estadoVisible(b, hoy);
               const lista = respuestasDe(b.id);
@@ -218,7 +219,7 @@ export default async function BusquedasPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className={`grid gap-4 lg:grid-cols-2 ${CLASE_DESPLAZABLE_TARJETAS}`}>
             {busquedasRed.map((b) => {
               const mia = miRespuesta(b.id);
               const nombre = b.taller_nombre || "Un taller";
