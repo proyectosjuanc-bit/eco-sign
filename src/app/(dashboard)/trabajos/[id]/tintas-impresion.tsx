@@ -26,7 +26,16 @@ const redondear = (n: number, decimales = 1) => Math.round(n * 10 ** decimales) 
  * total por m², se reparte en partes iguales entre las marcadas y después
  * ajusta cada color si lo sabe mejor (por ejemplo, desde su programa RIP).
  */
-export function TintasImpresion({ jobId, tintas }: { jobId: string; tintas: OpcionInventario[] }) {
+export function TintasImpresion({
+  jobId,
+  tintas,
+  sinExistencias = [],
+}: {
+  jobId: string;
+  tintas: OpcionInventario[];
+  /** Tintas del catálogo que hoy no tienen nada en el inventario. */
+  sinExistencias?: string[];
+}) {
   const [abierta, setAbierta] = useState(false);
   const [ancho, setAncho] = useState("");
   const [alto, setAlto] = useState("");
@@ -38,7 +47,7 @@ export function TintasImpresion({ jobId, tintas }: { jobId: string; tintas: Opci
   const [total, setTotal] = useState("");
   const [enviando, startTransition] = useTransition();
 
-  if (!tintas.length) return null;
+  if (!tintas.length && !sinExistencias.length) return null;
 
   const m2 = (leer(ancho) * leer(alto) * (leer(piezas) || 1)) / 10000;
   const filas = tintas
@@ -155,6 +164,19 @@ export function TintasImpresion({ jobId, tintas }: { jobId: string; tintas: Opci
             </div>
           );
         })}
+        {sinExistencias.map((nombre) => (
+          <div key={nombre} className="flex items-center gap-2 text-sm text-muted-foreground">
+            <input type="checkbox" className="size-4 shrink-0" disabled aria-label={`${nombre}: sin existencias`} />
+            <span className="min-w-0 flex-1 truncate" title={nombre}>{nombre}</span>
+            <span className="shrink-0 text-[11px]">sin existencias</span>
+          </div>
+        ))}
+        {sinExistencias.length ? (
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Para usar una tinta sin existencias, dale entrada primero en{" "}
+            <strong>Inventario → Entrada de material</strong>.
+          </p>
+        ) : null}
       </fieldset>
 
       {marcadas.size > 1 ? (

@@ -68,20 +68,24 @@ export function FormularioSalida({
   jobId,
   opciones,
   preseleccion,
+  liquidosSinExistencias = [],
 }: {
   jobId: string;
   opciones: OpcionInventario[];
   preseleccion: string | null;
+  /** Líquidos del catálogo sin nada en el inventario (se muestran sin poder marcarse). */
+  liquidosSinExistencias?: string[];
 }) {
   const [estado, accion, enviando] = useActionState(sacarDelInventario, ESTADO_FORM_INICIAL);
   const clave = useExito(estado, "Material sacado del inventario.");
 
   // Tintas: los líquidos que se llaman «tinta…». Si el taller no les puso ese
   // nombre, se ofrecen todos sus líquidos.
+  const esTinta = (nombre: string) => /tinta/i.test(nombre);
   const liquidos = opciones.filter((o) => o.clase === "mililitros");
-  const tintas = liquidos.some((o) => /tinta/i.test(o.material))
-    ? liquidos.filter((o) => /tinta/i.test(o.material))
-    : liquidos;
+  const hayTintas = liquidos.some((o) => esTinta(o.material)) || liquidosSinExistencias.some(esTinta);
+  const tintas = hayTintas ? liquidos.filter((o) => esTinta(o.material)) : liquidos;
+  const tintasSinExistencias = hayTintas ? liquidosSinExistencias.filter(esTinta) : liquidosSinExistencias;
 
   return (
     <Card>
@@ -103,9 +107,9 @@ export function FormularioSalida({
           enviando={enviando}
           estado={estado}
         />
-        {tintas.length ? (
+        {tintas.length || tintasSinExistencias.length ? (
           <div className="mt-4 border-t pt-4">
-            <TintasImpresion jobId={jobId} tintas={tintas} />
+            <TintasImpresion jobId={jobId} tintas={tintas} sinExistencias={tintasSinExistencias} />
           </div>
         ) : null}
       </CardContent>

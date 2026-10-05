@@ -147,6 +147,14 @@ export default async function TrabajoPage({
     }];
   });
 
+  // Líquidos del catálogo sin nada en el inventario: en «Tintas de impresión»
+  // se muestran sin poder marcarse, para que se vea que falta darles entrada.
+  const conExistencias = new Set(opcionesInventario.map((o) => o.material_id));
+  const liquidosSinExistencias = (materiales ?? [])
+    .filter((m) => m.unidad === "ml" && !m.archivado && !conExistencias.has(m.id))
+    .map((m) => etiquetaMaterial(m))
+    .sort((a, b) => a.localeCompare(b, "es"));
+
   // Piezas y sobrantes: sólo de los materiales que se cortan y que salieron
   // del inventario en este trabajo.
   const materialesCortados: OpcionMaterialTrabajo[] = [
@@ -341,7 +349,12 @@ export default async function TrabajoPage({
         </div>
 
         <div className="flex flex-col gap-6">
-          <FormularioSalida jobId={trabajo.id} opciones={opcionesInventario} preseleccion={preseleccion ?? null} />
+          <FormularioSalida
+            jobId={trabajo.id}
+            opciones={opcionesInventario}
+            preseleccion={preseleccion ?? null}
+            liquidosSinExistencias={liquidosSinExistencias}
+          />
           <FormularioPiezaEntregada jobId={trabajo.id} materiales={materialesCortados} />
           <FormularioDevolver jobId={trabajo.id} materiales={materialesCortados} />
           <BotonRecortes
