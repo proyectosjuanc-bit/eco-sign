@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatearMoneda, formatearNumero } from "@/lib/format";
-import { areaLamina, costoPorM2, valorStock } from "@/lib/lamina";
+import { areaLamina, costoPorM2 } from "@/lib/lamina";
 import type { Unidad } from "@/types/database";
 
 /**
@@ -25,6 +25,9 @@ import type { Unidad } from "@/types/database";
  * Se pide el tamaño y el precio de la lámina, que es como lo factura el
  * proveedor, y la aplicación deriva el precio por m², que es la unidad con la
  * que se valoran consumos, sobrantes y desperdicio.
+ *
+ * Sólo precios: las cantidades (láminas, metros, unidades) se registran en
+ * Inventario con «Entrada de material».
  */
 export function FormularioMaterial() {
   const [estado, accion, enviando] = useActionState(
@@ -32,11 +35,8 @@ export function FormularioMaterial() {
     ESTADO_FORM_INICIAL,
   );
 
-  // Avisos de éxito: si lo que tienes no pudo entrar al Inventario, se dice.
   useEffect(() => {
-    if (!estado.ok) return;
-    if (estado.aviso) toast.warning(estado.aviso);
-    else toast.success("Material creado.");
+    if (estado.ok) toast.success("Material creado. Lo que tienes en bodega se registra en Inventario.");
   }, [estado]);
 
   return (
@@ -70,7 +70,6 @@ function CamposMaterial({
   const [ancho, setAncho] = useState("");
   const [alto, setAlto] = useState("");
   const [costoLamina, setCostoLamina] = useState("");
-  const [stock, setStock] = useState("");
   // Sólo se usa cuando el material no viene en láminas.
   const [costoM2Manual, setCostoM2Manual] = useState("");
   const [costoUnitarioManual, setCostoUnitarioManual] = useState("");
@@ -88,8 +87,6 @@ function CamposMaterial({
 
   const area = areaLamina(datos);
   const porM2 = costoPorM2(datos);
-  const unidades = comoNumero(stock) ?? 0;
-  const valor = valorStock({ ...datos, stockLaminas: unidades });
 
   return (
     <Card>
@@ -98,7 +95,8 @@ function CamposMaterial({
         <CardDescription>
           Láminas (acrílico, vinilo…), rollos por metro (neón, cable) o
           materiales por unidad (tornillos, luces LED). El costo por m² se
-          calcula solo. Lo que ya tengas en bodega entra al Inventario.
+          calcula solo. Aquí van solo los precios: lo que tienes en bodega se
+          registra en Inventario → Entrada de material.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -149,48 +147,20 @@ function CamposMaterial({
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="stock_laminas">
-                    {porMetro ? "Metros que tienes (opcional)" : "Unidades que tienes (opcional)"}
-                  </Label>
+                  <Label htmlFor="costo_unitario">{porMetro ? "Precio por metro" : "Precio por unidad"}</Label>
                   <Input
-                    id="stock_laminas"
-                    name="stock_laminas"
+                    id="costo_unitario"
+                    name="costo_unitario"
                     type="number"
-                    step={porMetro ? "0.1" : "1"}
+                    step="1"
                     min="0"
-                    inputMode="numeric"
-                    placeholder="50"
-                    value={stock}
-                    onChange={(e) => setStock(e.target.value)}
+                    inputMode="decimal"
+                    placeholder="1500"
+                    value={costoUnitarioManual}
+                    onChange={(e) => setCostoUnitarioManual(e.target.value)}
                   />
                 </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="costo_unitario">{porMetro ? "Precio por metro" : "Precio por unidad"}</Label>
-                <Input
-                  id="costo_unitario"
-                  name="costo_unitario"
-                  type="number"
-                  step="1"
-                  min="0"
-                  inputMode="decimal"
-                  placeholder="1500"
-                  value={costoUnitarioManual}
-                  onChange={(e) => setCostoUnitarioManual(e.target.value)}
-                />
-              </div>
-              {Number(stock) > 0 && Number(costoUnitarioManual) > 0 ? (
-                <div className="rounded-md bg-muted p-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">
-                      Valor de {formatearNumero(Number(stock))} {porMetro ? "metros" : "unidades"}
-                    </span>
-                    <strong>
-                      {formatearMoneda(Number(stock) * Number(costoUnitarioManual))}
-                    </strong>
-                  </div>
-                </div>
-              ) : null}
             </>
           ) : (
             <>
@@ -238,35 +208,19 @@ function CamposMaterial({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-2">
-                  <Label htmlFor="costo_lamina">Precio por lámina</Label>
-                  <Input
-                    id="costo_lamina"
-                    name="costo_lamina"
-                    type="number"
-                    step="1"
-                    min="0"
-                    inputMode="decimal"
-                    placeholder="250000"
-                    value={costoLamina}
-                    onChange={(e) => setCostoLamina(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="stock_laminas">Láminas que tienes (opcional)</Label>
-                  <Input
-                    id="stock_laminas"
-                    name="stock_laminas"
-                    type="number"
-                    step="1"
-                    min="0"
-                    inputMode="numeric"
-                    placeholder="5"
-                    value={stock}
-                    onChange={(e) => setStock(e.target.value)}
-                  />
-                </div>
+              <div className="grid gap-2">
+                <Label htmlFor="costo_lamina">Precio por lámina</Label>
+                <Input
+                  id="costo_lamina"
+                  name="costo_lamina"
+                  type="number"
+                  step="1"
+                  min="0"
+                  inputMode="decimal"
+                  placeholder="250000"
+                  value={costoLamina}
+                  onChange={(e) => setCostoLamina(e.target.value)}
+                />
               </div>
 
               {area !== null ? (
@@ -281,14 +235,6 @@ function CamposMaterial({
                       <strong className="text-emerald-600">
                         {formatearMoneda(porM2)}
                       </strong>
-                    </div>
-                  ) : null}
-                  {valor > 0 ? (
-                    <div className="mt-1 flex justify-between">
-                      <span className="text-muted-foreground">
-                        Valor de {formatearNumero(unidades)} láminas
-                      </span>
-                      <strong>{formatearMoneda(valor)}</strong>
                     </div>
                   ) : null}
                 </div>

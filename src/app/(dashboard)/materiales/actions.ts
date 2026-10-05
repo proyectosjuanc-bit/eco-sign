@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 
 import type { EstadoForm, EstadoImportacion, FilaFallida } from "@/lib/form-state";
-import { claseDeCompra } from "@/lib/inventario";
 import { costoPorM2 } from "@/lib/lamina";
 import { createClient } from "@/lib/supabase/server";
 import { ERROR_SIN_TENANT, obtenerTenantId } from "@/lib/supabase/tenant";
@@ -22,7 +21,6 @@ interface DatosMaterial {
   alto: number | null;
   costoLamina: number | null;
   costoUnitarioCrudo: number | null;
-  stock: number | null;
 }
 
 /**
@@ -35,7 +33,7 @@ interface DatosMaterial {
  * (una fila del archivo de Excel o CSV), para no tener la misma regla escrita dos veces.
  */
 type ResultadoMaterial =
-  | { ok: true; material: MaterialParaInsertar; cantidadInicial: number }
+  | { ok: true; material: MaterialParaInsertar }
   | { ok: false; error: string };
 
 function prepararMaterial(datos: DatosMaterial): ResultadoMaterial {
@@ -60,13 +58,8 @@ function prepararMaterial(datos: DatosMaterial): ResultadoMaterial {
     };
   }
 
-  // Lo que ya hay en bodega NO se guarda en el material (el catálogo sólo
-  // tiene precios): entra como existencia en el Inventario.
-  const stock = datos.stock ?? 0;
-  if (stock < 0) {
-    return { ok: false, error: "La cantidad que tienes no puede ser negativa." };
-  }
-
+  // Sin cantidades: el catálogo sólo tiene precios. Lo que hay en bodega se
+  // registra en Inventario («Entrada de material»).
   return {
     ok: true,
     material: {
@@ -80,7 +73,6 @@ function prepararMaterial(datos: DatosMaterial): ResultadoMaterial {
       costo_lamina: datos.costoLamina,
       stock_laminas: 0,
     },
-    cantidadInicial: stock,
   };
 }
 
@@ -109,7 +101,6 @@ export async function crearMaterial(
     alto: numero(formData, "alto_cm"),
     costoLamina: numero(formData, "costo_lamina"),
     costoUnitarioCrudo: numero(formData, "costo_unitario"),
-    stock: numero(formData, "stock_laminas"),
   });
 
   if (!resultado.ok) return { error: resultado.error, ok: false };
@@ -128,46 +119,8 @@ export async function crearMaterial(
 
   if (error || !creado) return { error: error?.message ?? "No se pudo crear el material.", ok: false };
 
-  const aviso = await crearExistenciaInicial(supabase, tenantId, creado.id, resultado.material, resultado.cantidadInicial);
-
   revalidatePath("/materiales");
-  revalidatePath("/inventario");
-  return aviso
-    ? { error: null, ok: true, marca: Date.now(), aviso }
-    : { error: null, ok: true, marca: Date.now() };
-}
-
-/**
- * Si al crear el material se escribió cuánto hay, eso entra al Inventario como
- * láminas completas, metros o unidades. Devuelve un aviso si no se pudo.
- */
-async function crearExistenciaInicial(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  tenantId: string,
-  materialId: string,
-  material: MaterialParaInsertar,
-  cantidad: number,
-): Promise<string | null> {
-  if (cantidad <= 0) return null;
-  const clase = claseDeCompra(material.unidad);
-  if (clase === "lamina" && (!material.ancho_cm || !material.alto_cm)) {
-    return "El material se creó, pero sin el tamaño de la lámina no se pueden registrar láminas en el Inventario.";
-  }
-  const { error } = await supabase.from("inventory_items").insert({
-    tenant_id: tenantId,
-    material_id: materialId,
-    clase,
-    ancho_cm: clase === "lamina" ? Number(material.ancho_cm) : 1,
-    alto_cm: clase === "lamina" ? Number(material.alto_cm) : 1,
-    cantidad: clase === "metros" ? cantidad : Math.round(cantidad),
-    costo_estimado: 0,
-    codigo: null,
-  });
-  if (error) {
-    console.error("[materiales] No se pudo registrar la existencia inicial", error);
-    return "El material se creó, pero no pudimos registrar lo que tienes en el Inventario. Hazlo con «Entrada de material».";
-  }
-  return null;
+  return { error: null, ok: true, marca: Date.now() };
 }
 
 /** Lee una celda de CSV como número, aceptando coma decimal. Vacío es null. */
@@ -229,7 +182,6 @@ export async function importarMateriales(
       alto: numeroDeCelda(fila.alto_cm),
       costoLamina: numeroDeCelda(fila.costo_lamina),
       costoUnitarioCrudo: numeroDeCelda(fila.costo_unitario),
-      stock: numeroDeCelda(fila.stock_laminas),
     });
 
     if (!resultado.ok) {
@@ -248,16 +200,10 @@ export async function importarMateriales(
       continue;
     }
 
-    const aviso = await crearExistenciaInicial(supabase, tenantId, creado.id, resultado.material, resultado.cantidadInicial);
-    if (aviso) fallidas.push({ fila: numeroFila, motivo: aviso });
-
     creadas++;
   }
 
-  if (creadas > 0) {
-    revalidatePath("/materiales");
-    revalidatePath("/inventario");
-  }
+  if (creadas > 0) revalidatePath("/materiales");
 
   return { error: null, creadas, fallidas, marca: Date.now() };
 }

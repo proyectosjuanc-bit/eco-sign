@@ -31,7 +31,6 @@ export type ClaveColumna =
   | "alto_cm"
   | "costo_lamina"
   | "costo_unitario"
-  | "stock_laminas"
   | "grosor_mm";
 
 interface Columna {
@@ -101,14 +100,6 @@ const COLUMNAS: Columna[] = [
     formato: "dinero",
   },
   {
-    clave: "stock_laminas",
-    titulo: "Existencias",
-    ayuda: "Cuántas láminas completas, unidades o metros tienes hoy. Entran al Inventario. Si lo dejas vacío, no se registra nada.",
-    obligatoria: false,
-    ancho: 14,
-    formato: "numero",
-  },
-  {
     clave: "grosor_mm",
     titulo: "Grosor (mm)",
     ayuda: "Opcional. Por ejemplo: 3 para un acrílico de 3 mm.",
@@ -119,9 +110,9 @@ const COLUMNAS: Columna[] = [
 ];
 
 const EJEMPLOS: (string | number)[][] = [
-  ["Acrílico", "Blanco", "Lámina (m²)", 120, 180, 250000, "", 5, 3],
-  ["Luces LED", "", "Unidad", "", "", "", 3500, 100, ""],
-  ["Vinilo de corte", "Negro", "Metro lineal", "", "", "", 12000, 50, ""],
+  ["Acrílico", "Blanco", "Lámina (m²)", 120, 180, 250000, "", 3],
+  ["Luces LED", "", "Unidad", "", "", "", 3500, ""],
+  ["Vinilo de corte", "Negro", "Metro lineal", "", "", "", 12000, ""],
 ];
 
 /** Filas con validación y formato preparadas en la hoja; de sobra para una carga inicial. */
@@ -210,6 +201,7 @@ function agregarInstrucciones(libro: ExcelJS.Workbook) {
     "2. Escribe un material por fila, debajo de los encabezados verdes.",
     "3. Las láminas llevan medidas y precio de la lámina; lo demás, precio por unidad o metro.",
     "4. Guarda el archivo y súbelo en ECO-SIGN, en Materiales → Cargar varios materiales.",
+    "5. Aquí van solo los precios. Lo que tienes en bodega se registra después en Inventario → Entrada de material.",
     "Si una fila tiene un error, las demás se cargan igual y ECO-SIGN te dice qué fila corregir.",
   ];
   pasos.forEach((paso, i) => {
