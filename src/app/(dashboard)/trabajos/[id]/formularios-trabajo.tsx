@@ -234,7 +234,7 @@ function CamposSalida({
       {elegido?.clase === "retal" ? (
         <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
           El retal sale entero ({formatearNumero(elegido.ancho_cm)} × {formatearNumero(elegido.alto_cm)} cm).
-          Lo que te sobre, devuélvelo en el paso 3.
+          Lo que te sobre, devuélvelo en «Devolver sobrante».
         </p>
       ) : null}
 
@@ -369,9 +369,12 @@ export function FormularioPiezaEntregada({
 export function FormularioDevolver({
   jobId,
   materiales,
+  numero = 3,
 }: {
   jobId: string;
   materiales: OpcionMaterialTrabajo[];
+  /** Número del paso (2 cuando «Piezas que entregas» está oculto). */
+  numero?: number;
 }) {
   const [estado, accion, enviando] = useActionState(registrarSobranteDeCorte, ESTADO_FORM_INICIAL);
   const clave = useExito(estado, "Sobrante devuelto al inventario con su código.");
@@ -380,7 +383,7 @@ export function FormularioDevolver({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>3. Devolver sobrante</CardTitle>
+        <CardTitle>{numero}. Devolver sobrante</CardTitle>
         <CardDescription>
           Lo que te sobró y se puede volver a usar vuelve al inventario como un
           retal, con su código SOB. Escríbelo con marcador sobre el material.

@@ -6,10 +6,12 @@ import { GraficoAhorro, type PuntoAhorro } from "@/components/dashboard/grafico-
 import { EncabezadoPagina } from "@/components/dashboard/encabezado-pagina";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatearMoneda, formatearNumero } from "@/lib/format";
+import { hoyEnColombia } from "@/lib/capacidad/tipos";
 import { MOSTRAR_ROI } from "@/lib/funciones";
 import { aFechaIso, calcularRoi, etiquetaMes, rangoMesActual } from "@/lib/roi";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerTenantId } from "@/lib/supabase/tenant";
+import { estadoEntrega } from "@/lib/trabajos";
 
 export const metadata: Metadata = { title: "Dashboard · ECO-SIGN" };
 
@@ -55,7 +57,7 @@ export default async function DashboardPage() {
       supabase.from("waste_logs").select("costo, created_at"),
       // Valor de lo que hay en bodega, sumado en la base por clase.
       supabase.rpc("valor_inventario"),
-      supabase.from("jobs").select("estado").in("estado", ["pendiente", "en_proceso"]),
+      supabase.from("jobs").select("estado, fecha_entrega").in("estado", ["pendiente", "en_proceso"]),
       // Capacidad: lo que este taller cobró por prestar sus máquinas.
       tenantId
         ? supabase
@@ -91,6 +93,10 @@ export default async function DashboardPage() {
 
   const enProceso = (trabajosAbiertos ?? []).filter((t) => t.estado === "en_proceso").length;
   const pendientes = (trabajosAbiertos ?? []).filter((t) => t.estado === "pendiente").length;
+  const hoyColombia = hoyEnColombia();
+  const atrasados = (trabajosAbiertos ?? []).filter(
+    (t) => estadoEntrega(t.fecha_entrega, t.estado, hoyColombia) === "atrasado",
+  ).length;
 
   // Capacidad: completadas como dueño de la máquina.
   const completadas = cobros ?? [];
@@ -166,7 +172,12 @@ export default async function DashboardPage() {
         <Metrica
           titulo="Trabajos en proceso"
           valor={formatearNumero(enProceso)}
-          nota={`${formatearNumero(pendientes)} ${pendientes === 1 ? "pendiente" : "pendientes"} por empezar`}
+          nota={
+            atrasados
+              ? `⚠ ${formatearNumero(atrasados)} ${atrasados === 1 ? "atrasado" : "atrasados"} · ${formatearNumero(pendientes)} por empezar`
+              : `${formatearNumero(pendientes)} ${pendientes === 1 ? "pendiente" : "pendientes"} por empezar`
+          }
+          acento={atrasados ? "destructive" : undefined}
           href="/trabajos"
         />
         <Metrica

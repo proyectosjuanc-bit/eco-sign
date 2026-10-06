@@ -149,6 +149,8 @@ export type Job = {
   cliente: string | null;
   fecha: string;
   estado: EstadoTrabajo;
+  /** Cuándo hay que entregarle el trabajo al cliente (opcional). */
+  fecha_entrega: string | null;
 };
 
 /**

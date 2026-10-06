@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { startTransition, useActionState, useEffect, useRef } from "react";
 
 import { crearTrabajo } from "./actions";
 import { ESTADO_FORM_INICIAL } from "@/lib/form-state";
@@ -32,12 +32,24 @@ export function FormularioTrabajo() {
       <CardHeader>
         <CardTitle>Nuevo trabajo</CardTitle>
         <CardDescription>
-          Al guardarlo aparece en la lista. Ábrelo desde ahí para añadir sus
-          piezas y registrar el consumo real.
+          Al guardarlo aparece en la lista. Ábrelo desde ahí para sacar del
+          inventario lo que usas. Consejo: pon el tipo en el nombre, por ejemplo
+          «Aviso neón – Los montañeros».
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form ref={formRef} action={accion} className="flex flex-col gap-4">
+        {/* onSubmit y no action={}: con action React vacía el formulario al
+            terminar, también cuando hay un error, y se perdía lo escrito. Aquí
+            sólo se limpia cuando el trabajo se creó (efecto de arriba). */}
+        <form
+          ref={formRef}
+          onSubmit={(evento) => {
+            evento.preventDefault();
+            const datos = new FormData(evento.currentTarget);
+            startTransition(() => accion(datos));
+          }}
+          className="flex flex-col gap-4"
+        >
           <div className="grid gap-2">
             <Label htmlFor="nombre">Nombre</Label>
             <Input
@@ -53,10 +65,20 @@ export function FormularioTrabajo() {
             <Input id="cliente" name="cliente" placeholder="Almacenes León" />
           </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="fecha">Fecha</Label>
-            <Input id="fecha" name="fecha" type="date" />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label htmlFor="fecha">Se recibe</Label>
+              <Input id="fecha" name="fecha" type="date" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="fecha_entrega">Se entrega</Label>
+              <Input id="fecha_entrega" name="fecha_entrega" type="date" />
+            </div>
           </div>
+          <p className="-mt-2 text-xs text-muted-foreground">
+            Si no pones la fecha en que se recibe, se toma la de hoy. La de entrega
+            es opcional: si se pasa sin terminar el trabajo, sale en rojo.
+          </p>
 
           {estado.error ? (
             <p

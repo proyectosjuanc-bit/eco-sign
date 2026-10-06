@@ -40,3 +40,13 @@ export const MEDICION_AUTOMATICA_ACTIVA = false;
  * `src/lib/roi.ts`; al empezar a cobrar se vuelve a encender.
  */
 export const MOSTRAR_ROI = false;
+
+/**
+ * «Piezas que entregas» y «Recortes que se pierden» en el detalle del trabajo.
+ *
+ * Apagado: medir cada pieza (caras, cantos, letras) era confuso y nadie lo iba
+ * a hacer. El trabajo queda en dos pasos: sacar del inventario y devolver lo
+ * que sobra; lo que se daña se registra en Desperdicio. Las piezas ya
+ * anotadas se conservan en la base.
+ */
+export const PIEZAS_ACTIVAS = false;

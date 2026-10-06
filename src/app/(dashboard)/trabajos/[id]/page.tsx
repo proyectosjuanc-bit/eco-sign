@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { eliminarPieza } from "../actions";
 import { SelectorEstado } from "./selector-estado";
+import { SelectorEntrega } from "./selector-entrega";
 import { DialogoDevolver } from "./dialogo-devolver";
 import { BotonRecortes } from "./boton-recortes";
 import {
@@ -25,7 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { areaM2, formatearFecha, formatearMoneda, formatearNumero } from "@/lib/format";
-import { FOTOS_ACTIVAS } from "@/lib/funciones";
+import { FOTOS_ACTIVAS, PIEZAS_ACTIVAS } from "@/lib/funciones";
 import { describirCantidad, esPorArea, etiquetaMaterial, valorItem } from "@/lib/inventario";
 import { createClient } from "@/lib/supabase/server";
 import { firmarFotos } from "@/lib/supabase/subir-foto";
@@ -178,6 +179,7 @@ export default async function TrabajoPage({
         descripcion={`${trabajo.cliente ?? "Sin cliente"} · ${formatearFecha(trabajo.fecha)}`}
       >
         <div className="flex items-center gap-2">
+          <SelectorEntrega key={trabajo.fecha_entrega ?? "sin"} jobId={trabajo.id} fecha={trabajo.fecha_entrega} />
           <SelectorEstado key={trabajo.estado} jobId={trabajo.id} estado={trabajo.estado} />
           <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/trabajos" />}>
             Volver
@@ -257,6 +259,8 @@ export default async function TrabajoPage({
             </CardContent>
           </Card>
 
+          {PIEZAS_ACTIVAS ? (
+          <>
           {/* --- Piezas --- */}
           <Card>
             <CardHeader>
@@ -324,6 +328,8 @@ export default async function TrabajoPage({
               )}
             </CardContent>
           </Card>
+          </>
+          ) : null}
 
           {/* --- Devueltos --- */}
           {devueltos?.length ? (
@@ -355,15 +361,23 @@ export default async function TrabajoPage({
             preseleccion={preseleccion ?? null}
             liquidosSinExistencias={liquidosSinExistencias}
           />
-          <FormularioPiezaEntregada jobId={trabajo.id} materiales={materialesCortados} />
-          <FormularioDevolver jobId={trabajo.id} materiales={materialesCortados} />
-          <BotonRecortes
+          {PIEZAS_ACTIVAS ? (
+            <FormularioPiezaEntregada jobId={trabajo.id} materiales={materialesCortados} />
+          ) : null}
+          <FormularioDevolver
             jobId={trabajo.id}
-            consumidoM2={Number(sacadoM2.toFixed(2))}
-            aprovechadoM2={Number(aprovechadoM2.toFixed(2))}
-            costoPerdido={Number(costoPerdido.toFixed(2))}
-            yaCalculado={Boolean(recortes?.length)}
+            materiales={materialesCortados}
+            numero={PIEZAS_ACTIVAS ? 3 : 2}
           />
+          {PIEZAS_ACTIVAS ? (
+            <BotonRecortes
+              jobId={trabajo.id}
+              consumidoM2={Number(sacadoM2.toFixed(2))}
+              aprovechadoM2={Number(aprovechadoM2.toFixed(2))}
+              costoPerdido={Number(costoPerdido.toFixed(2))}
+              yaCalculado={Boolean(recortes?.length)}
+            />
+          ) : null}
         </div>
       </div>
     </>

@@ -81,24 +81,28 @@ export default function GuiaPage() {
         </Paso>
 
         <Paso id="trabajos" numero={3} titulo="Trabajos: todo sale del inventario" enlace="/trabajos">
-          <p>Crea el trabajo, ábrelo y sigue cuatro pasos:</p>
+          <p>
+            Crea el trabajo con su <strong>fecha de entrega</strong> (si se pasa
+            sin terminarlo, sale en rojo en la lista). Consejo: pon el tipo en el
+            nombre, por ejemplo «Aviso neón – Los montañeros», y crea otro
+            trabajo para lo demás del mismo cliente («Impresión lona – Los
+            montañeros»). Luego ábrelo y sigue dos pasos:
+          </p>
           <ol className="ml-4 list-decimal space-y-1">
             <li>
-              <strong>Sacar del inventario</strong>: elige lo que usas. Si
-              escribes la medida que necesitas, te muestra primero los{" "}
-              <strong>retales que alcanzan</strong>. Usar un retal en vez de una
-              lámina nueva es ahorro.
+              <strong>Sacar del inventario</strong>: todo lo que usas (acrílico,
+              PVC, luces, cable, pegante…). Si escribes la medida que necesitas,
+              te muestra primero los <strong>retales que alcanzan</strong>. Usar
+              un retal en vez de una lámina nueva es ahorro. ¿Necesitas más? Sácalo
+              otra vez.
             </li>
-            <li><strong>Piezas que entregas</strong>: las medidas de lo que se lleva el cliente.</li>
-            <li><strong>Devolver sobrante</strong>: lo que te sobró de una lámina vuelve al inventario como retal con código.</li>
-            <li><strong>Recortes que se pierden</strong>: el sistema resta y anota en Desperdicio lo que no se aprovechó.</li>
+            <li><strong>Devolver sobrante</strong>: lo que te sobró de una lámina y sirve vuelve al inventario como retal con código.</li>
           </ol>
           <Ejemplo>
-            Aviso con acrílico de 50 × 50, 10 m de neón y 10 m de cable dúplex.
-            Escribes 50 × 50 y aparece el retal SOB-014 (60 × 70): lo sacas (eso
-            es ahorro). Sacas 10 m de neón y 10 m de cable de sus rollos.
-            Registras la pieza de 50 × 50 y devuelves la franja de 60 × 20 que
-            sobró. El resto del retal queda como recorte perdido.
+            Aviso de neón: escribes 35 × 80 y aparece el retal SOB-014 (40 × 90):
+            lo sacas (eso es ahorro). Sacas 5 m de neón verde, 5 m de cable y 1
+            enchufe. Al terminar devuelves la franja de 40 × 10 que sobró y
+            sirve.
           </Ejemplo>
           <p>
             <strong>Tintas de impresión</strong>: en «Sacar del inventario», el
@@ -119,10 +123,6 @@ export default function GuiaPage() {
             quedar como un retal aparte con su foto. Si borras el trabajo, vuelve
             todo lo que sacó.
           </p>
-          <p>
-            <strong>¿Forma irregular, como una letra corpórea?</strong> Anota como
-            pieza el ancho y alto del rectángulo que la contiene.
-          </p>
         </Paso>
 
         <Paso id="desperdicio" numero={4} titulo="Desperdicio: lo que se perdió" enlace="/desperdicio">
@@ -141,9 +141,9 @@ export default function GuiaPage() {
             </div>
           </div>
           <p>
-            Los recortes de cada trabajo se calculan solos (paso 4 del trabajo).
-            Lo demás —una impresión dañada, una lámina rayada— lo registras en
-            Desperdicio con sus medidas, el motivo y una foto si quieres.
+            Lo que se daña o se bota —una impresión mala, una lámina rayada, un
+            corte errado— lo registras en Desperdicio con sus medidas, el motivo
+            y una foto si quieres.
           </p>
         </Paso>
 
@@ -232,7 +232,7 @@ export default function GuiaPage() {
               <li>Empieza una obra: créala en Trabajos.</li>
               <li>Antes de cortar: escribe la medida en «Sacar del inventario» y usa un retal si alcanza.</li>
               <li>Si imprimes: saca las tintas con «Tintas de impresión».</li>
-              <li>Al terminar: registra las piezas, devuelve lo que sobró y registra los recortes.</li>
+              <li>Al terminar: devuelve lo que sobró y sirve, y marca el trabajo como terminado.</li>
               <li>Se dañó algo: regístralo en Desperdicio.</li>
               <li>Revisa la campanita: responde las solicitudes de Capacidad.</li>
             </ol>

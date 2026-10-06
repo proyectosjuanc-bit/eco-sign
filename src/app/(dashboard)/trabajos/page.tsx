@@ -15,8 +15,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { hoyEnColombia } from "@/lib/capacidad/tipos";
 import { formatearFecha } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+import { estadoEntrega } from "@/lib/trabajos";
 import type { EstadoTrabajo } from "@/types/database";
 
 export const metadata: Metadata = { title: "Trabajos · ECO-SIGN" };
@@ -68,6 +70,8 @@ export default async function TrabajosPage({
       ).data
     : null;
 
+  const hoy = hoyEnColombia();
+
   const sufijoOrigen = origenSobranteId
     ? `?origen_sobrante=${origenSobranteId}`
     : "";
@@ -111,7 +115,8 @@ export default async function TrabajosPage({
                   <TableRow>
                     <TableHead>Trabajo</TableHead>
                     <TableHead>Cliente</TableHead>
-                    <TableHead>Fecha</TableHead>
+                    <TableHead>Recibido</TableHead>
+                    <TableHead>Entrega</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right" />
                     <TableHead className="w-0" />
@@ -135,6 +140,9 @@ export default async function TrabajosPage({
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {formatearFecha(trabajo.fecha)}
+                      </TableCell>
+                      <TableCell>
+                        <FechaEntrega fecha={trabajo.fecha_entrega} estado={trabajo.estado} hoy={hoy} />
                       </TableCell>
                       <TableCell>
                         <Badge variant={VARIANTE_ESTADO[trabajo.estado]}>
@@ -179,4 +187,27 @@ export default async function TrabajosPage({
       </div>
     </>
   );
+}
+
+/** Fecha de entrega: rojo si está atrasado, amarillo si es hoy o mañana. */
+function FechaEntrega({ fecha, estado, hoy }: { fecha: string | null; estado: EstadoTrabajo; hoy: string }) {
+  const situacion = estadoEntrega(fecha, estado, hoy);
+  if (situacion === "sin_fecha") return <span className="text-muted-foreground">—</span>;
+  if (situacion === "atrasado") {
+    return (
+      <span className="font-semibold text-destructive">
+        {formatearFecha(fecha)}
+        <span className="block text-xs font-medium">Atrasado</span>
+      </span>
+    );
+  }
+  if (situacion === "pronto") {
+    return (
+      <span className="font-medium text-amber-700">
+        {formatearFecha(fecha)}
+        <span className="block text-xs">{fecha === hoy ? "Se entrega hoy" : "Se entrega mañana"}</span>
+      </span>
+    );
+  }
+  return <span className="text-muted-foreground">{formatearFecha(fecha)}</span>;
 }

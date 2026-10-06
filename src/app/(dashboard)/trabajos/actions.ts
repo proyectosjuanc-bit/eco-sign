@@ -40,8 +40,15 @@ export async function crearTrabajo(
   const nombre = texto(formData, "nombre");
   const cliente = texto(formData, "cliente");
   const fecha = texto(formData, "fecha");
+  const fechaEntrega = texto(formData, "fecha_entrega");
 
   if (!nombre) return { error: "El nombre del trabajo es obligatorio.", ok: false };
+  if (fechaEntrega && !/^\d{4}-\d{2}-\d{2}$/.test(fechaEntrega)) {
+    return { error: "La fecha de entrega no es válida.", ok: false };
+  }
+  if (fechaEntrega && fecha && fechaEntrega < fecha) {
+    return { error: "La fecha de entrega no puede ser antes de la fecha en que se recibe.", ok: false };
+  }
 
   const tenantId = await obtenerTenantId();
   if (!tenantId) return { error: ERROR_SIN_TENANT, ok: false };
@@ -52,6 +59,7 @@ export async function crearTrabajo(
     nombre,
     cliente: cliente || null,
     ...(fecha ? { fecha } : {}),
+    fecha_entrega: fechaEntrega || null,
     estado: "pendiente",
   });
 
@@ -790,4 +798,22 @@ export async function devolverParte(
   revalidatePath("/inventario");
   revalidatePath("/dashboard");
   return { error: null, ok: true, marca: Date.now() };
+}
+
+/** Cambia (o quita) la fecha de entrega de un trabajo. */
+export async function cambiarEntrega(id: string, fecha: string | null): Promise<{ error: string | null }> {
+  if (!id) return { error: "Falta el trabajo." };
+  if (fecha !== null && !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { error: "La fecha no es válida." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("jobs").update({ fecha_entrega: fecha }).eq("id", id).select("id");
+  if (error || !data?.length) {
+    if (error) console.error("[trabajos] No se pudo cambiar la fecha de entrega", error);
+    return { error: error ? mensajeError(error) : "Tu rol no permite cambiar la fecha de entrega." };
+  }
+
+  revalidatePath("/trabajos");
+  revalidatePath(`/trabajos/${id}`);
+  revalidatePath("/dashboard");
+  return { error: null };
 }
