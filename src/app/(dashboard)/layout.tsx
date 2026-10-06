@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { BotonLogout } from "@/components/dashboard/boton-logout";
 import { Sidebar } from "@/components/dashboard/sidebar";
+import { COOKIE_BARRA } from "@/lib/preferencias";
 import { Campana } from "@/components/notificaciones/campana";
 import { enlaceWhatsApp } from "@/lib/soporte";
 import { createClient } from "@/lib/supabase/server";
@@ -99,7 +101,10 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-svh bg-muted/30">
-      <Sidebar esAdmin={esAdmin} />
+      <Sidebar
+        esAdmin={esAdmin}
+        colapsadaInicial={(await cookies()).get(COOKIE_BARRA)?.value === "1"}
+      />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-16 items-center justify-between gap-4 border-b bg-card px-4 md:px-8">
