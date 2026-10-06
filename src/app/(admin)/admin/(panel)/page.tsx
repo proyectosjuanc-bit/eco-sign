@@ -14,6 +14,7 @@ import {
 import { formatearMoneda, formatearMomento } from "@/lib/format";
 import { aFechaIso, rangoMesActual } from "@/lib/roi";
 import { exigirSuperadmin } from "@/lib/superadmin";
+import { ListaBuscable } from "@/components/ui/lista-buscable";
 
 export const metadata: Metadata = {
   title: "Talleres · Superadmin · ECO-SIGN",
@@ -140,6 +141,7 @@ export default async function AdminTalleresPage() {
           <CardTitle className="text-base">Talleres</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
+          <ListaBuscable placeholder="Buscar taller o correo…">
           <Table>
             <TableHeader>
               <TableRow>
@@ -182,6 +184,7 @@ export default async function AdminTalleresPage() {
               })}
             </TableBody>
           </Table>
+          </ListaBuscable>
         </CardContent>
       </Card>
     </div>

@@ -26,6 +26,7 @@ import { FOTOS_ACTIVAS } from "@/lib/funciones";
 import { admiteDecimales, claseDeCompra, describirCantidad, etiquetaMaterial, valorItem } from "@/lib/inventario";
 import { createClient } from "@/lib/supabase/server";
 import { firmarFotos } from "@/lib/supabase/subir-foto";
+import { ListaBuscable } from "@/components/ui/lista-buscable";
 
 export const metadata: Metadata = { title: "Inventario · ECO-SIGN" };
 
@@ -39,9 +40,9 @@ const POR_PAGINA = 24;
 export default async function InventarioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ver?: string; pagina?: string; entrada?: string }>;
+  searchParams: Promise<{ ver?: string; pagina?: string; entrada?: string; q?: string }>;
 }) {
-  const { ver, pagina, entrada } = await searchParams;
+  const { ver, pagina, entrada, q } = await searchParams;
   // Tres pestañas: materiales (catálogo + existencias), retales disponibles y
   // retales usados. Por defecto, los materiales.
   const vista: "materiales" | "retales" | "usados" =
@@ -52,6 +53,30 @@ export default async function InventarioPage({
 
   const supabase = await createClient();
 
+  // Búsqueda de retales (van paginados, así que se busca en la consulta): por
+  // código o por material, sin importar tildes ni mayúsculas.
+  const busqueda = vista === "materiales" ? "" : (q ?? "").trim().slice(0, 60);
+  let filtroRetales: string | null = null;
+  if (busqueda) {
+    const quitar = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const buscado = quitar(busqueda);
+    const { data: todos } = await supabase.from("materials").select("id, tipo, color, grosor_mm");
+    const ids = (todos ?? []).filter((m) => quitar(etiquetaMaterial(m)).includes(buscado)).map((m) => m.id);
+    const codigo = busqueda.replace(/[^\w-]/g, "");
+    filtroRetales = [
+      codigo ? `codigo.ilike.%${codigo}%` : null,
+      ids.length ? `material_id.in.(${ids.join(",")})` : null,
+    ]
+      .filter(Boolean)
+      .join(",") || "id.is.null";
+  }
+
+  const consultaRetales = supabase
+    .from("inventory_items")
+    .select("*", { count: "exact" })
+    .eq("clase", "retal")
+    .eq("usado", verUsados);
+
   const [
     { data: sobrantes, count: totalPestana },
     { data: materiales },
@@ -60,11 +85,7 @@ export default async function InventarioPage({
     { count: totalUsados },
     { data: valorRpc, error: errorValor },
   ] = await Promise.all([
-      supabase
-        .from("inventory_items")
-        .select("*", { count: "exact" })
-        .eq("clase", "retal")
-        .eq("usado", verUsados)
+      (filtroRetales ? consultaRetales.or(filtroRetales) : consultaRetales)
         // Disponibles: los más valiosos primero. Usados: los más recientes.
         .order(verUsados ? "created_at" : "costo_estimado", { ascending: false })
         .range(desde, desde + POR_PAGINA - 1),
@@ -107,6 +128,8 @@ export default async function InventarioPage({
     const params = new URLSearchParams();
     const destino = cambios.ver === undefined ? (vista === "materiales" ? null : vista) : cambios.ver;
     if (destino) params.set("ver", destino);
+    // La búsqueda se conserva al pasar de página, no al cambiar de pestaña.
+    if (busqueda && cambios.ver === undefined) params.set("q", busqueda);
     const p = cambios.pagina ?? 1;
     if (p > 1) params.set("pagina", String(p));
     const q = params.toString();
@@ -194,6 +217,7 @@ export default async function InventarioPage({
 
         {vista === "materiales" ? (
           <>
+            <ListaBuscable placeholder="Buscar material, color o grosor…">
             <Card>
               <CardContent className="p-0">
                 {!materialesActivos.length ? (
@@ -280,6 +304,7 @@ export default async function InventarioPage({
                 )}
               </CardContent>
             </Card>
+            </ListaBuscable>
 
             {archivados.length ? (
               <Card>
@@ -307,11 +332,32 @@ export default async function InventarioPage({
           </>
         ) : (
           <>
+        <form method="get" action="/inventario" role="search" className="flex gap-2">
+          <input type="hidden" name="ver" value={vista} />
+          <input
+            type="search"
+            name="q"
+            defaultValue={busqueda}
+            placeholder="Buscar retal por código (SOB-014) o material…"
+            aria-label="Buscar retal por código o material"
+            className="h-10 min-w-0 flex-1 rounded-md border border-input bg-card px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          />
+          <Button type="submit" variant="outline" className="h-10">
+            Buscar
+          </Button>
+          {busqueda ? (
+            <Button variant="ghost" className="h-10" render={<Link href={enlace({ ver: vista === "usados" ? "usados" : "retales" })} />}>
+              Limpiar
+            </Button>
+          ) : null}
+        </form>
         <Card>
           <CardContent className="p-0">
             {!sobrantes?.length ? (
               <p className="p-6 text-sm text-muted-foreground">
-                {verUsados
+                {busqueda
+                  ? `No hay retales que coincidan con «${busqueda}».`
+                  : verUsados
                   ? "Todavía no hay retales usados ni vendidos."
                   : (totalUsados ?? 0) > 0
                     ? "No hay retales disponibles ahora. Los que ya usaste están en «Retales usados»."

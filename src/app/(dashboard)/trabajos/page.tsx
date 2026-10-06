@@ -20,6 +20,7 @@ import { formatearFecha } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { estadoEntrega } from "@/lib/trabajos";
 import type { EstadoTrabajo } from "@/types/database";
+import { ListaBuscable } from "@/components/ui/lista-buscable";
 
 export const metadata: Metadata = { title: "Trabajos · ECO-SIGN" };
 
@@ -98,6 +99,7 @@ export default async function TrabajosPage({
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+        <ListaBuscable placeholder="Buscar trabajo o cliente…">
         <Card>
           <CardContent className="p-0">
             {error ? (
@@ -182,6 +184,7 @@ export default async function TrabajosPage({
             )}
           </CardContent>
         </Card>
+        </ListaBuscable>
 
         <FormularioTrabajo />
       </div>

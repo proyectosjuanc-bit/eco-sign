@@ -64,7 +64,7 @@ export function TarjetaMaquina({
   const hoy = disponibleHoy(maquina);
 
   return (
-    <Card className={cn("overflow-hidden", fotoUrl ? "pt-0" : null, className)}>
+    <Card data-buscable className={cn("overflow-hidden", fotoUrl ? "pt-0" : null, className)}>
       {fotoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img

@@ -11,6 +11,7 @@ import { nombresTalleres } from "@/lib/capacidad/consultas";
 import { createClient } from "@/lib/supabase/server";
 import { obtenerTenantId } from "@/lib/supabase/tenant";
 import { CLASE_DESPLAZABLE_TARJETAS } from "@/components/ui/cuadro-desplazable";
+import { ListaBuscable } from "@/components/ui/lista-buscable";
 
 export const metadata: Metadata = { title: "Solicitudes recibidas · ECO-SIGN" };
 
@@ -64,6 +65,7 @@ export default async function SolicitudesRecibidasPage() {
           </CardContent>
         </Card>
       ) : (
+        <ListaBuscable placeholder="Buscar máquina o taller…">
         <div className={`grid gap-4 lg:grid-cols-2 ${CLASE_DESPLAZABLE_TARJETAS}`}>
           {solicitudes.map((s) => (
             <TarjetaSolicitud
@@ -110,6 +112,7 @@ export default async function SolicitudesRecibidasPage() {
             </TarjetaSolicitud>
           ))}
         </div>
+        </ListaBuscable>
       )}
     </>
   );

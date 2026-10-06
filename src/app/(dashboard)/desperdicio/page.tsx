@@ -18,6 +18,7 @@ import { formatearMoneda, formatearNumero } from "@/lib/format";
 import { FOTOS_ACTIVAS } from "@/lib/funciones";
 import { createClient } from "@/lib/supabase/server";
 import { firmarFotos } from "@/lib/supabase/subir-foto";
+import { ListaBuscable } from "@/components/ui/lista-buscable";
 
 export const metadata: Metadata = { title: "Desperdicio · ECO-SIGN" };
 
@@ -65,6 +66,7 @@ export default async function DesperdicioPage() {
       </EncabezadoPagina>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+        <ListaBuscable placeholder="Buscar material o motivo…">
         <Card>
           <CardContent className="p-0">
             {!registros?.length ? (
@@ -156,6 +158,7 @@ export default async function DesperdicioPage() {
             )}
           </CardContent>
         </Card>
+        </ListaBuscable>
 
         <FormularioDesperdicio materiales={opciones} />
       </div>

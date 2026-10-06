@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table";
 import { ETIQUETA_ROL, ROLES } from "@/lib/roles";
 import type { Rol } from "@/types/database";
+import { ListaBuscable } from "@/components/ui/lista-buscable";
 
 export interface Miembro {
   id: string;
@@ -58,6 +59,7 @@ export function TablaMiembros({
   }
 
   return (
+    <ListaBuscable placeholder="Buscar persona o correo…">
     <Table>
       <TableHeader>
         <TableRow>
@@ -152,5 +154,6 @@ export function TablaMiembros({
         })}
       </TableBody>
     </Table>
+    </ListaBuscable>
   );
 }

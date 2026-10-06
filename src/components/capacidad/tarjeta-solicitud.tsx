@@ -34,7 +34,7 @@ export function TarjetaSolicitud({
   children?: ReactNode;
 }) {
   return (
-    <Card>
+    <Card data-buscable>
       <CardContent className="flex flex-col gap-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">

@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 import { obtenerTenantId } from "@/lib/supabase/tenant";
 import type { MachineSearch, MachineSearchResponse } from "@/types/database";
 import { CLASE_DESPLAZABLE_TARJETAS } from "@/components/ui/cuadro-desplazable";
+import { ListaBuscable } from "@/components/ui/lista-buscable";
 
 export const metadata: Metadata = { title: "Busco máquina · ECO-SIGN" };
 
@@ -118,12 +119,13 @@ export default async function BusquedasPage() {
             </CardContent>
           </Card>
         ) : (
+          <ListaBuscable placeholder="Buscar máquina, trabajo o ciudad…">
           <div className={`grid gap-4 lg:grid-cols-2 ${CLASE_DESPLAZABLE_TARJETAS}`}>
             {misBusquedas.map((b) => {
               const estado = estadoVisible(b, hoy);
               const lista = respuestasDe(b.id);
               return (
-                <Card key={b.id}>
+                <Card key={b.id} data-buscable>
                   <CardContent className="flex flex-col gap-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
@@ -206,6 +208,7 @@ export default async function BusquedasPage() {
               );
             })}
           </div>
+          </ListaBuscable>
         )}
       </section>
 
@@ -219,12 +222,13 @@ export default async function BusquedasPage() {
             </CardContent>
           </Card>
         ) : (
+          <ListaBuscable placeholder="Buscar máquina, trabajo o ciudad…">
           <div className={`grid gap-4 lg:grid-cols-2 ${CLASE_DESPLAZABLE_TARJETAS}`}>
             {busquedasRed.map((b) => {
               const mia = miRespuesta(b.id);
               const nombre = b.taller_nombre || "Un taller";
               return (
-                <Card key={b.id}>
+                <Card key={b.id} data-buscable>
                   <CardContent className="flex flex-col gap-3">
                     <div className="min-w-0">
                       <p className="font-semibold">
@@ -246,6 +250,7 @@ export default async function BusquedasPage() {
               );
             })}
           </div>
+          </ListaBuscable>
         )}
       </section>
     </>
