@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ESTADO_FORM_INICIAL } from "@/lib/form-state";
+import { ESTADO_FORM_INICIAL } from "@/lib/form-state";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 export interface DatosTaller {
   nombre: string;
@@ -36,7 +37,7 @@ export function FormularioTaller({ taller }: { taller: DatosTaller }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={accion} className="grid gap-4 sm:grid-cols-2">
+        <form onSubmit={enviarSinLimpiar(accion)} className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-2 sm:col-span-2">
             <Label htmlFor="nombre">Nombre del taller</Label>
             <Input id="nombre" name="nombre" defaultValue={taller.nombre} maxLength={120} required />

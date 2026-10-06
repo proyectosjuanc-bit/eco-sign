@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ESTADO_FORM_INICIAL } from "@/lib/form-state";
 import { formatearNumero } from "@/lib/format";
-import type { Unidad } from "@/types/database";
+import type { Unidad } from "@/types/database";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 export interface MaterialEntrada {
   id: string;
@@ -84,7 +85,7 @@ function CamposEntrada({
             Primero crea tus materiales (con su precio) en <strong>Materiales</strong>.
           </p>
         ) : (
-          <form action={accion} className="flex flex-col gap-4">
+          <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
             <div className="grid gap-2">
               <Label htmlFor="material_entrada">Material</Label>
               <select
@@ -184,7 +185,7 @@ export function CorregirCantidad({
   }
 
   return (
-    <form action={accion} className="flex items-center justify-end gap-1">
+    <form onSubmit={enviarSinLimpiar(accion)} className="flex items-center justify-end gap-1">
       <input type="hidden" name="id" value={id} />
       <Input
         name="cantidad"

@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 /**
  * Carga varios materiales de golpe desde la plantilla de Excel.
@@ -113,7 +114,7 @@ function CamposImportar({
   const [nombreArchivo, setNombreArchivo] = useState<string | null>(null);
 
   return (
-    <form action={accion} className="flex flex-col gap-3">
+    <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-3">
       <label className="flex cursor-pointer flex-col items-center gap-1 rounded-md border border-dashed p-4 text-center text-sm hover:bg-muted">
         <span className="font-medium">
           {nombreArchivo ?? "Elige la plantilla de Excel completada"}

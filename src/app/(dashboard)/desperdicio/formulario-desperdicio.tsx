@@ -18,7 +18,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CampoFoto } from "@/components/dashboard/campo-foto";
 import { FOTOS_ACTIVAS } from "@/lib/funciones";
-import { areaM2, formatearNumero } from "@/lib/format";
+import { areaM2, formatearNumero } from "@/lib/format";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 /** Registro de desperdicio, también con foto desde la cámara del móvil. */
 export function FormularioDesperdicio({
@@ -72,7 +73,7 @@ function CamposDesperdicio({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={accion} className="flex flex-col gap-4">
+        <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
           <div className="grid gap-2">
             <Label htmlFor="material_id">Material</Label>
             <select

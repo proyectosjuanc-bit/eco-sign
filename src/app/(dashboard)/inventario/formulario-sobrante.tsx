@@ -19,6 +19,7 @@ import { PanelMedicion } from "@/components/inventario/panel-medicion";
 import { FOTOS_ACTIVAS, MEDICION_AUTOMATICA_ACTIVA } from "@/lib/funciones";
 import { areaM2, formatearNumero } from "@/lib/format";
 import type { Unidad } from "@/types/database";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 export interface OpcionMaterial {
   id: string;
@@ -113,7 +114,7 @@ function CamposSobrante({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={accion} className="flex flex-col gap-4">
+        <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
           {FOTOS_ACTIVAS ? (
             <>
               <CampoFoto

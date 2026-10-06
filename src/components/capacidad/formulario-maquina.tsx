@@ -36,6 +36,7 @@ import type {
   TipoMaquina,
   UnidadPrecio,
 } from "@/types/database";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 const MAX_FOTOS = 4;
 
@@ -119,7 +120,7 @@ export function FormularioMaquina({
   const publicada = maquina?.estado_publicacion === "publicada";
 
   return (
-    <form action={accion} className="grid items-start gap-6 lg:grid-cols-[1fr_340px]">
+    <form onSubmit={enviarSinLimpiar(accion)} className="grid items-start gap-6 lg:grid-cols-[1fr_340px]">
       {maquina ? <input type="hidden" name="id" value={maquina.id} /> : null}
 
       <Card>

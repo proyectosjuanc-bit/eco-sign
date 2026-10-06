@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ESTADO_AUTH_INICIAL } from "@/lib/form-state";
 import { cn } from "@/lib/utils";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 export function FormularioRecuperar({ enlaceInvalido }: { enlaceInvalido: boolean }) {
   const [estado, accion, enviando] = useActionState(
@@ -51,7 +52,7 @@ export function FormularioRecuperar({ enlaceInvalido }: { enlaceInvalido: boolea
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={accion} className="flex flex-col gap-4">
+        <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
           {enlaceInvalido && !estado.error ? (
             <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
               Ese enlace ya se usó o venció (duran 1 hora). Pide uno nuevo aquí.

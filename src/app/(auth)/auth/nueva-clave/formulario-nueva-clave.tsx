@@ -14,6 +14,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { ESTADO_AUTH_INICIAL } from "@/lib/form-state";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 const MIN_PASSWORD = 10;
 
@@ -31,7 +32,7 @@ export function FormularioNuevaClave({ correoOculto }: { correoOculto: string })
         <CardDescription>Para la cuenta {correoOculto}.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={accion} className="flex flex-col gap-4">
+        <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
           <div className="grid gap-2">
             <Label htmlFor="password">Nueva contraseña</Label>
             <PasswordInput

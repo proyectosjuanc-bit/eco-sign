@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatearMoneda, formatearNumero } from "@/lib/format";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 /**
  * Paso 4: calcula el desperdicio de recortes restando, al material sacado del
@@ -55,7 +56,7 @@ export function BotonRecortes({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={accion} className="flex flex-col gap-4">
+        <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
           <input type="hidden" name="job_id" value={jobId} />
 
           {!hayLamina ? (

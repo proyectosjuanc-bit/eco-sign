@@ -1,8 +1,9 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef } from "react";
 
 import { crearTrabajo } from "./actions";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 import { ESTADO_FORM_INICIAL } from "@/lib/form-state";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,18 +39,8 @@ export function FormularioTrabajo() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {/* onSubmit y no action={}: con action React vacía el formulario al
-            terminar, también cuando hay un error, y se perdía lo escrito. Aquí
-            sólo se limpia cuando el trabajo se creó (efecto de arriba). */}
-        <form
-          ref={formRef}
-          onSubmit={(evento) => {
-            evento.preventDefault();
-            const datos = new FormData(evento.currentTarget);
-            startTransition(() => accion(datos));
-          }}
-          className="flex flex-col gap-4"
-        >
+        {/* Se limpia sólo cuando el trabajo se creó (efecto de arriba). */}
+        <form ref={formRef} onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
           <div className="grid gap-2">
             <Label htmlFor="nombre">Nombre</Label>
             <Input

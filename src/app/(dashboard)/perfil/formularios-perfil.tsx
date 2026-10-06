@@ -9,7 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
-import { ESTADO_FORM_INICIAL, type EstadoForm } from "@/lib/form-state";
+import { ESTADO_FORM_INICIAL, type EstadoForm } from "@/lib/form-state";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 /** Avisa con un toast cada envío correcto. */
 function useAvisoExito(estado: EstadoForm, mensaje: string) {
@@ -53,7 +54,7 @@ export function FormularioNombre({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={accion} className="flex flex-col gap-4">
+        <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
           <div className="grid gap-2">
             <Label htmlFor="nombre">Nombre</Label>
             <Input id="nombre" name="nombre" defaultValue={nombre} maxLength={100} required />
@@ -88,7 +89,7 @@ export function FormularioClave() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form ref={formulario} action={accion} className="flex flex-col gap-4">
+        <form ref={formulario} onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
           <div className="grid gap-2">
             <Label htmlFor="actual">Contraseña actual</Label>
             <PasswordInput id="actual" name="actual" autoComplete="current-password" required />
@@ -137,7 +138,7 @@ export function BotonCerrarSesiones() {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        <form action={accion}>
+        <form onSubmit={enviarSinLimpiar(accion)}>
           <Button type="submit" variant="outline" disabled={enviando}>
             {enviando ? "Cerrando…" : "Cerrar sesión en los demás dispositivos"}
           </Button>

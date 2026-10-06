@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ESTADO_FORM_INICIAL } from "@/lib/form-state";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 export function BotonEstadoTaller({
   tenantId,
@@ -54,7 +55,7 @@ export function FormularioAgregarSuperadmin() {
   }, [estado]);
 
   return (
-    <form ref={formulario} action={accion} className="flex flex-col gap-3">
+    <form ref={formulario} onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-3">
       <div className="grid gap-2">
         <Label htmlFor="email">Correo de la cuenta</Label>
         <Input id="email" name="email" type="email" placeholder="persona@correo.com" required />

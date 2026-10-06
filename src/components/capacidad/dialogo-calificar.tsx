@@ -17,7 +17,8 @@ import { EstrellasFijas } from "@/components/capacidad/reputacion";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ESTADO_FORM_INICIAL } from "@/lib/form-state";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 const TEXTO_ESTRELLAS = ["", "Muy malo", "Malo", "Regular", "Bueno", "Excelente"];
 
@@ -104,7 +105,7 @@ function FormularioCalificar({
         </DialogDescription>
       </DialogHeader>
 
-      <form action={accion} className="flex flex-col gap-4">
+      <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
         <input type="hidden" name="id" value={solicitudId} />
         <input type="hidden" name="estrellas" value={estrellas || ""} />
 

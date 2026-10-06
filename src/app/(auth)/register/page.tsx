@@ -16,7 +16,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
-import { PasswordInput } from "@/components/ui/password-input";
+import { PasswordInput } from "@/components/ui/password-input";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 /**
  * Alta de empresa. "empresa" y "nombre" viajan como user metadata del signUp:
@@ -55,7 +56,7 @@ export default function RegisterPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={accion} className="flex flex-col gap-4">
+        <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
           <div className="grid gap-2">
             <Label htmlFor="empresa">Empresa</Label>
             <Input

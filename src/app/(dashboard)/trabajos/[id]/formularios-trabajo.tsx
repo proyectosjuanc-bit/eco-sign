@@ -16,6 +16,7 @@ import { formatearNumero } from "@/lib/format";
 import { FOTOS_ACTIVAS } from "@/lib/funciones";
 import { admiteDecimales, describirCantidad, retalAlcanza } from "@/lib/inventario";
 import type { ClaseInventario } from "@/types/database";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 const CLASE_SELECT =
   "h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
@@ -172,7 +173,7 @@ function CamposSalida({
   }
 
   return (
-    <form action={accion} className="flex flex-col gap-4">
+    <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
       <input type="hidden" name="job_id" value={jobId} />
 
       <div className="grid gap-2">
@@ -317,7 +318,7 @@ export function FormularioPiezaEntregada({
             Primero saca del inventario el material que vas a cortar.
           </p>
         ) : (
-          <form key={clave} action={accion} className="flex flex-col gap-4">
+          <form key={clave} onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
             <input type="hidden" name="job_id" value={jobId} />
             <div className="grid gap-2">
               <Label htmlFor="material_pieza">Material</Label>
@@ -395,7 +396,7 @@ export function FormularioDevolver({
             Aquí devolverás lo que sobre de las láminas o retales que saques.
           </p>
         ) : (
-          <form key={clave} action={accion} className="flex flex-col gap-4">
+          <form key={clave} onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
             <input type="hidden" name="job_id" value={jobId} />
             <div className="grid gap-2">
               <Label htmlFor="material_devuelto">Material</Label>

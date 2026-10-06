@@ -17,7 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatearMoneda, formatearNumero } from "@/lib/format";
 import { areaLamina, costoPorM2 } from "@/lib/lamina";
-import type { Unidad } from "@/types/database";
+import type { Unidad } from "@/types/database";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 /**
  * Alta de material.
@@ -109,7 +110,7 @@ function CamposMaterial({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={accion} className="flex flex-col gap-4">
+        <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
           <div className="grid gap-2">
             <Label htmlFor="tipo">Tipo</Label>
             <Input id="tipo" name="tipo" placeholder="Acrílico" required />

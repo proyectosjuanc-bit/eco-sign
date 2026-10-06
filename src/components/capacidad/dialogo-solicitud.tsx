@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { hoyEnColombia } from "@/lib/capacidad/tipos";
 import { ESTADO_FORM_INICIAL } from "@/lib/form-state";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 /**
  * Pide disponibilidad de una máquina de otro taller.
@@ -101,7 +102,7 @@ function FormularioSolicitud({
         </DialogDescription>
       </DialogHeader>
 
-      <form action={accion} className="flex flex-col gap-4">
+      <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
         <input type="hidden" name="machine_id" value={machineId} />
 
         <div className="grid gap-2">

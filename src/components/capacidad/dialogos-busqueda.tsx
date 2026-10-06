@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { TIPOS_MAQUINA, hoyEnColombia } from "@/lib/capacidad/tipos";
 import { ESTADO_FORM_INICIAL } from "@/lib/form-state";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 const CLASE_SELECT =
   "h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
@@ -91,7 +92,7 @@ function FormularioBusqueda({ ciudad, onCerrar }: { ciudad: string; onCerrar: ()
         </DialogDescription>
       </DialogHeader>
 
-      <form action={accion} className="flex flex-col gap-4">
+      <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
         <div className="grid gap-2">
           <Label htmlFor="busqueda-tipo">Máquina</Label>
           <select id="busqueda-tipo" name="tipo" required defaultValue="" className={CLASE_SELECT}>
@@ -245,7 +246,7 @@ function FormularioAyudar({
         </DialogDescription>
       </DialogHeader>
 
-      <form action={accion} className="flex flex-col gap-4">
+      <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
         <input type="hidden" name="search_id" value={searchId} />
         <div className="grid gap-2">
           <Label htmlFor={`ayudar-mensaje-${searchId}`}>Mensaje</Label>

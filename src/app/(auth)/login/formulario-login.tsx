@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PasswordInput } from "@/components/ui/password-input";
+import { PasswordInput } from "@/components/ui/password-input";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 export function FormularioLogin() {
   const [estado, accion, enviando] = useActionState(
@@ -36,7 +37,7 @@ export function FormularioLogin() {
         <CardDescription>Accede al panel de tu empresa.</CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={accion} className="flex flex-col gap-4">
+        <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
           <input type="hidden" name="redirect" value={destino} />
 
           {confirmacionFallida && !estado.error ? (

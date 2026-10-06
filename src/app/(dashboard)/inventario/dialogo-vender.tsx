@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 /**
  * Registra la venta de un sobrante tal cual, sin cortarlo.
@@ -96,7 +97,7 @@ function FormularioVenta({
         </DialogDescription>
       </DialogHeader>
 
-      <form action={accion} className="flex flex-col gap-4">
+      <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
         <input type="hidden" name="id" value={id} />
 
         <div className="grid gap-2">

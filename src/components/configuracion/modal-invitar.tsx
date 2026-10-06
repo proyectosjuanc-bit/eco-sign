@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { ESTADO_FORM_INICIAL } from "@/lib/form-state";
 import { DESCRIPCION_ROL, ETIQUETA_ROL, ROLES } from "@/lib/roles";
 import { cn } from "@/lib/utils";
+import { enviarSinLimpiar } from "@/lib/enviar-formulario";
 
 /** Botón «Invitar empleado» y su ventana con el formulario. */
 export function ModalInvitar() {
@@ -71,7 +72,7 @@ function FormularioInvitar({ onEnviada }: { onEnviada: () => void }) {
         </DialogDescription>
       </DialogHeader>
 
-      <form action={accion} className="flex flex-col gap-4">
+      <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
         <div className="grid gap-2">
           <Label htmlFor="nombre_invitado">Nombre (opcional)</Label>
           <Input
