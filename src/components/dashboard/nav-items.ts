@@ -38,9 +38,10 @@ export const NAV_ITEMS: NavItem[] = [
   {
     href: "/capacidad",
     etiqueta: "Capacidad",
-    // Una impresora: la sección es para compartir máquinas entre talleres.
+    // Una máquina láser (cuerpo, cabezal, rayo y chispas sobre la lámina): la
+    // sección es para compartir máquinas entre talleres.
     icono:
-      "M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2M6 14h12v7H6v-7Z",
+      "M4 3h16v4H4V3Zm5 4v4h6V7m-3 4v5m-8 5h16M9 19l-1.5-1.5M15 19l1.5-1.5M12 16v0",
   },
   {
     href: "/configuracion/equipo",
