@@ -157,7 +157,7 @@ function CamposSobrante({
             </select>
             {!materiales.length ? (
               <p className="text-xs text-destructive">
-                No tienes materiales. Crea uno en Materiales antes de
+                No tienes materiales. Crea uno con «Nuevo material» antes de
                 registrar un sobrante.
               </p>
             ) : null}

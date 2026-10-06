@@ -27,8 +27,9 @@ import { enviarSinLimpiar } from "@/lib/enviar-formulario";
  * proveedor, y la aplicación deriva el precio por m², que es la unidad con la
  * que se valoran consumos, sobrantes y desperdicio.
  *
- * Sólo precios: las cantidades (láminas, metros, unidades) se registran en
- * Inventario con «Entrada de material».
+ * Vive en Inventario: además del precio, pide (opcional) cuánto hay hoy en
+ * bodega, que entra como existencia en el mismo paso. Las compras de después
+ * se registran con «Entrada de material».
  */
 export function FormularioMaterial() {
   const [estado, accion, enviando] = useActionState(
@@ -37,7 +38,9 @@ export function FormularioMaterial() {
   );
 
   useEffect(() => {
-    if (estado.ok) toast.success("Material creado. Lo que tienes en bodega se registra en Inventario.");
+    if (!estado.ok) return;
+    if (estado.aviso) toast.warning(estado.aviso);
+    else toast.success("Material creado.");
   }, [estado]);
 
   return (
@@ -105,8 +108,8 @@ function CamposMaterial({
           Láminas (acrílico, vinilo…), rollos por metro (neón, cable),
           materiales por unidad (tornillos, luces LED) o líquidos por ml
           (tintas, adhesivos). El costo por m² se
-          calcula solo. Aquí van solo los precios: lo que tienes en bodega se
-          registra en Inventario → Entrada de material.
+          calcula solo. Si ya tienes en bodega, escribe cuánto y queda en el
+          inventario de una vez.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -344,6 +347,30 @@ function CamposMaterial({
               </div>
             </>
           )}
+
+          <div className="grid gap-2">
+            <Label htmlFor="cantidad_inicial">
+              {unidad === "m2"
+                ? "¿Cuántas láminas completas tienes? (opcional)"
+                : unidad === "metro_lineal"
+                  ? "¿Cuántos metros tienes? (opcional)"
+                  : unidad === "ml"
+                    ? "¿Cuántos ml tienes? (opcional)"
+                    : "¿Cuántas unidades tienes? (opcional)"}
+            </Label>
+            <Input
+              id="cantidad_inicial"
+              name="cantidad_inicial"
+              type="number"
+              min="0"
+              step={unidad === "metro_lineal" || unidad === "ml" ? "0.1" : "1"}
+              inputMode="decimal"
+              placeholder={unidad === "ml" ? "1000" : unidad === "m2" ? "5" : "50"}
+            />
+            {unidad === "ml" ? (
+              <p className="text-xs text-muted-foreground">1 litro = 1000 ml.</p>
+            ) : null}
+          </div>
 
           {error ? (
             <p

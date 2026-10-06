@@ -31,6 +31,7 @@ export type ClaveColumna =
   | "alto_cm"
   | "costo_lamina"
   | "costo_unitario"
+  | "cantidad_inicial"
   | "grosor_mm";
 
 interface Columna {
@@ -100,6 +101,14 @@ const COLUMNAS: Columna[] = [
     formato: "dinero",
   },
   {
+    clave: "cantidad_inicial",
+    titulo: "Cantidad que tienes",
+    ayuda: "Opcional. Lo que hay hoy en bodega: láminas completas, metros, unidades o ml (según «Se mide por»). Entra al inventario. Si lo dejas vacío, el material queda con 0.",
+    obligatoria: false,
+    ancho: 18,
+    formato: "numero",
+  },
+  {
     clave: "grosor_mm",
     titulo: "Grosor (mm)",
     ayuda: "Opcional. Por ejemplo: 3 para un acrílico de 3 mm.",
@@ -110,10 +119,10 @@ const COLUMNAS: Columna[] = [
 ];
 
 const EJEMPLOS: (string | number)[][] = [
-  ["Acrílico", "Blanco", "Lámina (m²)", 120, 180, 250000, "", 3],
-  ["Luces LED", "", "Unidad", "", "", "", 3500, ""],
-  ["Vinilo de corte", "Negro", "Metro lineal", "", "", "", 12000, ""],
-  ["Tinta eco-solvente", "Cian", "Mililitros (líquidos)", "", "", "", 180000, ""],
+  ["Acrílico", "Blanco", "Lámina (m²)", 120, 180, 250000, "", 5, 3],
+  ["Luces LED", "", "Unidad", "", "", "", 3500, 100, ""],
+  ["Vinilo de corte", "Negro", "Metro lineal", "", "", "", 12000, 50, ""],
+  ["Tinta eco-solvente", "Cian", "Mililitros (líquidos)", "", "", "", 180000, 1000, ""],
 ];
 
 /** Filas con validación y formato preparadas en la hoja; de sobra para una carga inicial. */
@@ -201,8 +210,8 @@ function agregarInstrucciones(libro: ExcelJS.Workbook) {
     "1. Ve a la hoja «Materiales» (pestaña de abajo).",
     "2. Escribe un material por fila, debajo de los encabezados verdes.",
     "3. Las láminas llevan medidas y precio de la lámina; lo demás, precio por unidad o metro.",
-    "4. Guarda el archivo y súbelo en ECO-SIGN, en Materiales → Cargar varios materiales.",
-    "5. Aquí van solo los precios. Lo que tienes en bodega se registra después en Inventario → Entrada de material.",
+    "4. Si quieres, escribe en «Cantidad que tienes» lo que hay hoy en bodega: entra al inventario de una vez.",
+    "5. Guarda el archivo y súbelo en ECO-SIGN, en Inventario → Cargar varios materiales.",
     "Si una fila tiene un error, las demás se cargan igual y ECO-SIGN te dice qué fila corregir.",
   ];
   pasos.forEach((paso, i) => {

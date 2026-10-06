@@ -19,11 +19,6 @@ export const NAV_ITEMS: NavItem[] = [
     soloAdmin: true,
   },
   {
-    href: "/materiales",
-    etiqueta: "Materiales",
-    icono: "M12 3 2 8l10 5 10-5-10-5Zm0 18 10-5M2 16l10 5",
-  },
-  {
     href: "/inventario",
     etiqueta: "Inventario",
     icono:

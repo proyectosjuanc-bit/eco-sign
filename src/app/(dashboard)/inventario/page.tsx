@@ -3,6 +3,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { eliminarSobrante, marcarUsado } from "./actions";
+import { BotonEliminarMaterial, BotonRestaurarMaterial } from "../materiales/botones-material";
+import { FormularioImportar } from "../materiales/formulario-importar";
+import { FormularioMaterial } from "../materiales/formulario-material";
 import { DialogoVender } from "./dialogo-vender";
 import { FormularioSobrante, type OpcionMaterial } from "./formulario-sobrante";
 import { CorregirCantidad, FormularioEntrada, type MaterialEntrada } from "./formularios-existencias";
@@ -20,10 +23,9 @@ import {
 } from "@/components/ui/table";
 import { areaM2, formatearMoneda, formatearNumero } from "@/lib/format";
 import { FOTOS_ACTIVAS } from "@/lib/funciones";
-import { ETIQUETA_CLASE, admiteDecimales, describirCantidad, etiquetaMaterial, valorItem } from "@/lib/inventario";
+import { admiteDecimales, claseDeCompra, describirCantidad, etiquetaMaterial, valorItem } from "@/lib/inventario";
 import { createClient } from "@/lib/supabase/server";
 import { firmarFotos } from "@/lib/supabase/subir-foto";
-import { CLASE_DESPLAZABLE } from "@/components/ui/cuadro-desplazable";
 
 export const metadata: Metadata = { title: "Inventario · ECO-SIGN" };
 
@@ -37,11 +39,14 @@ const POR_PAGINA = 24;
 export default async function InventarioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ver?: string; pagina?: string }>;
+  searchParams: Promise<{ ver?: string; pagina?: string; entrada?: string }>;
 }) {
-  const { ver, pagina } = await searchParams;
-  // Por defecto, los disponibles: es lo que se busca al ir a cortar.
-  const verUsados = ver === "usados";
+  const { ver, pagina, entrada } = await searchParams;
+  // Tres pestañas: materiales (catálogo + existencias), retales disponibles y
+  // retales usados. Por defecto, los materiales.
+  const vista: "materiales" | "retales" | "usados" =
+    ver === "usados" ? "usados" : ver === "retales" ? "retales" : "materiales";
+  const verUsados = vista === "usados";
   const paginaActual = Math.max(1, Number.parseInt(pagina ?? "1", 10) || 1);
   const desde = (paginaActual - 1) * POR_PAGINA;
 
@@ -65,7 +70,7 @@ export default async function InventarioPage({
         .range(desde, desde + POR_PAGINA - 1),
       supabase
         .from("materials")
-        .select("id, tipo, color, grosor_mm, unidad, archivado, ancho_cm, alto_cm, costo_unitario, costo_lamina")
+        .select("id, tipo, color, grosor_mm, unidad, archivado, ancho_cm, alto_cm, costo_unitario, costo_lamina, ml_por_m2")
         .order("tipo"),
       // Los más recientes: si un taller acumula cientos de trabajos, no hace
       // falta que todos quepan en el selector.
@@ -98,10 +103,10 @@ export default async function InventarioPage({
   const totalPaginas = Math.max(1, Math.ceil((totalPestana ?? 0) / POR_PAGINA));
 
   /** Enlace a otra pestaña o página, conservando lo demás. */
-  const enlace = (cambios: { ver?: "usados" | null; pagina?: number }) => {
+  const enlace = (cambios: { ver?: "retales" | "usados" | null; pagina?: number }) => {
     const params = new URLSearchParams();
-    const usados = cambios.ver === undefined ? verUsados : cambios.ver === "usados";
-    if (usados) params.set("ver", "usados");
+    const destino = cambios.ver === undefined ? (vista === "materiales" ? null : vista) : cambios.ver;
+    if (destino) params.set("ver", destino);
     const p = cambios.pagina ?? 1;
     if (p > 1) params.set("pagina", String(p));
     const q = params.toString();
@@ -110,7 +115,7 @@ export default async function InventarioPage({
 
   // Firmar cuesta una llamada a Storage por lote; sin fotos que mostrar no
   // tiene sentido pedirlas.
-  const firmas = FOTOS_ACTIVAS
+  const firmas = FOTOS_ACTIVAS && vista !== "materiales"
     ? await firmarFotos(supabase, (sobrantes ?? []).map((item) => item.foto_url))
     : new Map<string, string>();
 
@@ -128,6 +133,13 @@ export default async function InventarioPage({
       alto_cm: m.alto_cm,
     }));
 
+  // Pestaña «Materiales y existencias»: una fila por material, con su
+  // existencia (la de su clase: láminas, metros, unidades o ml).
+  const materialesActivos = (materiales ?? []).filter((m) => !m.archivado);
+  const archivados = (materiales ?? []).filter((m) => m.archivado);
+  const existenciaDe = (materialId: string, unidad: string) =>
+    (existencias ?? []).find((e) => e.material_id === materialId && e.clase === claseDeCompra(unidad));
+
   // Un retal sólo sale de materiales que se cortan (m²).
   const opciones: OpcionMaterial[] = (materiales ?? []).filter((m) => !m.archivado && m.unidad === "m2").map((material) => ({
     id: material.id,
@@ -140,8 +152,8 @@ export default async function InventarioPage({
   return (
     <>
       <EncabezadoPagina
-        titulo="Inventario de sobrantes"
-        descripcion="Todo lo que tienes en el taller: láminas completas, retales, rollos y unidades. Los trabajos sacan de aquí."
+        titulo="Inventario"
+        descripcion="Tus materiales con su precio y lo que tienes en bodega: láminas, rollos, unidades, líquidos y retales. Los trabajos sacan de aquí."
       >
         <div className="flex gap-2">
           <div className="rounded-lg border bg-card px-4 py-2 text-right">
@@ -157,73 +169,144 @@ export default async function InventarioPage({
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="flex min-w-0 flex-col gap-4">
-        <Card>
-          <CardContent className="p-0">
-            <div className="flex items-center justify-between px-6 pt-1 pb-3">
-              <h2 className="font-semibold">Existencias</h2>
-              <span className="text-xs text-muted-foreground">Láminas completas, rollos, unidades y líquidos</span>
-            </div>
-            {!existencias?.length ? (
-              <p className="px-6 pb-6 text-sm text-muted-foreground">
-                Todavía no hay existencias. Registra lo que tienes con «Entrada de material».
-              </p>
-            ) : (
-              <ul className={`flex flex-col divide-y border-t text-sm ${CLASE_DESPLAZABLE}`}>
-                {existencias.map((e) => {
-                  const m = porMaterial.get(e.material_id);
-                  const agotado = Number(e.cantidad) <= 0;
-                  return (
-                    <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 px-6 py-2">
-                      <span className="min-w-0">
-                        <span className="font-medium">{m ? etiquetaMaterial(m) : "—"}</span>
-                        <span className="block text-xs text-muted-foreground">
-                          {ETIQUETA_CLASE[e.clase]} ·{" "}
-                          {agotado ? <strong className="text-destructive">Agotado</strong> : describirCantidad({ ...e, cantidad: Number(e.cantidad) })}
-                          {" · "}
-                          {formatearMoneda(valorItem({ ...e, cantidad: Number(e.cantidad) }, m))}
-                        </span>
-                      </span>
-                      <span className="flex items-center gap-1">
-                        {!agotado ? (
-                          <Button size="sm" variant="outline" render={<Link href={`/trabajos?origen_sobrante=${e.id}`} />}>
-                            Usar en un trabajo
-                          </Button>
-                        ) : null}
-                        <CorregirCantidad id={e.id} cantidad={Number(e.cantidad)} decimales={admiteDecimales(e.clase)} />
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        <nav aria-label="Ver retales" className="flex gap-2">
-          <Link
-            href={enlace({ ver: null })}
-            aria-current={!verUsados ? "page" : undefined}
-            className={
-              !verUsados
-                ? "rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white"
-                : "rounded-md border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-            }
-          >
-            Retales disponibles ({totalDisponibles ?? 0})
-          </Link>
-          <Link
-            href={enlace({ ver: "usados" })}
-            aria-current={verUsados ? "page" : undefined}
-            className={
-              verUsados
-                ? "rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white"
-                : "rounded-md border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-            }
-          >
-            Retales usados ({totalUsados ?? 0})
-          </Link>
+        <nav aria-label="Secciones del inventario" className="flex flex-wrap gap-2">
+          {(
+            [
+              { ver: null, etiqueta: `Materiales y existencias (${materialesActivos.length})`, activa: vista === "materiales" },
+              { ver: "retales", etiqueta: `Retales disponibles (${totalDisponibles ?? 0})`, activa: vista === "retales" },
+              { ver: "usados", etiqueta: `Retales usados (${totalUsados ?? 0})`, activa: vista === "usados" },
+            ] as const
+          ).map((p) => (
+            <Link
+              key={p.etiqueta}
+              href={enlace({ ver: p.ver })}
+              aria-current={p.activa ? "page" : undefined}
+              className={
+                p.activa
+                  ? "rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white"
+                  : "rounded-md border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+              }
+            >
+              {p.etiqueta}
+            </Link>
+          ))}
         </nav>
 
+        {vista === "materiales" ? (
+          <>
+            <Card>
+              <CardContent className="p-0">
+                {!materialesActivos.length ? (
+                  <p className="p-6 text-sm text-muted-foreground">
+                    Todavía no hay materiales. Crea el primero con «Nuevo material»
+                    (con su precio y lo que tienes en bodega) o carga varios con la
+                    plantilla de Excel.
+                  </p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Material</TableHead>
+                        <TableHead className="hidden text-right sm:table-cell">Precio</TableHead>
+                        <TableHead className="text-right">En bodega</TableHead>
+                        <TableHead className="hidden text-right sm:table-cell">Valor</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {materialesActivos.map((m) => {
+                        const existencia = existenciaDe(m.id, m.unidad);
+                        const cantidad = Number(existencia?.cantidad ?? 0);
+                        const agotado = cantidad <= 0;
+                        const precio = precioDe(m);
+                        return (
+                          <TableRow key={m.id}>
+                            {/* Nombre y botones en una sola columna: en el
+                                celular la tabla cabe sin deslizar de lado. */}
+                            <TableCell className="whitespace-normal">
+                              <span className="block font-medium">{etiquetaMaterial(m)}</span>
+                              {/* En el celular, precio y valor van aquí y no en columnas. */}
+                              <span className="block text-xs text-muted-foreground sm:hidden">
+                                {precio.principal} · Valor{" "}
+                                {existencia ? formatearMoneda(valorItem({ ...existencia, cantidad }, m)) : formatearMoneda(0)}
+                              </span>
+                              <div className="mt-1 flex flex-wrap items-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  render={<Link href={`/inventario?entrada=${m.id}#entrada`} scroll={false} />}
+                                >
+                                  Entrada
+                                </Button>
+                                {!agotado && existencia ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    render={<Link href={`/trabajos?origen_sobrante=${existencia.id}`} />}
+                                  >
+                                    Usar en un trabajo
+                                  </Button>
+                                ) : null}
+                                {existencia ? (
+                                  <CorregirCantidad
+                                    id={existencia.id}
+                                    cantidad={cantidad}
+                                    decimales={admiteDecimales(existencia.clase)}
+                                  />
+                                ) : null}
+                                <BotonEliminarMaterial id={m.id} nombre={etiquetaMaterial(m)} />
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden text-right align-top sm:table-cell">
+                              {precio.principal}
+                              {precio.detalle ? (
+                                <span className="block text-xs text-muted-foreground">{precio.detalle}</span>
+                              ) : null}
+                            </TableCell>
+                            <TableCell className="text-right align-top">
+                              {agotado ? (
+                                <strong className="text-destructive">Agotado</strong>
+                              ) : (
+                                describirCantidad({ ...existencia!, cantidad })
+                              )}
+                            </TableCell>
+                            <TableCell className="hidden text-right align-top font-medium sm:table-cell">
+                              {existencia ? formatearMoneda(valorItem({ ...existencia, cantidad }, m)) : formatearMoneda(0)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+
+            {archivados.length ? (
+              <Card>
+                <CardContent>
+                  <details>
+                    <summary className="cursor-pointer text-sm font-medium">
+                      Materiales archivados ({archivados.length})
+                    </summary>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      No aparecen al registrar entradas, retales ni desperdicio,
+                      pero su historial y sus costos se conservan.
+                    </p>
+                    <ul className="mt-3 flex flex-col divide-y">
+                      {archivados.map((m) => (
+                        <li key={m.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                          <span>{etiquetaMaterial(m)}</span>
+                          <BotonRestaurarMaterial id={m.id} />
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                </CardContent>
+              </Card>
+            ) : null}
+          </>
+        ) : (
+          <>
         <Card>
           <CardContent className="p-0">
             {!sobrantes?.length ? (
@@ -357,13 +440,52 @@ export default async function InventarioPage({
             )}
           </nav>
         ) : null}
+          </>
+        )}
         </div>
 
         <div className="flex flex-col gap-6">
-        <FormularioEntrada materiales={paraEntrada} />
-        <FormularioSobrante materiales={opciones} trabajos={trabajos ?? []} />
+          {vista === "materiales" ? (
+            <>
+              <FormularioMaterial />
+              <FormularioEntrada materiales={paraEntrada} preseleccion={entrada ?? null} />
+              <FormularioImportar />
+            </>
+          ) : (
+            <FormularioSobrante materiales={opciones} trabajos={trabajos ?? []} />
+          )}
         </div>
       </div>
     </>
   );
+}
+
+/** Precio de un material como lo compra el taller, con el detalle útil debajo. */
+function precioDe(m: {
+  unidad: string;
+  costo_unitario: number;
+  costo_lamina: number | null;
+  ancho_cm: number | null;
+  alto_cm: number | null;
+  ml_por_m2?: number | null;
+}): { principal: string; detalle: string | null } {
+  const costo = Number(m.costo_unitario);
+  switch (m.unidad) {
+    case "m2":
+      return m.costo_lamina
+        ? {
+            principal: `${formatearMoneda(m.costo_lamina)} / lámina`,
+            detalle: `${formatearMoneda(costo)} / m²${m.ancho_cm && m.alto_cm ? ` · ${formatearNumero(m.ancho_cm)} × ${formatearNumero(m.alto_cm)} cm` : ""}`,
+          }
+        : { principal: `${formatearMoneda(costo)} / m²`, detalle: null };
+    case "metro_lineal":
+      return { principal: `${formatearMoneda(costo)} / m`, detalle: null };
+    case "ml":
+      return {
+        principal: `${formatearMoneda(costo)} / ml`,
+        detalle: `${formatearMoneda(costo * 1000)} / litro${m.ml_por_m2 ? ` · ${formatearNumero(m.ml_por_m2)} ml/m²` : ""}`,
+      };
+    default:
+      return { principal: `${formatearMoneda(costo)} / unidad`, detalle: null };
+  }
 }

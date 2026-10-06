@@ -234,20 +234,20 @@
 <!-- ======================================================= FASE 4 -->
 <section class="fase" data-fase>
   <div class="fase-cabecera">
-    <h2><span class="numero">4</span>Arma el catálogo de precios</h2>
+    <h2><span class="numero">4</span>Carga tus materiales en el Inventario</h2>
     <span class="fase-progreso"></span>
   </div>
-  <p class="para">En Materiales sólo van los <strong>precios</strong>. Lo que tienes físicamente va en el Inventario (fase 5).</p>
+  <p class="para">En el Inventario cada material tiene su <strong>precio</strong> y <strong>cuánto tienes</strong> en bodega, en una sola tabla.</p>
   <ul class="lista">
     <li><label class="item"><input type="checkbox" data-id="f4-lista"><div class="item-cuerpo">
       <div class="item-titulo">Haz la lista de lo que compras <span class="etiqueta e-admin">Administrador</span></div>
-      <div class="item-detalle">Para cada material anota tipo, color, grosor y cómo se mide: <strong>Lámina (m²)</strong> con su tamaño y precio por lámina (acrílico, PVC, vinilo), <strong>Metro lineal</strong> con el precio del metro (neón, cable) o <strong>Unidad</strong> con el precio de cada una (tornillos, LED).</div>
+      <div class="item-detalle">Para cada material anota tipo, color, grosor, cómo se mide y cuánto tienes: <strong>Lámina (m²)</strong> con su tamaño y precio por lámina (acrílico, PVC, vinilo), <strong>Metro lineal</strong> con el precio del metro (neón, cable), <strong>Unidad</strong> con el precio de cada una (tornillos, LED) o <strong>Mililitros</strong> con el precio y contenido del envase (tintas, adhesivos).</div>
     </div></label></li>
     <li><label class="item"><input type="checkbox" data-id="f4-cargar"><div class="item-cuerpo">
       <div class="item-titulo">Cárgalos en la plataforma <span class="etiqueta e-admin">Administrador</span> <span class="etiqueta e-operario">Operario</span></div>
       <div class="item-detalle">
-        <strong>Pocos:</strong> <span class="ruta">Materiales → Nuevo material</span>, uno por uno.<br>
-        <strong>Muchos:</strong> <span class="ruta">Materiales → Cargar varios materiales → Descargar plantilla de Excel</span>, llénala y súbela con «Importar materiales». Si en «Existencias» escribes cuánto tienes, eso entra solo al Inventario.
+        <strong>Pocos:</strong> <span class="ruta">Inventario → Nuevo material</span>, uno por uno, con «¿Cuánto tienes?».<br>
+        <strong>Muchos:</strong> <span class="ruta">Inventario → Cargar varios materiales → Descargar plantilla de Excel</span>, llénala (con «Cantidad que tienes») y súbela con «Importar materiales».
       </div>
     </div></label></li>
   </ul>
@@ -257,14 +257,14 @@
 <!-- ======================================================= FASE 5 -->
 <section class="fase" data-fase>
   <div class="fase-cabecera">
-    <h2><span class="numero">5</span>Registra todo lo que tienes en el Inventario</h2>
+    <h2><span class="numero">5</span>Mantén el Inventario al día</h2>
     <span class="fase-progreso"></span>
   </div>
-  <p class="para">El Inventario es tu bodega: láminas completas, retales, rollos por metro y unidades. Los trabajos sacan de aquí.</p>
+  <p class="para">El Inventario es tu bodega: láminas completas, retales, rollos por metro, unidades y líquidos. Los trabajos sacan de aquí.</p>
   <ul class="lista">
     <li><label class="item"><input type="checkbox" data-id="f5-entrada"><div class="item-cuerpo">
-      <div class="item-titulo">Registra lo que hay en bodega <span class="etiqueta e-operario">Operario</span></div>
-      <div class="item-detalle"><span class="ruta">Inventario → Entrada de material</span>: por ejemplo «Acrílico negro 3 mm: 5 láminas», «Neón rojo: 50 m», «Tornillo 1/2": 200 unidades». Úsalo también cada vez que compres.</div>
+      <div class="item-titulo">Registra cada compra <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-detalle">Toca <span class="ruta">Entrada</span> en la fila del material: por ejemplo «Acrílico negro 3 mm: 5 láminas», «Neón rojo: 50 m», «Tinta cyan: 1000 ml».</div>
     </div></label></li>
     <li><label class="item"><input type="checkbox" data-id="f5-retales"><div class="item-cuerpo">
       <div class="item-titulo">Registra los retales que ya tenías <span class="etiqueta e-operario">Operario</span></div>
@@ -287,30 +287,22 @@
   <ul class="lista">
     <li><label class="item"><input type="checkbox" data-id="f6-crear"><div class="item-cuerpo">
       <div class="item-titulo">Crea el trabajo <span class="etiqueta e-operario">Operario</span></div>
-      <div class="item-detalle"><span class="ruta">Trabajos → Nuevo trabajo</span>: nombre, cliente y fecha. Luego ábrelo.</div>
+      <div class="item-detalle"><span class="ruta">Trabajos → Nuevo trabajo</span>: nombre (con el tipo, por ejemplo «Aviso neón – Cliente»), cliente, fecha en que se recibe y fecha de entrega. Luego ábrelo.</div>
     </div></label></li>
     <li><label class="item"><input type="checkbox" data-id="f6-sacar"><div class="item-cuerpo">
       <div class="item-titulo">1. Saca del inventario lo que usas <span class="etiqueta e-operario">Operario</span></div>
       <div class="item-detalle">Escribe la medida que necesitas (50 × 50) y la app te muestra primero los <strong>retales que alcanzan</strong>: úsalo antes de abrir una lámina nueva (eso es ahorro). Para el neón y el cable, elige el rollo y escribe los metros.</div>
     </div></label></li>
-    <li><label class="item"><input type="checkbox" data-id="f6-piezas"><div class="item-cuerpo">
-      <div class="item-titulo">2. Registra las piezas que entregas <span class="etiqueta e-operario">Operario</span></div>
-      <div class="item-detalle">Las medidas de lo que se lleva el cliente (la pieza de 50 × 50). En formas irregulares, el rectángulo que las contiene.</div>
-    </div></label></li>
     <li><label class="item"><input type="checkbox" data-id="f6-devolver"><div class="item-cuerpo">
-      <div class="item-titulo">3. Devuelve lo que sobró <span class="etiqueta e-operario">Operario</span></div>
+      <div class="item-titulo">2. Devuelve lo que sobró <span class="etiqueta e-operario">Operario</span></div>
       <div class="item-detalle">Lo que sirve vuelve al inventario como retal con su código SOB. Márcalo sobre el material.</div>
-    </div></label></li>
-    <li><label class="item"><input type="checkbox" data-id="f6-recortes"><div class="item-cuerpo">
-      <div class="item-titulo">4. Registra los recortes que se pierden <span class="etiqueta e-operario">Operario</span></div>
-      <div class="item-detalle">La tarjeta «Recortes que se pierden» resta las piezas y lo devuelto a lo que sacaste. Pulsa «Registrar recortes» y queda en Desperdicio.</div>
     </div></label></li>
     <li><label class="item"><input type="checkbox" data-id="f6-estado"><div class="item-cuerpo">
       <div class="item-titulo">Actualiza el estado <span class="etiqueta e-operario">Operario</span></div>
       <div class="item-detalle">Pendiente, En proceso o Terminado, para que todos sepan cómo va.</div>
     </div></label></li>
   </ul>
-  <div class="nota">¿Sacaste algo por error? Pulsa «Devolver» en esa línea y vuelve al inventario. Si borras el trabajo, también vuelve todo lo que sacó.</div>
+  <div class="nota">¿Sacaste de más? Pulsa «Devolver» en esa línea y escribe cuánto vuelve. Si borras el trabajo, también vuelve todo lo que sacó. Lo que se daña, regístralo en Desperdicio.</div>
 </section>
 
 <!-- ======================================================= FASE 7 -->

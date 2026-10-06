@@ -44,43 +44,35 @@ export default function GuiaPage() {
           </CardContent>
         </Card>
 
-        <Paso id="materiales" numero={1} titulo="Materiales: el catálogo de precios" enlace="/materiales">
+        <Paso id="inventario" numero={1} titulo="Inventario: tus materiales y lo que tienes" enlace="/inventario">
           <p>
-            Aquí defines <strong>qué materiales usas y cuánto cuestan</strong>.
-            Solo precios: lo que tienes físicamente se registra en Inventario.
+            Aquí están <strong>tus materiales con su precio y cuánto tienes</strong>{" "}
+            en bodega, en una sola tabla. Los trabajos sacan de aquí.
           </p>
           <ul className="ml-4 list-disc space-y-1">
-            <li><strong>Lámina (m²)</strong>: acrílico, PVC, vinilo… Escribe el tamaño de la lámina y su precio; el costo por m² se calcula solo.</li>
-            <li><strong>Metro lineal</strong>: neón, cable, vinilo de corte en rollo… Escribe el precio del metro.</li>
-            <li><strong>Unidad</strong>: tornillos, luces LED, fuentes… Escribe el precio de cada una.</li>
-            <li><strong>Mililitros</strong>: tintas, adhesivos, pinturas, thinner. Escribe el precio del envase y cuánto trae (1 litro = 1000 ml, 1 galón = 3785 ml); el precio por ml se calcula solo.</li>
+            <li>
+              <strong>Nuevo material</strong>: tipo, color y cómo se mide. Si ya
+              tienes en bodega, escribe cuánto y queda en el inventario de una vez.
+              <ul className="mt-1 ml-4 list-[circle] space-y-1">
+                <li><strong>Lámina (m²)</strong>: acrílico, PVC, vinilo… El tamaño de la lámina y su precio; el costo por m² se calcula solo.</li>
+                <li><strong>Metro lineal</strong>: neón, cable, vinilo de corte en rollo… El precio del metro.</li>
+                <li><strong>Unidad</strong>: tornillos, luces LED, fuentes… El precio de cada una.</li>
+                <li><strong>Mililitros</strong>: tintas, adhesivos, pinturas, thinner. El precio del envase y cuánto trae (1 litro = 1000 ml, 1 galón = 3785 ml).</li>
+              </ul>
+            </li>
+            <li>¿Muchos materiales? <strong>Cargar varios materiales</strong> con la plantilla de Excel, con su precio y la cantidad que tienes.</li>
+            <li>Cuando compras, toca <strong>Entrada</strong> en la fila del material (o usa «Entrada de material»).</li>
+            <li>Si cuentas la bodega y algo no cuadra, usa <strong>Corregir</strong> en esa fila.</li>
+            <li><strong>Retales</strong>: en sus pestañas ves los disponibles y los usados, con foto. Los viejos que ya tenías, regístralos con <strong>Registrar retal</strong> y marca su código con marcador.</li>
           </ul>
           <Ejemplo>
-            Acrílico negro 3 mm, lámina de 120 × 180 cm a $250.000: el sistema
-            calcula 2,16 m² por lámina y $115.741 el m². Tinta cyan, botella de
-            1000 ml a $95.000: $95 el ml.
+            Acrílico negro 3 mm, lámina de 120 × 180 cm a $250.000, tienes 5: el
+            sistema calcula $115.741 el m² y el inventario queda con 5 láminas
+            ($1.250.000). Tinta cyan, botella de 1000 ml a $95.000: $95 el ml.
           </Ejemplo>
-          <p className="text-muted-foreground">
-            ¿Muchos materiales? Usa <strong>Cargar varios materiales</strong> con la
-            plantilla de Excel.
-          </p>
         </Paso>
 
-        <Paso id="inventario" numero={2} titulo="Inventario: todo lo que tienes" enlace="/inventario">
-          <p>
-            Aquí vive <strong>todo lo físico</strong> del taller: láminas
-            completas, retales (pedazos con medidas y código SOB), rollos por
-            metro, unidades y líquidos en ml.
-          </p>
-          <ul className="ml-4 list-disc space-y-1">
-            <li>Cuando compras, usa <strong>Entrada de material</strong>: por ejemplo «Acrílico negro: 5 láminas», «Neón rojo: 50 m» o «Tinta cyan: 1000 ml».</li>
-            <li>Si cuentas la bodega y algo no cuadra, usa <strong>Corregir</strong> en esa existencia.</li>
-            <li>Los retales viejos que ya tenías, regístralos con <strong>Registrar retal</strong>. Marca su código con marcador sobre el material.</li>
-            <li><strong>Usar en un trabajo</strong> te lleva directo a sacar esa existencia para un trabajo.</li>
-          </ul>
-        </Paso>
-
-        <Paso id="trabajos" numero={3} titulo="Trabajos: todo sale del inventario" enlace="/trabajos">
+        <Paso id="trabajos" numero={2} titulo="Trabajos: todo sale del inventario" enlace="/trabajos">
           <p>
             Crea el trabajo con su <strong>fecha de entrega</strong> (si se pasa
             sin terminarlo, sale en rojo en la lista). Consejo: pon el tipo en el
@@ -125,7 +117,7 @@ export default function GuiaPage() {
           </p>
         </Paso>
 
-        <Paso id="desperdicio" numero={4} titulo="Desperdicio: lo que se perdió" enlace="/desperdicio">
+        <Paso id="desperdicio" numero={3} titulo="Desperdicio: lo que se perdió" enlace="/desperdicio">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-md border border-emerald-600/30 bg-emerald-50/50 p-3">
               <p className="text-sm font-medium text-emerald-900">Sobrante</p>
@@ -147,7 +139,7 @@ export default function GuiaPage() {
           </p>
         </Paso>
 
-        <Paso id="capacidad" numero={5} titulo="Capacidad: presta y pide máquinas" enlace="/capacidad">
+        <Paso id="capacidad" numero={4} titulo="Capacidad: presta y pide máquinas" enlace="/capacidad">
           <p>
             La red de talleres de ECO-SIGN: cuando tu máquina está quieta, otro
             taller te la puede alquilar; cuando te falta una, la consigues.
@@ -170,7 +162,7 @@ export default function GuiaPage() {
           </Ejemplo>
         </Paso>
 
-        <Paso id="avisos" numero={6} titulo="Avisos: la campanita 🔔" enlace="/perfil">
+        <Paso id="avisos" numero={5} titulo="Avisos: la campanita 🔔" enlace="/perfil">
           <p>
             La campanita de arriba te avisa cuando te piden una máquina, te
             responden, te califican o alguien busca una máquina en la red.
@@ -184,7 +176,7 @@ export default function GuiaPage() {
           </p>
         </Paso>
 
-        <Paso id="dashboard" numero={7} titulo="Dashboard: el resultado" enlace="/dashboard" soloAdmin>
+        <Paso id="dashboard" numero={6} titulo="Dashboard: el resultado" enlace="/dashboard" soloAdmin>
           <p>
             El <strong>Resumen del taller</strong>: ahorro del mes (cada retal que
             un trabajo usa en vez de material nuevo), desperdicio del mes,
@@ -193,7 +185,7 @@ export default function GuiaPage() {
           </p>
         </Paso>
 
-        <Paso id="equipo" numero={8} titulo="Equipo: quién usa ECO-SIGN" enlace="/configuracion/equipo" soloAdmin>
+        <Paso id="equipo" numero={7} titulo="Equipo: quién usa ECO-SIGN" enlace="/configuracion/equipo" soloAdmin>
           <p>
             Invita a tu gente con su correo y elige qué puede hacer cada uno:
           </p>
@@ -208,7 +200,7 @@ export default function GuiaPage() {
           </p>
         </Paso>
 
-        <Paso id="configuracion" numero={9} titulo="Configuración: los datos del taller" enlace="/configuracion" soloAdmin>
+        <Paso id="configuracion" numero={8} titulo="Configuración: los datos del taller" enlace="/configuracion" soloAdmin>
           <p>
             El nombre, NIT, teléfono, ciudad y dirección del taller. El{" "}
             <strong>teléfono</strong> es el que se sugiere cuando respondes una
@@ -228,7 +220,7 @@ export default function GuiaPage() {
           </CardHeader>
           <CardContent className="text-sm">
             <ol className="ml-4 list-decimal space-y-2">
-              <li>Llega material: regístralo en Inventario → Entrada de material.</li>
+              <li>Llega material: tócale «Entrada» en Inventario (o créalo con «Nuevo material» si es nuevo).</li>
               <li>Empieza una obra: créala en Trabajos.</li>
               <li>Antes de cortar: escribe la medida en «Sacar del inventario» y usa un retal si alcanza.</li>
               <li>Si imprimes: saca las tintas con «Tintas de impresión».</li>
@@ -244,15 +236,14 @@ export default function GuiaPage() {
 }
 
 const SECCIONES = [
-  { id: "materiales", numero: 1, nombre: "Materiales" },
-  { id: "inventario", numero: 2, nombre: "Inventario" },
-  { id: "trabajos", numero: 3, nombre: "Trabajos" },
-  { id: "desperdicio", numero: 4, nombre: "Desperdicio" },
-  { id: "capacidad", numero: 5, nombre: "Capacidad" },
-  { id: "avisos", numero: 6, nombre: "Avisos" },
-  { id: "dashboard", numero: 7, nombre: "Dashboard" },
-  { id: "equipo", numero: 8, nombre: "Equipo" },
-  { id: "configuracion", numero: 9, nombre: "Configuración" },
+  { id: "inventario", numero: 1, nombre: "Inventario" },
+  { id: "trabajos", numero: 2, nombre: "Trabajos" },
+  { id: "desperdicio", numero: 3, nombre: "Desperdicio" },
+  { id: "capacidad", numero: 4, nombre: "Capacidad" },
+  { id: "avisos", numero: 5, nombre: "Avisos" },
+  { id: "dashboard", numero: 6, nombre: "Dashboard" },
+  { id: "equipo", numero: 7, nombre: "Equipo" },
+  { id: "configuracion", numero: 8, nombre: "Configuración" },
 ];
 
 function Paso({

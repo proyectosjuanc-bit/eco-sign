@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import type { EstadoForm, EstadoImportacion, FilaFallida } from "@/lib/form-state";
+import { admiteDecimales, claseDeCompra } from "@/lib/inventario";
 import { costoPorM2 } from "@/lib/lamina";
 import { createClient } from "@/lib/supabase/server";
 import { ERROR_SIN_TENANT, obtenerTenantId } from "@/lib/supabase/tenant";
@@ -143,8 +144,61 @@ export async function crearMaterial(
 
   if (error || !creado) return { error: error?.message ?? "No se pudo crear el material.", ok: false };
 
-  revalidatePath("/materiales");
-  return { error: null, ok: true, marca: Date.now() };
+  const aviso = await registrarCantidadInicial(
+    supabase,
+    tenantId,
+    creado.id,
+    resultado.material,
+    numero(formData, "cantidad_inicial"),
+  );
+
+  revalidarInventario();
+  return aviso
+    ? { error: null, ok: true, marca: Date.now(), aviso }
+    : { error: null, ok: true, marca: Date.now() };
+}
+
+/** Inventario y Materiales viven en la misma pestaña (Inventario). */
+function revalidarInventario() {
+  revalidatePath("/inventario");
+  revalidatePath("/dashboard");
+}
+
+/**
+ * Lo que ya hay en bodega al crear el material: entra al inventario en el
+ * mismo paso (como láminas, metros, unidades o ml, según cómo se mide).
+ * Devuelve un aviso si no se pudo; el material queda creado igual.
+ */
+async function registrarCantidadInicial(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tenantId: string,
+  materialId: string,
+  material: MaterialParaInsertar,
+  cantidad: number | null,
+): Promise<string | null> {
+  if (cantidad === null || cantidad <= 0) return null;
+  const clase = claseDeCompra(material.unidad);
+  if (!admiteDecimales(clase) && !Number.isInteger(cantidad)) {
+    return "El material se creó, pero la cantidad debe ser entera (1, 2, 3…). Regístrala con «Entrada».";
+  }
+  if (clase === "lamina" && (!material.ancho_cm || !material.alto_cm)) {
+    return "El material se creó, pero sin el tamaño de la lámina no se pueden registrar láminas.";
+  }
+  const { error } = await supabase.from("inventory_items").insert({
+    tenant_id: tenantId,
+    material_id: materialId,
+    clase,
+    ancho_cm: clase === "lamina" ? Number(material.ancho_cm) : 1,
+    alto_cm: clase === "lamina" ? Number(material.alto_cm) : 1,
+    cantidad,
+    costo_estimado: 0,
+    codigo: null,
+  });
+  if (error) {
+    console.error("[materiales] No se pudo registrar la cantidad inicial", error);
+    return "El material se creó, pero no pudimos registrar lo que tienes. Hazlo con «Entrada».";
+  }
+  return null;
 }
 
 /** Lee una celda de CSV como número, aceptando coma decimal. Vacío es null. */
@@ -227,10 +281,19 @@ export async function importarMateriales(
       continue;
     }
 
+    const aviso = await registrarCantidadInicial(
+      supabase,
+      tenantId,
+      creado.id,
+      resultado.material,
+      numeroDeCelda(fila.cantidad_inicial),
+    );
+    if (aviso) fallidas.push({ fila: numeroFila, motivo: aviso });
+
     creadas++;
   }
 
-  if (creadas > 0) revalidatePath("/materiales");
+  if (creadas > 0) revalidarInventario();
 
   return { error: null, creadas, fallidas, marca: Date.now() };
 }
@@ -261,7 +324,7 @@ export async function eliminarMaterial(id: string): Promise<ResultadoArchivo> {
     .select("id");
 
   if (!error && borrados?.length) {
-    revalidatePath("/materiales");
+    revalidarInventario();
     return { ok: true, mensaje: "Material eliminado." };
   }
 
@@ -273,7 +336,7 @@ export async function eliminarMaterial(id: string): Promise<ResultadoArchivo> {
       .eq("id", id)
       .select("id");
     if (!errorArchivo && archivados?.length) {
-      revalidatePath("/materiales");
+      revalidarInventario();
       return {
         ok: true,
         mensaje:
@@ -304,7 +367,7 @@ export async function restaurarMaterial(id: string): Promise<ResultadoArchivo> {
     if (error) console.error("[materiales] No se pudo restaurar", error);
     return { ok: false, mensaje: "No pudimos restaurar el material." };
   }
-  revalidatePath("/materiales");
+  revalidarInventario();
   return { ok: true, mensaje: "Material restaurado." };
 }
 
@@ -330,6 +393,6 @@ export async function guardarMlPorM2(materialId: string, mlPorM2: number): Promi
     if (error) console.error("[materiales] No se pudo guardar ml por m²", error);
     return { error: "No pudimos guardar el consumo por m². Revisa que tu rol permita editar." };
   }
-  revalidatePath("/materiales");
+  revalidarInventario();
   return { error: null };
 }

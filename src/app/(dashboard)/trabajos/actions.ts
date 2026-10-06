@@ -638,7 +638,6 @@ export async function sacarTintas(
 
   revalidatePath(`/trabajos/${jobId}`);
   revalidatePath("/inventario");
-  revalidatePath("/materiales");
   revalidatePath("/dashboard");
   return { error: null };
 }

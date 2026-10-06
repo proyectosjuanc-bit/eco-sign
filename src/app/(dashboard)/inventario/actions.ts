@@ -313,7 +313,7 @@ export async function entradaMaterial(
   }
   if (clase === "lamina" && (!material.ancho_cm || !material.alto_cm)) {
     return {
-      error: "Para registrar láminas, primero escribe en Materiales el tamaño de la lámina (ancho y alto).",
+      error: "Este material no tiene el tamaño de la lámina (ancho y alto). Créalo de nuevo con su tamaño.",
       ok: false,
     };
   }

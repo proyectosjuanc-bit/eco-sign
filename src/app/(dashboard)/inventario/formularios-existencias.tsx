@@ -28,7 +28,14 @@ const CLASE_SELECT =
  * Entrada de material: una compra, o lo que ya hay en bodega al empezar.
  * Pregunta láminas, metros o unidades según cómo se mide el material.
  */
-export function FormularioEntrada({ materiales }: { materiales: MaterialEntrada[] }) {
+export function FormularioEntrada({
+  materiales,
+  preseleccion = null,
+}: {
+  materiales: MaterialEntrada[];
+  /** Material ya elegido (botón «Entrada» de una fila del inventario). */
+  preseleccion?: string | null;
+}) {
   const [estado, accion, enviando] = useActionState(entradaMaterial, ESTADO_FORM_INICIAL);
 
   useEffect(() => {
@@ -38,8 +45,9 @@ export function FormularioEntrada({ materiales }: { materiales: MaterialEntrada[
   return (
     // Cada entrada correcta remonta los campos limpios (nueva key).
     <CamposEntrada
-      key={estado.ok ? `ok-${estado.marca}` : "editando"}
+      key={estado.ok ? `ok-${estado.marca}` : `editando-${preseleccion ?? ""}`}
       materiales={materiales}
+      preseleccion={estado.ok ? null : preseleccion}
       accion={accion}
       enviando={enviando}
       error={estado.error}
@@ -49,16 +57,20 @@ export function FormularioEntrada({ materiales }: { materiales: MaterialEntrada[
 
 function CamposEntrada({
   materiales,
+  preseleccion,
   accion,
   enviando,
   error,
 }: {
   materiales: MaterialEntrada[];
+  preseleccion: string | null;
   accion: (fd: FormData) => void;
   enviando: boolean;
   error: string | null;
 }) {
-  const [materialId, setMaterialId] = useState("");
+  const [materialId, setMaterialId] = useState(
+    preseleccion && materiales.some((m) => m.id === preseleccion) ? preseleccion : "",
+  );
   const elegido = materiales.find((m) => m.id === materialId);
   const pregunta =
     elegido?.unidad === "unidad"
@@ -71,7 +83,7 @@ function CamposEntrada({
   const sinTamano = elegido?.unidad === "m2" && (!elegido.ancho_cm || !elegido.alto_cm);
 
   return (
-    <Card>
+    <Card id="entrada" className="scroll-mt-20">
       <CardHeader>
         <CardTitle>Entrada de material</CardTitle>
         <CardDescription>
@@ -82,7 +94,7 @@ function CamposEntrada({
       <CardContent>
         {!materiales.length ? (
           <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
-            Primero crea tus materiales (con su precio) en <strong>Materiales</strong>.
+            Primero crea tus materiales con <strong>Nuevo material</strong>.
           </p>
         ) : (
           <form onSubmit={enviarSinLimpiar(accion)} className="flex flex-col gap-4">
@@ -126,7 +138,7 @@ function CamposEntrada({
                 ) : null}
                 {sinTamano ? (
                   <p className="text-xs text-destructive">
-                    Este material no tiene tamaño de lámina. Agrégalo en Materiales antes de registrar láminas.
+                    Este material no tiene tamaño de lámina. Créalo de nuevo con su tamaño para registrar láminas.
                   </p>
                 ) : null}
               </div>

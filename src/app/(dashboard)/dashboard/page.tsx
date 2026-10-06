@@ -283,7 +283,7 @@ export default async function DashboardPage() {
                 Todo lo que hay en bodega. De eso,{" "}
                 <strong className="text-emerald-600">{formatearMoneda(valorDisponible)}</strong> en
                 retales listos para reutilizar en el{" "}
-                <Link href="/inventario" className="underline underline-offset-4">
+                <Link href="/inventario?ver=retales" className="underline underline-offset-4">
                   inventario
                 </Link>
                 .
